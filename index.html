@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="lv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SK Mitauer Training Planner</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">SK Mitauer</p>
+        <h1>Treniņu plāns</h1>
+      </div>
+      <div class="profile-switcher" aria-label="Skata izvēle">
+        <button class="active" data-role="coach" type="button">Treneris</button>
+        <button data-role="athlete" type="button">Sportists</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="planner-panel">
+        <section class="panel">
+          <h2>Sportists</h2>
+          <select id="athleteSelect" aria-label="Izvēlies sportistu"></select>
+        </section>
+
+        <section class="panel" id="trainingPickerPanel">
+          <h2>Treniņa izvēle</h2>
+          <div class="choice-tabs" aria-label="Treniņa veids">
+            <button class="active" data-source="template" type="button">Sagataves</button>
+            <button data-source="custom" type="button">Jauns treniņš</button>
+          </div>
+
+          <div id="templatePicker">
+            <div class="template-list" id="templateList"></div>
+          </div>
+
+          <div class="custom-builder" id="customBuilder" hidden>
+            <label>
+              Treniņa tips
+              <select id="customType">
+                <option value="Intervāli">Intervāli</option>
+                <option value="Tempa skrējiens">Tempa skrējiens</option>
+                <option value="Vieglais skrējiens">Vieglais skrējiens</option>
+                <option value="Garais skrējiens">Garais skrējiens</option>
+              </select>
+            </label>
+
+            <div class="field-grid">
+              <label>
+                Iesildīšanās
+                <input id="warmupDuration" type="text" value="15 min" />
+              </label>
+
+              <label>
+                Pulss
+                <input id="warmupPulse" type="text" value="130-145" />
+              </label>
+            </div>
+
+            <label class="checkbox-row">
+              <input id="includeDrills" type="checkbox" checked />
+              <span>Drills</span>
+            </label>
+
+            <div id="intervalFields">
+              <div class="field-grid">
+                <label>
+                  Reizes
+                  <input id="repeatCount" type="text" value="6" />
+                </label>
+
+                <label>
+                  Intervāls
+                  <input id="intervalLength" type="text" value="600 m" />
+                </label>
+              </div>
+
+              <div class="field-grid">
+                <label>
+                  Intervāla temps
+                  <input id="intervalPace" type="text" value="3:45/km" />
+                </label>
+
+                <label>
+                  Atpūta
+                  <input id="restDuration" type="text" value="2 min" />
+                </label>
+              </div>
+            </div>
+
+            <div class="field-grid" id="mainFields" hidden>
+              <label>
+                Pamatdaļa
+                <input id="mainDuration" type="text" value="45 min" />
+              </label>
+
+              <label>
+                Pulss
+                <input id="mainPulse" type="text" value="145-155" />
+              </label>
+            </div>
+
+            <div class="field-grid">
+              <label>
+                Atsildīšanās
+                <input id="cooldownDuration" type="text" value="15 min" />
+              </label>
+
+              <label>
+                Pulss
+                <input id="cooldownPulse" type="text" value="120-135" />
+              </label>
+            </div>
+
+            <div class="generated-preview" id="customPreview"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Profils</h2>
+          <div class="profile-card" id="profileCard"></div>
+        </section>
+      </aside>
+
+      <section class="calendar-shell">
+        <div class="toolbar">
+          <div>
+            <p class="eyebrow">Nedēļas plāns</p>
+            <h2 id="weekLabel"></h2>
+          </div>
+        </div>
+
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </section>
+    </main>
+
+    <dialog class="session-dialog" id="commentDialog">
+      <form method="dialog">
+        <div class="dialog-header">
+          <h2>Komentāri</h2>
+          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
+        </div>
+
+        <label>
+          Trenera komentārs
+          <textarea id="coachComment" rows="4" placeholder="Piemēram: šodien saudzīgi, ja jūt nogurumu."></textarea>
+        </label>
+
+        <label>
+          Sportista komentārs
+          <textarea id="athleteComment" rows="4" placeholder="Piemēram: kā jutās treniņā, jautājumi trenerim."></textarea>
+        </label>
+
+        <div class="dialog-actions">
+          <button value="cancel" type="submit">Atcelt</button>
+          <button class="primary-action" id="saveCommentButton" value="default" type="button">Saglabāt</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="session-dialog" id="saveTemplateDialog">
+      <form method="dialog">
+        <div class="dialog-header">
+          <h2>Saglabāt sagatavēs?</h2>
+          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
+        </div>
+
+        <div class="generated-preview" id="saveTemplateSummary"></div>
+
+        <div class="dialog-actions split-actions">
+          <button id="insertOnlyButton" value="default" type="button">Tikai ievietot</button>
+          <button class="primary-action" id="saveAndInsertButton" value="default" type="button">Saglabāt un ievietot</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
