@@ -25,8 +25,11 @@
           </label>
           <label>
             Parole
-            <input id="loginPassword" type="password" autocomplete="current-password"
-                   placeholder="••••••••" />
+            <span class="pw-wrapper">
+              <input id="loginPassword" type="password" autocomplete="current-password"
+                     placeholder="••••••••" />
+              <button id="toggleLoginPw" class="pw-toggle" type="button" aria-label="Rādīt/slēpt paroli">👁️</button>
+            </span>
           </label>
           <label class="checkbox-row">
             <input id="rememberLogin" type="checkbox" checked />
@@ -35,7 +38,6 @@
         </form>
         <div id="authError" class="auth-error" hidden></div>
         <button id="loginBtn" class="primary-action" type="button">Ieiet</button>
-        <a href="#" id="forgotLink" class="text-button">Aizmirsi paroli?</a>
       </div>
     </div>
 
@@ -68,6 +70,17 @@
               <div class="dropdown-list" id="dropdownList"></div>
             </div>
             <select id="athleteSelect" hidden aria-label="Izvēlies sportistu"></select>
+          </section>
+
+          <section class="panel collapsible" id="adminPanel" hidden>
+            <div class="panel-header">
+              <h2>Administrēšana</h2>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt administrēšanu">▼</button>
+            </div>
+            <div class="panel-body">
+              <button id="createUserBtn" class="primary-action" type="button">Pievienot sportistu</button>
+              <div id="adminAthleteList"></div>
+            </div>
           </section>
 
           <section class="panel collapsible collapsed" id="trainingPickerPanel" hidden>
@@ -226,6 +239,38 @@
               <button class="collapse-toggle" type="button" aria-label="Rādīt dienasgrāmatu">▶</button>
             </div>
             <div class="panel-body" id="diaryBody"></div>
+          </section>
+
+          <section class="panel collapsible collapsed" id="selfTestsPanel">
+            <div class="panel-header">
+              <div class="panel-header-text">
+                <h2>Paštesti</h2>
+                <span class="panel-subtitle">Fiziskās pārbaudes vingrinājumi</span>
+              </div>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt paštestus">▶</button>
+            </div>
+            <div class="panel-body" id="selfTestsBody"></div>
+          </section>
+
+          <section class="panel collapsible collapsed" id="polarTestsPanel">
+            <div class="panel-header">
+              <div class="panel-header-text">
+                <h2>Polar testi</h2>
+                <span class="panel-subtitle">Aerobās kapacitātes testi</span>
+              </div>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt polar testus">▶</button>
+            </div>
+            <div class="panel-body" id="polarTestsBody"></div>
+          </section>
+
+          <section class="panel collapsible collapsed" id="exerciseLibraryPanel">
+            <div class="panel-header">
+              <div class="panel-header-text">
+                <h2>VFS/SFS vingrinājumu bibliotēka</h2>
+              </div>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt vingrinājumus">▶</button>
+            </div>
+            <div class="panel-body" id="exerciseLibraryBody"></div>
           </section>
 
           </div>
@@ -543,6 +588,135 @@
         <div id="monthGrid"></div>
         <div class="dialog-actions">
           <button value="cancel" type="submit">Aizvērt</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="session-dialog" id="createUserDialog">
+      <form method="dialog">
+        <div class="dialog-header">
+          <h2>Pievienot lietotāju</h2>
+          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
+        </div>
+        <label>Vārds <input id="newUserFirstName" required /></label>
+        <label>Uzvārds <input id="newUserLastName" required /></label>
+        <label>Loma
+          <select id="newUserRole">
+            <option value="athlete">Sportists</option>
+            <option value="coach">Treneris</option>
+          </select>
+        </label>
+        <label>Lietotājvārds
+          <input id="newUserUsername" class="generated-username" readonly tabindex="-1" />
+        </label>
+        <div id="createUserResult" hidden></div>
+        <div id="createUserError" class="auth-error" hidden></div>
+        <div class="dialog-actions">
+          <button value="cancel" type="submit">Atcelt</button>
+          <button class="primary-action" id="saveNewUserBtn" type="button">Izveidot</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="session-dialog" id="deleteUserConfirmDialog">
+      <form method="dialog">
+        <div class="dialog-header">
+          <h2>Dzēst sportistu</h2>
+          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
+        </div>
+        <div id="deleteUserConfirmBody"></div>
+        <div id="deleteUserError" class="auth-error" hidden></div>
+        <div class="dialog-actions">
+          <button value="cancel" type="submit">Atcelt</button>
+          <button class="delete-action" id="confirmDeleteUserBtn" type="button">Dzēst</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="session-dialog" id="selfTestDialog">
+      <form method="dialog">
+        <div class="dialog-header">
+          <h2>Paštests</h2>
+          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
+        </div>
+        <label>Datums <input id="stDate" type="date" /></label>
+        <label>Plank (laiks) <input id="stPlank" type="time" step="1" /></label>
+        <label>Noturēt dibenu gaisā (laiks) <input id="stDibens" type="time" step="1" /></label>
+        <label>Nostāvēt uz rokām nolaižoties pie zemes (reizes) <input id="stRokas" type="number" min="0" /></label>
+        <label>Ar muguru pret sienu, iesēžas ietupienā (kājas 90°, laiks) <input id="stSiena" type="time" step="1" /></label>
+        <label>Cilāšanās pirkstgalos 1x/sek, labā kāja (reizes) <input id="stTipLab" type="number" min="0" /></label>
+        <label>Cilāšanās pirkstgalos 1x/sek, kreisā kāja (reizes) <input id="stTipKreis" type="number" min="0" /></label>
+        <label>Sāna PLANK, labais sāns (laiks) <input id="stPlankLab" type="time" step="1" /></label>
+        <label>Sāna PLANK, kreisais sāns (laiks) <input id="stPlankKreis" type="time" step="1" /></label>
+        <label>Mazais paleciens izklupienā (15cm), labā kāja priekšā (reizes) <input id="stPalLab" type="number" min="0" /></label>
+        <label>Mazais paleciens izklupienā (15cm), kreisā kāja priekšā (reizes) <input id="stPalKreis" type="number" min="0" /></label>
+        <div class="dialog-actions split-actions">
+          <button class="delete-action" id="deleteSelfTestBtn" type="button" hidden>Dzēst</button>
+          <button class="primary-action" id="saveSelfTestBtn" type="button">Saglabāt</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="session-dialog" id="polarTestDialog">
+      <form method="dialog">
+        <div class="dialog-header">
+          <h2>Polar tests</h2>
+          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
+        </div>
+        <label>Datums <input id="ptDate" type="date" /></label>
+        <label>MAS (min/km) <input id="ptMas" type="time" step="1" /></label>
+        <label>MAP (W) <input id="ptMap" type="number" min="0" /></label>
+        <label>VO2max <input id="ptVo2" type="number" step="0.1" min="0" /></label>
+        <label>Laktāts uzreiz pēc (mmol/L) <input id="ptLactAfter" type="number" step="0.1" min="0" /></label>
+        <label>Laktāts 5 min pēc (mmol/L) <input id="ptLact5" type="number" step="0.1" min="0" /></label>
+        <div class="dialog-actions split-actions">
+          <button class="delete-action" id="deletePolarTestBtn" type="button" hidden>Dzēst</button>
+          <button class="primary-action" id="savePolarTestBtn" type="button">Saglabāt</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="session-dialog" id="exerciseDialog">
+      <form method="dialog">
+        <div class="dialog-header">
+          <h2>Vingrinājums</h2>
+          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
+        </div>
+        <label>Nosaukums <input id="exTitle" /></label>
+        <label>Kategorija
+          <select id="exCategory">
+            <option value="VFS">VFS</option>
+            <option value="SFS">SFS</option>
+          </select>
+        </label>
+        <label>Saturs <textarea id="exContent" rows="10"></textarea></label>
+        <div class="dialog-actions split-actions">
+          <button class="delete-action" id="deleteExerciseBtn" type="button" hidden>Dzēst</button>
+          <button class="primary-action" id="saveExerciseBtn" type="button">Saglabāt</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="session-dialog" id="resetPasswordDialog">
+      <form method="dialog">
+        <div class="dialog-header">
+          <h2>Mainīt paroli</h2>
+          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
+        </div>
+        <p id="resetPwAthleteName" class="muted" style="margin:0 0 4px"></p>
+        <label>
+          Jaunā parole
+          <span class="pw-wrapper">
+            <input id="resetPwInput" class="generated-username" readonly tabindex="-1" />
+            <button id="toggleResetPw" class="pw-toggle" type="button" aria-label="Rādīt/slēpt paroli">👁️</button>
+          </span>
+        </label>
+        <button id="copyResetPwBtn" class="secondary-action" type="button" style="width:100%">📋 Kopēt</button>
+        <span id="copyResetPwFeedback" style="display:none;color:#16a34a;font-size:0.85rem;margin-top:-8px">Nokopēts!</span>
+        <div id="resetPwError" class="auth-error" hidden></div>
+        <div class="dialog-actions" style="justify-content:flex-end">
+          <button value="cancel" type="submit">Aizvērt</button>
+          <button class="primary-action" id="generatePwBtn" type="button">Ģenerēt</button>
         </div>
       </form>
     </dialog>

@@ -60,6 +60,12 @@ let monthLogEntries = [];
 let monthDayNotes = [];
 let restrictions = [];
 let diaryEntries = [];
+let selfTests = [];
+let editingSelfTestId = null;
+let polarTests = [];
+let editingPolarTestId = null;
+let exercises = [];
+let editingExerciseId = null;
 let athleteNextWeeksPlans = {};
 let readDiaryEntryIds = new Set();
 
@@ -459,6 +465,18 @@ async function loadNonTemplateData() {
     diaryEntries = [];
   }
 
+  try {
+    selfTests = await getSelfTests(athleteId);
+  } catch (e) {
+    selfTests = [];
+  }
+
+  try {
+    polarTests = await getPolarTests(athleteId);
+  } catch (e) {
+    polarTests = [];
+  }
+
   if (viewMode === "month") {
     const monthStart = getMonthStart(currentMonthDate);
     const monthEnd = getMonthEnd(currentMonthDate);
@@ -492,16 +510,18 @@ async function loadWeekOverviewPlanData() {
 
 async function initApp() {
   try {
-    activeRole = currentProfile?.role === "coach" ? "coach" : "athlete";
+    activeRole = currentProfile?.role || "athlete";
     trainingPickerPanel.hidden = activeRole !== "coach";
     athleteSelectorPanel.hidden = activeRole !== "coach";
-    athletes = activeRole === "coach" ? await getAthletes() : [currentProfile];
+    athletes = (activeRole === "coach" || activeRole === "admin") ? await getAthletes() : [currentProfile];
+
+    try { exercises = await getExercises(); } catch (e) { exercises = []; }
 
     if (activeRole === "coach" && athletes.length && !athleteSelect.value) {
       athleteSelect.value = athletes[0].id;
     }
 
-    if (activeRole === "athlete") {
+    if (activeRole === "athlete" || activeRole === "admin") {
       athleteSelect.value = currentUser.id;
     }
 
@@ -531,7 +551,7 @@ function renderAthleteDropdown() {
     athleteSelect.value = currentValue;
   }
 
-  if (!athleteSelect.value && activeRole === "athlete" && currentUser) {
+  if (!athleteSelect.value && (activeRole === "athlete" || activeRole === "admin") && currentUser) {
     athleteSelect.value = currentUser.id;
   }
 
@@ -956,7 +976,7 @@ function renderLogCard(log) {
   }).join("");
   const feelingBadge = log?.feeling ? feelingBadgeHtml(log.feeling) : "";
   const logNotes = log?.notes ? `<div class="comment-label">Sportista komentārs</div><div class="log-notes">${log.notes}</div>` : "";
-  const athleteIsOwner = activeRole === "athlete" && currentUser.id === getSelectedAthleteId();
+  const athleteIsOwner = (activeRole === "athlete" || activeRole === "admin") && currentUser.id === getSelectedAthleteId();
   const logActions = athleteIsOwner ? `<div class="log-actions"><button class="edit-log-btn" data-log-day="${log.date}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${log.id}" type="button">×</button></div>` : "";
   return `<div class="session-card log-card"><div class="log-header"><h3>Izpildīts</h3>${logActions}</div>${items}${feelingBadge}${logNotes}</div>`;
 }
@@ -1139,7 +1159,7 @@ function renderCalendar() {
             ${dayRaces.map((r) => {
               const isUpcoming = dateStr >= todayStr;
               const hasResult = !!r.result_time;
-              const isAthleteOwner = activeRole === "athlete" && currentUser.id === athleteId;
+              const isAthleteOwner = (activeRole === "athlete" || activeRole === "admin") && currentUser.id === athleteId;
               return `
               <div class="race-chip${isUpcoming && !hasResult ? " upcoming" : ""}" data-race-id="${r.id}">
                 <div class="race-label">${r.name}</div>
@@ -1181,7 +1201,7 @@ function renderWeeklySummary() {
   const ws = document.getElementById("weeklySummary");
   if (!ws) return;
   const athleteId = getSelectedAthleteId();
-  const isAthleteView = activeRole === "athlete" && currentUser.id === athleteId;
+  const isAthleteView = (activeRole === "athlete" || activeRole === "admin") && currentUser.id === athleteId;
 
   const s = weeklySummary || {};
   const runKm = s.run_km ?? "";
@@ -1677,6 +1697,339 @@ document.getElementById("diaryBody")?.addEventListener("click", async (e) => {
   }
 });
 
+const ST_FIELDS = [
+  "stPlank", "stDibens", "stRokas", "stSiena", "stTipLab", "stTipKreis",
+  "stPlankLab", "stPlankKreis", "stPalLab", "stPalKreis",
+];
+const ST_KEYS = [
+  "plank", "dibens_gaisa", "rokas_zeme", "siena_ietupiens", "tiptoes_labakaja", "tiptoes_kreisaja",
+  "plank_labais", "plank_kreisais", "paleciens_laba", "paleciens_kreisa",
+];
+
+function renderSelfTests() {
+  const body = document.getElementById("selfTestsBody");
+  if (!body) return;
+  const athleteId = getSelectedAthleteId();
+  const isAthleteView = (activeRole === "athlete" || activeRole === "admin") && currentUser.id === athleteId;
+
+  if (!isAthleteView && activeRole !== "coach") {
+    body.innerHTML = "";
+    return;
+  }
+
+  const list = selfTests.length
+    ? selfTests.map(s => `
+        <div class="selftest-row" data-selftest-id="${s.id}">
+          <span class="selftest-date">${formatDateLV(s.date)}</span>
+        </div>
+      `).join("")
+    : '<div class="muted">— Nav paštestu</div>';
+
+  const addBtn = isAthleteView
+    ? '<button id="addSelfTestBtn" class="primary-action" type="button">Pievienot paštestu</button>'
+    : "";
+
+  body.innerHTML = `${addBtn}<div class="selftest-list">${list}</div>`;
+
+  document.getElementById("addSelfTestBtn")?.addEventListener("click", () => openSelfTestDialog(null));
+
+  body.querySelectorAll("[data-selftest-id]").forEach(row => {
+    row.addEventListener("click", () => {
+      const s = selfTests.find(st => st.id === row.dataset.selftestId);
+      if (s) openSelfTestDialog(s);
+    });
+  });
+}
+
+function openSelfTestDialog(existing) {
+  const dlg = document.getElementById("selfTestDialog");
+  const athleteId = getSelectedAthleteId();
+  const isAthleteView = (activeRole === "athlete" || activeRole === "admin") && currentUser.id === athleteId;
+
+  if (existing) {
+    editingSelfTestId = existing.id;
+    document.getElementById("stDate").value = existing.date;
+    ST_FIELDS.forEach((id, i) => {
+      document.getElementById(id).value = existing[ST_KEYS[i]] || "";
+    });
+    document.getElementById("deleteSelfTestBtn").hidden = !isAthleteView;
+  } else {
+    editingSelfTestId = null;
+    document.getElementById("stDate").value = formatDateISO(new Date());
+    ST_FIELDS.forEach(id => { document.getElementById(id).value = ""; });
+    document.getElementById("deleteSelfTestBtn").hidden = true;
+  }
+
+  ST_FIELDS.forEach(id => { document.getElementById(id).disabled = !isAthleteView; });
+  document.getElementById("stDate").disabled = !isAthleteView;
+  document.getElementById("saveSelfTestBtn").hidden = !isAthleteView;
+
+  dlg.showModal();
+}
+
+document.getElementById("saveSelfTestBtn")?.addEventListener("click", async () => {
+  const athleteId = getSelectedAthleteId();
+  const date = document.getElementById("stDate").value;
+  if (!date) return;
+
+  const data = { athlete_id: athleteId, date };
+  ST_FIELDS.forEach((id, i) => { data[ST_KEYS[i]] = document.getElementById(id).value.trim(); });
+
+  try {
+    if (editingSelfTestId) {
+      const updates = { date };
+      ST_KEYS.forEach((k, i) => { updates[k] = document.getElementById(ST_FIELDS[i]).value.trim(); });
+      await updateSelfTest(editingSelfTestId, updates);
+    } else {
+      await insertSelfTest(data);
+    }
+    selfTests = await getSelfTests(athleteId);
+    renderSelfTests();
+    document.getElementById("selfTestDialog").close();
+  } catch (e) {
+    alert("Neizdevās saglabāt: " + (e.message || e));
+  }
+});
+
+document.getElementById("deleteSelfTestBtn")?.addEventListener("click", async () => {
+  if (!editingSelfTestId) return;
+  if (!confirm("Dzēst šo paštestu?")) return;
+  try {
+    await deleteSelfTest(editingSelfTestId);
+    selfTests = await getSelfTests(getSelectedAthleteId());
+    renderSelfTests();
+    document.getElementById("selfTestDialog").close();
+  } catch (e) {
+    alert("Neizdevās dzēst: " + (e.message || e));
+  }
+});
+
+const PT_FIELDS = ["ptMas", "ptMap", "ptVo2", "ptLactAfter", "ptLact5"];
+const PT_KEYS = ["mas_pace", "map_watts", "vo2max", "lactate_after", "lactate_5min"];
+
+function renderPolarTests() {
+  const body = document.getElementById("polarTestsBody");
+  if (!body) return;
+  const athleteId = getSelectedAthleteId();
+  const isAthleteView = (activeRole === "athlete" || activeRole === "admin") && currentUser.id === athleteId;
+
+  if (!isAthleteView && activeRole !== "coach") {
+    body.innerHTML = "";
+    return;
+  }
+
+  const list = polarTests.length
+    ? polarTests.map(p => `
+        <div class="selftest-row" data-polartest-id="${p.id}">
+          <span class="selftest-date">${formatDateLV(p.date)}</span>
+          ${p.mas_pace ? `<span class="selftest-mas">${escapeHtml(p.mas_pace)}</span>` : ""}
+        </div>
+      `).join("")
+    : '<div class="muted">— Nav polar testu</div>';
+
+  const addBtn = isAthleteView
+    ? '<button id="addPolarTestBtn" class="primary-action" type="button">Pievienot polar testu</button>'
+    : "";
+
+  body.innerHTML = `${addBtn}<div class="selftest-list">${list}</div>`;
+
+  document.getElementById("addPolarTestBtn")?.addEventListener("click", () => openPolarTestDialog(null));
+
+  body.querySelectorAll("[data-polartest-id]").forEach(row => {
+    row.addEventListener("click", () => {
+      const p = polarTests.find(pt => pt.id === row.dataset.polartestId);
+      if (p) openPolarTestDialog(p);
+    });
+  });
+}
+
+function openPolarTestDialog(existing) {
+  const dlg = document.getElementById("polarTestDialog");
+  const athleteId = getSelectedAthleteId();
+  const isAthleteView = (activeRole === "athlete" || activeRole === "admin") && currentUser.id === athleteId;
+
+  if (existing) {
+    editingPolarTestId = existing.id;
+    document.getElementById("ptDate").value = existing.date;
+    document.getElementById("ptMas").value = existing.mas_pace || "";
+    document.getElementById("ptMap").value = existing.map_watts ?? "";
+    document.getElementById("ptVo2").value = existing.vo2max ?? "";
+    document.getElementById("ptLactAfter").value = existing.lactate_after ?? "";
+    document.getElementById("ptLact5").value = existing.lactate_5min ?? "";
+    document.getElementById("deletePolarTestBtn").hidden = !isAthleteView;
+  } else {
+    editingPolarTestId = null;
+    document.getElementById("ptDate").value = formatDateISO(new Date());
+    PT_FIELDS.forEach(id => { document.getElementById(id).value = ""; });
+    document.getElementById("deletePolarTestBtn").hidden = true;
+  }
+
+  PT_FIELDS.forEach(id => { document.getElementById(id).disabled = !isAthleteView; });
+  document.getElementById("ptDate").disabled = !isAthleteView;
+  document.getElementById("savePolarTestBtn").hidden = !isAthleteView;
+
+  dlg.showModal();
+}
+
+document.getElementById("savePolarTestBtn")?.addEventListener("click", async () => {
+  const athleteId = getSelectedAthleteId();
+  const date = document.getElementById("ptDate").value;
+  if (!date) return;
+
+  const data = {
+    athlete_id: athleteId,
+    date,
+    mas_pace: document.getElementById("ptMas").value,
+    map_watts: document.getElementById("ptMap").value ? parseInt(document.getElementById("ptMap").value) : null,
+    vo2max: document.getElementById("ptVo2").value ? parseFloat(document.getElementById("ptVo2").value) : null,
+    lactate_after: document.getElementById("ptLactAfter").value ? parseFloat(document.getElementById("ptLactAfter").value) : null,
+    lactate_5min: document.getElementById("ptLact5").value ? parseFloat(document.getElementById("ptLact5").value) : null,
+  };
+
+  try {
+    if (editingPolarTestId) {
+      await updatePolarTest(editingPolarTestId, data);
+    } else {
+      await insertPolarTest(data);
+    }
+    polarTests = await getPolarTests(athleteId);
+    renderPolarTests();
+    document.getElementById("polarTestDialog").close();
+  } catch (e) {
+    alert("Neizdevās saglabāt: " + (e.message || e));
+  }
+});
+
+document.getElementById("deletePolarTestBtn")?.addEventListener("click", async () => {
+  if (!editingPolarTestId) return;
+  if (!confirm("Dzēst šo polar testu?")) return;
+  try {
+    await deletePolarTest(editingPolarTestId);
+    polarTests = await getPolarTests(getSelectedAthleteId());
+    renderPolarTests();
+    document.getElementById("polarTestDialog").close();
+  } catch (e) {
+    alert("Neizdevās dzēst: " + (e.message || e));
+  }
+});
+
+function renderExercises() {
+  const body = document.getElementById("exerciseLibraryBody");
+  if (!body) return;
+  const canEdit = activeRole === "coach" || activeRole === "admin";
+
+  const categories = ["VFS", "SFS"];
+  const grouped = categories.map(cat => {
+    const items = exercises.filter(e => e.category === cat);
+    return { cat, items };
+  });
+
+  const listHtml = grouped.filter(g => g.items.length).map(g => `
+    <div class="exercise-category-header">${g.cat}</div>
+    ${g.items.map(e => `
+      <div class="exercise-row" data-exercise-id="${e.id}">
+        <span class="exercise-title">${escapeHtml(e.title)}</span>
+        <button class="exercise-view-btn" data-view-exercise="${e.id}" type="button">Skatīt</button>
+        ${canEdit ? `<button class="exercise-delete-btn" data-delete-exercise="${e.id}" type="button">×</button>` : ""}
+      </div>
+    `).join("")}
+  `).join("");
+
+  const addBtn = canEdit
+    ? '<button id="addExerciseBtn" class="primary-action" type="button">Pievienot vingrinājumu</button>'
+    : "";
+
+  body.innerHTML = `${addBtn}<div class="exercise-list">${listHtml || '<div class="muted">— Nav vingrinājumu</div>'}</div>`;
+
+  document.getElementById("addExerciseBtn")?.addEventListener("click", () => openExerciseDialog(null));
+
+  body.querySelectorAll("[data-view-exercise]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const ex = exercises.find(x => x.id === btn.dataset.viewExercise);
+      if (ex) openExerciseDialog(ex);
+    });
+  });
+
+  body.querySelectorAll("[data-delete-exercise]").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!confirm("Dzēst šo vingrinājumu?")) return;
+      try {
+        await deleteExercise(btn.dataset.deleteExercise);
+        exercises = await getExercises();
+        renderExercises();
+      } catch (err) {
+        alert("Neizdevās dzēst: " + (err.message || err));
+      }
+    });
+  });
+}
+
+function openExerciseDialog(existing) {
+  const dlg = document.getElementById("exerciseDialog");
+  const canEdit = activeRole === "coach" || activeRole === "admin";
+
+  if (existing) {
+    editingExerciseId = existing.id;
+    document.getElementById("exTitle").value = existing.title;
+    document.getElementById("exCategory").value = existing.category;
+    document.getElementById("exContent").value = existing.content;
+    document.getElementById("deleteExerciseBtn").hidden = !canEdit;
+  } else {
+    editingExerciseId = null;
+    document.getElementById("exTitle").value = "";
+    document.getElementById("exCategory").value = "VFS";
+    document.getElementById("exContent").value = "";
+    document.getElementById("deleteExerciseBtn").hidden = true;
+  }
+
+  document.getElementById("exTitle").disabled = !canEdit;
+  document.getElementById("exCategory").disabled = !canEdit;
+  document.getElementById("exContent").disabled = !canEdit;
+  document.getElementById("saveExerciseBtn").hidden = !canEdit;
+
+  dlg.showModal();
+}
+
+document.getElementById("saveExerciseBtn")?.addEventListener("click", async () => {
+  const title = document.getElementById("exTitle").value.trim();
+  const content = document.getElementById("exContent").value.trim();
+  if (!title) { alert("Ievadi nosaukumu!"); return; }
+
+  const data = {
+    title,
+    content,
+    category: document.getElementById("exCategory").value,
+    updated_at: new Date().toISOString(),
+  };
+
+  try {
+    if (editingExerciseId) {
+      await updateExercise(editingExerciseId, data);
+    } else {
+      await insertExercise(data);
+    }
+    exercises = await getExercises();
+    renderExercises();
+    document.getElementById("exerciseDialog").close();
+  } catch (e) {
+    alert("Neizdevās saglabāt: " + (e.message || e));
+  }
+});
+
+document.getElementById("deleteExerciseBtn")?.addEventListener("click", async () => {
+  if (!editingExerciseId) return;
+  if (!confirm("Dzēst šo vingrinājumu?")) return;
+  try {
+    await deleteExercise(editingExerciseId);
+    exercises = await getExercises();
+    renderExercises();
+    document.getElementById("exerciseDialog").close();
+  } catch (e) {
+    alert("Neizdevās dzēst: " + (e.message || e));
+  }
+});
+
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
@@ -1925,6 +2278,7 @@ function render() {
   trainingPickerPanel.hidden = activeRole !== "coach" || !hasAthletes;
   athleteSelectorPanel.hidden = activeRole !== "coach" || !hasAthletes;
   document.getElementById("restrictionsPanel").hidden = !hasAthletes;
+  document.getElementById("adminPanel").hidden = activeRole !== "admin" || !hasAthletes;
   document.getElementById("openRaceBtn").hidden = activeRole === "coach" || !hasAthletes;
   document.getElementById("raceCalendarBtn").hidden = !hasAthletes;
 
@@ -1948,6 +2302,10 @@ function render() {
     renderRecords();
     renderRestrictions();
     renderDiary();
+    renderSelfTests();
+    renderPolarTests();
+    renderExercises();
+    renderAdminAthleteList();
   } else {
     calendarGrid.innerHTML = '<p class="empty-state">Nav sportistu. Pievienojiet lietotājus.</p>';
     document.getElementById("monthGridInline").innerHTML = '<p class="empty-state">Nav sportistu. Pievienojiet lietotājus.</p>';
@@ -1957,11 +2315,17 @@ function render() {
     document.getElementById("thresholdsBody").innerHTML = "";
     document.getElementById("recordsBody").innerHTML = "";
     document.getElementById("diaryBody").innerHTML = "";
+    document.getElementById("selfTestsBody").innerHTML = "";
+    document.getElementById("polarTestsBody").innerHTML = "";
+    document.getElementById("exerciseLibraryBody").innerHTML = "";
   }
   document.getElementById("hrZonesPanel").hidden = !hasAthletes;
   document.getElementById("thresholdsPanel").hidden = !hasAthletes;
   document.getElementById("recordsPanel").hidden = !hasAthletes;
   document.getElementById("diaryPanel").hidden = !hasAthletes;
+  document.getElementById("selfTestsPanel").hidden = !hasAthletes;
+  document.getElementById("polarTestsPanel").hidden = !hasAthletes;
+  document.getElementById("exerciseLibraryPanel").hidden = !hasAthletes;
 }
 
 athleteSelect.addEventListener("change", async () => {
@@ -2107,6 +2471,300 @@ document.addEventListener("keydown", (e) => {
     if (panel?.classList.contains("open")) togglePlannerMenu(false);
   }
 });
+
+// Admin — Pievienot lietotāju
+const DIACRITICS = {
+  ā: "a", Ā: "A", č: "c", Č: "C", ē: "e", Ē: "E",
+  ģ: "g", Ģ: "G", ī: "i", Ī: "I", ķ: "k", Ķ: "K",
+  ļ: "l", Ļ: "L", ņ: "n", Ņ: "N", ō: "o", Ō: "O",
+  ŗ: "r", Ŗ: "R", š: "s", Š: "S", ū: "u", Ū: "U",
+  ž: "z", Ž: "Z",
+};
+
+function normalizeName(s) {
+  return (s || "")
+    .split("")
+    .map((c) => DIACRITICS[c] ?? c)
+    .join("")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function updateGeneratedUsername() {
+  const first = document.getElementById("newUserFirstName")?.value || "";
+  const last = document.getElementById("newUserLastName")?.value || "";
+  const username = document.getElementById("newUserUsername");
+  if (username) {
+    const parts = [
+      ...first.trim().split(/\s+/).map(normalizeName),
+      ...last.trim().split(/\s+/).map(normalizeName),
+    ].filter(Boolean);
+    username.value = parts.length > 0 ? parts.join(".") : "";
+  }
+}
+
+const createUserDialog = document.getElementById("createUserDialog");
+const createUserBtn = document.getElementById("createUserBtn");
+const saveNewUserBtn = document.getElementById("saveNewUserBtn");
+const createUserResult = document.getElementById("createUserResult");
+const createUserError = document.getElementById("createUserError");
+
+createUserBtn?.addEventListener("click", () => {
+document.getElementById("newUserFirstName").value = "";
+    document.getElementById("newUserLastName").value = "";
+    document.getElementById("newUserUsername").value = "";
+    document.getElementById("newUserRole").value = "athlete";
+  createUserResult.hidden = true;
+  createUserError.hidden = true;
+  createUserDialog?.showModal();
+});
+
+document.getElementById("newUserFirstName")?.addEventListener("input", updateGeneratedUsername);
+document.getElementById("newUserLastName")?.addEventListener("input", updateGeneratedUsername);
+
+saveNewUserBtn?.addEventListener("click", async () => {
+  const firstName = document.getElementById("newUserFirstName").value.trim();
+  const lastName = document.getElementById("newUserLastName").value.trim();
+  if (!firstName || !lastName) {
+    createUserError.textContent = "Ievadi vārdu un uzvārdu";
+    createUserError.hidden = false;
+    return;
+  }
+
+  createUserError.hidden = true;
+  saveNewUserBtn.disabled = true;
+  saveNewUserBtn.textContent = "Izveido...";
+
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.access_token) throw new Error("Nav sesijas");
+
+    const res = await fetch(
+      "https://yqaabswcvwkiimpoxsfj.supabase.co/functions/v1/create-user",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.session.access_token}`,
+        },
+        body: JSON.stringify({ firstName, lastName, role: document.getElementById("newUserRole").value }),
+      },
+    );
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.error || "Neizdevās izveidot lietotāju");
+    }
+
+    createUserResult.innerHTML = `
+      <div class="success-message">
+        <p>✅ Lietotājs izveidots!</p>
+        <p><strong>Lietotājvārds:</strong> <code>${result.username}</code></p>
+        <p><strong>Parole:</strong> <code>${result.password}</code></p>
+        <button id="copyUserCredsBtn" class="secondary-action" type="button">📋 Kopēt</button>
+        <span id="copyFeedback" style="display:none;color:#16a34a;font-size:0.85rem">Nokopēts!</span>
+      </div>
+    `;
+    createUserResult.hidden = false;
+
+    document.getElementById("copyUserCredsBtn")?.addEventListener("click", () => {
+      const text = `Lietotājvārds: ${result.username}\nParole: ${result.password}`;
+      navigator.clipboard.writeText(text);
+      const fb = document.getElementById("copyFeedback");
+      if (fb) fb.style.display = "inline";
+    });
+
+    loadAllData();
+  } catch (e) {
+    createUserError.textContent = e instanceof Error ? e.message : "Nezināma kļūda";
+    createUserError.hidden = false;
+  } finally {
+    saveNewUserBtn.disabled = false;
+    saveNewUserBtn.textContent = "Izveidot";
+  }
+});
+
+// Admin — athlete list with delete
+const deleteUserConfirmDialog = document.getElementById("deleteUserConfirmDialog");
+const deleteUserConfirmBody = document.getElementById("deleteUserConfirmBody");
+const confirmDeleteUserBtn = document.getElementById("confirmDeleteUserBtn");
+const deleteUserError = document.getElementById("deleteUserError");
+let pendingDeleteUserId = null;
+
+function renderAdminAthleteList() {
+  const container = document.getElementById("adminAthleteList");
+  if (!container) return;
+
+  const currentUserId = currentUser?.id;
+
+  container.innerHTML = `
+    <div class="admin-athlete-list">
+      <h3 class="admin-athlete-list-title">Sportistu saraksts</h3>
+      ${athletes
+        .filter(a => a.id !== currentUserId)
+        .map(a => `
+          <div class="admin-athlete-row">
+            <span class="athlete-name">${a.full_name}</span>
+            <div class="admin-athlete-actions">
+              <button class="reset-pw-athlete-btn" data-athlete-id="${a.id}" data-athlete-name="${a.full_name}" type="button">🔑 Mainīt paroli</button>
+              <button class="delete-athlete-btn" data-athlete-id="${a.id}" data-athlete-name="${a.full_name}" type="button">Dzēst sportistu</button>
+            </div>
+          </div>
+        `).join("")}
+    </div>
+  `;
+
+  container.querySelectorAll(".delete-athlete-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      pendingDeleteUserId = btn.dataset.athleteId;
+      const name = btn.dataset.athleteName;
+      deleteUserConfirmBody.innerHTML = `
+        <p>Vai tiešām dzēst sportistu <strong>${name}</strong>?</p>
+        <p class="muted" style="font-size:0.85rem">Tiks dzēsti visi treniņi, rezultāti, ieraksti, dienasgrāmata.</p>
+      `;
+      deleteUserError.hidden = true;
+      deleteUserConfirmDialog.showModal();
+    });
+  });
+
+  container.querySelectorAll(".reset-pw-athlete-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const athleteId = btn.dataset.athleteId;
+      const athleteName = btn.dataset.athleteName;
+      document.getElementById("resetPwAthleteName").textContent = athleteName;
+      document.getElementById("resetPwInput").value = "";
+      document.getElementById("resetPwError").hidden = true;
+      document.getElementById("copyResetPwFeedback").style.display = "none";
+      document.getElementById("generatePwBtn").disabled = false;
+      document.getElementById("generatePwBtn").textContent = "Ģenerēt";
+      pendingResetUserId = athleteId;
+      resetPasswordDialog.showModal();
+    });
+  });
+}
+
+confirmDeleteUserBtn?.addEventListener("click", async () => {
+  if (!pendingDeleteUserId) return;
+
+  confirmDeleteUserBtn.disabled = true;
+  confirmDeleteUserBtn.textContent = "Dzēš...";
+  deleteUserError.hidden = true;
+
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.access_token) throw new Error("Nav sesijas");
+
+    const res = await fetch(
+      "https://yqaabswcvwkiimpoxsfj.supabase.co/functions/v1/delete-user",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.session.access_token}`,
+        },
+        body: JSON.stringify({ userId: pendingDeleteUserId }),
+      },
+    );
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.error || "Neizdevās dzēst sportistu");
+    }
+
+    deleteUserConfirmDialog.close();
+    athletes = athletes.filter(a => a.id !== pendingDeleteUserId);
+    pendingDeleteUserId = null;
+    render();
+  } catch (e) {
+    deleteUserError.textContent = e instanceof Error ? e.message : "Nezināma kļūda";
+    deleteUserError.hidden = false;
+  } finally {
+    confirmDeleteUserBtn.disabled = false;
+    confirmDeleteUserBtn.textContent = "Dzēst";
+  }
+});
+
+deleteUserConfirmDialog?.addEventListener("close", () => {
+  pendingDeleteUserId = null;
+});
+
+// Reset password
+const resetPasswordDialog = document.getElementById("resetPasswordDialog");
+const generatePwBtn = document.getElementById("generatePwBtn");
+const resetPwInput = document.getElementById("resetPwInput");
+const resetPwError = document.getElementById("resetPwError");
+const copyResetPwBtn = document.getElementById("copyResetPwBtn");
+const copyResetPwFeedback = document.getElementById("copyResetPwFeedback");
+let pendingResetUserId = null;
+
+generatePwBtn?.addEventListener("click", async () => {
+  if (!pendingResetUserId) return;
+
+  generatePwBtn.disabled = true;
+  generatePwBtn.textContent = "Ģenerē...";
+  resetPwError.hidden = true;
+
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.access_token) throw new Error("Nav sesijas");
+
+    const res = await fetch(
+      "https://yqaabswcvwkiimpoxsfj.supabase.co/functions/v1/reset-password",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.session.access_token}`,
+        },
+        body: JSON.stringify({ userId: pendingResetUserId }),
+      },
+    );
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.error || "Neizdevās mainīt paroli");
+    }
+
+    resetPwInput.value = result.password;
+    generatePwBtn.textContent = "✔ Ģenerēts";
+  } catch (e) {
+    resetPwError.textContent = e instanceof Error ? e.message : "Nezināma kļūda";
+    resetPwError.hidden = false;
+    generatePwBtn.disabled = false;
+    generatePwBtn.textContent = "Ģenerēt";
+  }
+});
+
+copyResetPwBtn?.addEventListener("click", () => {
+  const pw = resetPwInput.value;
+  if (!pw) return;
+  navigator.clipboard.writeText(pw);
+  copyResetPwFeedback.style.display = "inline";
+});
+
+resetPasswordDialog?.addEventListener("close", () => {
+  pendingResetUserId = null;
+  resetPwInput.value = "";
+  copyResetPwFeedback.style.display = "none";
+});
+
+// Eye toggle for passwords
+function setupPwToggle(toggleBtnId, inputId) {
+  const btn = document.getElementById(toggleBtnId);
+  const input = document.getElementById(inputId);
+  if (!btn || !input) return;
+  btn.addEventListener("click", () => {
+    const isPw = input.type === "password";
+    input.type = isPw ? "text" : "password";
+    btn.textContent = isPw ? "👁️‍🗨️" : "👁️";
+  });
+}
+
+setupPwToggle("toggleLoginPw", "loginPassword");
+setupPwToggle("toggleResetPw", "resetPwInput");
 
 document.getElementById("templatePicker").addEventListener("click", async (e) => {
   const btn = e.target.closest(".template-filter-btn");
@@ -3045,7 +3703,7 @@ function renderRaceTab(tab) {
       content.innerHTML = '<p class="muted">Nav sacensību.</p>';
       return;
     }
-    const isAthleteOwner = activeRole === "athlete" && currentUser.id === athleteId;
+    const isAthleteOwner = (activeRole === "athlete" || activeRole === "admin") && currentUser.id === athleteId;
     content.innerHTML = races.map((r) => {
       const hasResult = !!r.result_time;
       return `

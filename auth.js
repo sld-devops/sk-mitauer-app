@@ -1,7 +1,6 @@
 const appEl = document.getElementById("appView");
 const authViewEl = document.getElementById("authView");
 const loginBtn = document.getElementById("loginBtn");
-const forgotLink = document.getElementById("forgotLink");
 const authForm = document.getElementById("authForm");
 const usernameInput = document.getElementById("loginUsername");
 const passwordInput = document.getElementById("loginPassword");
@@ -33,6 +32,10 @@ function showAuth() {
 
 function isCoach() {
   return currentProfile?.role === "coach";
+}
+
+function isAdmin() {
+  return currentProfile?.role === "admin";
 }
 
 function showError(msg) {
@@ -109,28 +112,8 @@ async function changePassword() {
   confirmPasswordInput.value = "";
 }
 
-async function handleForgotPassword(e) {
-  e.preventDefault();
-  const username = usernameInput.value.toLowerCase().trim();
-  if (!username) {
-    showError("Ievadi lietotājvārdu, lai atiestatītu paroli");
-    return;
-  }
-  const email = username + "@skmitauer.app";
-  authErrorEl.hidden = true;
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.href,
-  });
-  if (error) {
-    showError(error.message || "Neizdevās nosūtīt atiestatīšanas e-pastu");
-  } else {
-    showError("Atiestatīšanas saite nosūtīta uz " + email);
-  }
-}
-
 loginBtn.addEventListener("click", login);
 authForm.addEventListener("submit", function(e){ e.preventDefault(); login(); });
-forgotLink.addEventListener("click", handleForgotPassword);
 logoutBtn.addEventListener("click", logout);
 changePasswordBtn.addEventListener("click", () => {
   passwordErrorEl.hidden = true;

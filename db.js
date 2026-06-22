@@ -561,3 +561,108 @@ async function deleteDiaryEntry(id) {
     .eq("id", id);
   if (error) throw error;
 }
+
+async function getSelfTests(athleteId) {
+  const { data } = await supabase
+    .from("self_tests")
+    .select("*")
+    .eq("athlete_id", athleteId)
+    .order("date", { ascending: false });
+  return data || [];
+}
+
+async function insertSelfTest(data) {
+  const { data: result, error } = await supabase
+    .from("self_tests")
+    .insert(data)
+    .select()
+    .single();
+  if (error) throw error;
+  return result;
+}
+
+async function updateSelfTest(id, updates) {
+  const { error } = await supabase
+    .from("self_tests")
+    .update(updates)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+async function deleteSelfTest(id) {
+  const { error } = await supabase
+    .from("self_tests")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
+}
+
+async function getPolarTests(athleteId) {
+  const { data } = await supabase
+    .from("polar_tests")
+    .select("*")
+    .eq("athlete_id", athleteId)
+    .order("date", { ascending: false });
+  return data || [];
+}
+
+async function insertPolarTest(data) {
+  const { data: result, error } = await supabase
+    .from("polar_tests")
+    .insert(data)
+    .select()
+    .single();
+  if (error) throw error;
+  return result;
+}
+
+async function updatePolarTest(id, updates) {
+  const { error } = await supabase
+    .from("polar_tests")
+    .update(updates)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+async function deletePolarTest(id) {
+  const { error } = await supabase
+    .from("polar_tests")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
+}
+
+async function getExercises() {
+  const { data } = await supabase
+    .from("exercise_library")
+    .select("*")
+    .order("category", { ascending: true })
+    .order("title", { ascending: true });
+  return data || [];
+}
+
+async function insertExercise(data) {
+  const { data: result, error } = await supabase
+    .from("exercise_library")
+    .insert(data)
+    .select()
+    .single();
+  if (error) throw error;
+  return result;
+}
+
+async function updateExercise(id, updates) {
+  const { error } = await supabase
+    .from("exercise_library")
+    .update(updates)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+async function deleteExercise(id) {
+  const { error } = await supabase
+    .from("exercise_library")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
+}
