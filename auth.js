@@ -34,9 +34,6 @@ function isCoach() {
   return currentProfile?.role === "coach";
 }
 
-function isAdmin() {
-  return currentProfile?.role === "admin";
-}
 
 function showError(msg) {
   authErrorEl.textContent = msg;

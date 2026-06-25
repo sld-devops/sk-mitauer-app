@@ -32,17 +32,10 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { firstName, lastName, role } = await req.json();
+    const { firstName, lastName } = await req.json();
 
-    if (!firstName || !lastName || !role) {
-      return new Response(JSON.stringify({ error: "firstName, lastName un role obligāti" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    if (role !== "coach" && role !== "athlete") {
-      return new Response(JSON.stringify({ error: "Lomai jābūt 'coach' vai 'athlete'" }), {
+    if (!firstName || !lastName) {
+      return new Response(JSON.stringify({ error: "firstName un lastName obligāti" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
@@ -65,13 +58,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { data: callerProfile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (profileError || callerProfile?.role !== "admin") {
-      return new Response(JSON.stringify({ error: "Tikai admin var veidot lietotājus" }), {
+    const allowedEmails = ["sandis.linards.duda@skmitauer.app", "toms.komass@skmitauer.app"];
+    if (!allowedEmails.includes(user.email || "")) {
+      return new Response(JSON.stringify({ error: "Nav tiesību veidot lietotājus" }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
       });
@@ -94,14 +83,13 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { error: insertError } = await supabase.from("profiles").insert({
-      id: newUser.user.id,
+    const { error: updateError } = await supabase.from("profiles").update({
       full_name: `${firstName} ${lastName}`,
-      role,
-    });
-    if (insertError) {
+      role: "athlete",
+    }).eq("id", newUser.user.id);
+    if (updateError) {
       await supabase.auth.admin.deleteUser(newUser.user.id);
-      return new Response(JSON.stringify({ error: "Neizdevās izveidot profilu: " + insertError.message }), {
+      return new Response(JSON.stringify({ error: "Neizdevās atjaunināt profilu: " + updateError.message }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
       });

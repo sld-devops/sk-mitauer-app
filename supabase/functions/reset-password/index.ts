@@ -41,13 +41,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { data: callerProfile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (profileError || callerProfile?.role !== "admin") {
-      return new Response(JSON.stringify({ error: "Tikai admin var mainīt paroles" }), {
+    const allowedEmails = ["sandis.linards.duda@skmitauer.app", "toms.komass@skmitauer.app"];
+    if (!allowedEmails.includes(user.email || "")) {
+      return new Response(JSON.stringify({ error: "Nav tiesību mainīt paroles" }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
       });

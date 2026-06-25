@@ -37,21 +37,23 @@
           </label>
         </form>
         <div id="authError" class="auth-error" hidden></div>
-        <button id="loginBtn" class="primary-action" type="button">Ieiet</button>
+        <button id="loginBtn" class="primary-action" type="submit">Ieiet</button>
       </div>
     </div>
 
     <div id="appView" hidden>
       <header class="app-header">
-        <button id="mobileMenuBtn" class="secondary-action" type="button" aria-label="Izvēlne">☰</button>
         <div class="header-left">
+          <button id="mobileMenuBtn" class="secondary-action" type="button" aria-label="Izvēlne">☰</button>
           <div class="header-titles">
             <p class="eyebrow">SK Mitauer</p>
             <h1>TRENIŅU KALENDĀRS</h1>
           </div>
+          <button id="exerciseLibraryBtn" class="secondary-action" type="button">VFS/SFS/Iesildīšanās/Drill bibliotēka</button>
         </div>
         <div class="header-right">
           <button id="changePasswordBtn" class="secondary-action" type="button">Mainīt paroli</button>
+          <button id="calendarModeToggle" class="secondary-action" type="button">📱 Mobilais izskats</button>
           <button id="logoutBtn" class="secondary-action" type="button">Iziet</button>
         </div>
       </header>
@@ -60,8 +62,22 @@
         <div id="plannerBackdrop"></div>
         <aside class="planner-panel">
           <div class="planner-panel__scroll">
+          <section class="panel collapsible collapsed" id="adminPanel" hidden>
+            <div class="panel-header">
+              <h2>Administrēšana</h2>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt administrēšanu">▶</button>
+            </div>
+            <div class="panel-body">
+              <button id="createUserBtn" class="primary-action" type="button">Pievienot sportistu</button>
+              <div id="adminAthleteList"></div>
+            </div>
+          </section>
+
           <section class="panel" id="athleteSelectorPanel" hidden>
-            <h2>Sportisti</h2>
+            <div class="panel-header-row">
+              <h2>Sportisti</h2>
+              <button id="refreshStatusBtn" class="refresh-status-btn" type="button" title="Atsvaidzināt statusu">↻</button>
+            </div>
             <div class="custom-dropdown" id="athleteDropdown">
               <div class="dropdown-trigger" id="dropdownTrigger">
                 <div class="dropdown-selected" id="dropdownSelected"></div>
@@ -72,20 +88,9 @@
             <select id="athleteSelect" hidden aria-label="Izvēlies sportistu"></select>
           </section>
 
-          <section class="panel collapsible" id="adminPanel" hidden>
-            <div class="panel-header">
-              <h2>Administrēšana</h2>
-              <button class="collapse-toggle" type="button" aria-label="Rādīt administrēšanu">▼</button>
-            </div>
-            <div class="panel-body">
-              <button id="createUserBtn" class="primary-action" type="button">Pievienot sportistu</button>
-              <div id="adminAthleteList"></div>
-            </div>
-          </section>
-
           <section class="panel collapsible collapsed" id="trainingPickerPanel" hidden>
             <div class="panel-header">
-              <h2>Treniņa izvēle</h2>
+              <h2>Treniņu plānošana</h2>
               <button class="collapse-toggle" type="button" aria-label="Rādīt treniņa izvēli">▶</button>
             </div>
             <div class="panel-body">
@@ -105,33 +110,34 @@
               <div class="custom-builder" id="customBuilder" hidden>
               <label>
                 Treniņa tips
-                <select id="customType">
-                  <option value="Intervāli">Intervāli</option>
-                  <option value="Tempa skrējiens">Tempa skrējiens</option>
-                  <option value="Vieglais skrējiens">Vieglais skrējiens</option>
-                  <option value="Garais skrējiens">Garais skrējiens</option>
-                  <option value="VFS">VFS</option>
-                  <option value="SFS">SFS</option>
-                  <option value="Velo">Velo</option>
-                  <option value="Cits">Cits</option>
-                </select>
+<select id="customType">
+                   <option value="" selected disabled>Izvēlies...</option>
+                   <option value="Vieglais skrējiens">Vieglais skrējiens</option>
+                   <option value="Garais skrējiens">Garais skrējiens</option>
+                   <option value="Intervāli">Intervāli</option>
+                   <option value="Tempa skrējiens">Tempa skrējiens</option>
+                   <option value="VFS">VFS</option>
+                   <option value="SFS">SFS</option>
+                   <option value="Velo">Velo</option>
+                   <option value="Cits">Cits</option>
+                 </select>
               </label>
 
               <div id="warmupSection">
                 <p class="section-label">Iesildīšanās</p>
                 <label class="checkbox-row" id="warmupToggleRow" hidden>
-                  <input id="includeWarmup" type="checkbox" checked />
+                  <input id="includeWarmup" type="checkbox" />
                   <span>Iesildīšanās</span>
                 </label>
                 <div class="field-grid" id="warmupFields">
-                  <label>Ilgums <input id="warmupDuration" type="text" value="15 min" /></label>
-                  <label>Pulss <input id="warmupPulse" type="text" value="130-145" /></label>
+                  <label>Ilgums <input id="warmupDuration" type="text" /></label>
+                  <label>Pulss <input id="warmupPulse" type="text" /></label>
                 </div>
               </div>
 
               <div id="drillsRow">
                 <label class="checkbox-row">
-                  <input id="includeDrills" type="checkbox" checked />
+                  <input id="includeDrills" type="checkbox" />
                   <span>Drills</span>
                 </label>
               </div>
@@ -139,21 +145,22 @@
               <div id="intervalFields">
                 <p class="section-label">Pamatdaļa</p>
                 <div class="field-grid">
-                  <label>Garums/Ilgums <input id="intervalLength" type="text" value="600 m" /></label>
-                  <label>Reizes <input id="repeatCount" type="text" value="6" /></label>
+                  <label>Garums/Ilgums <input id="intervalLength" type="text" /></label>
+                  <label>Reizes <input id="repeatCount" type="text" /></label>
                 </div>
                 <div class="field-grid">
-                  <label>Temps (min/km vai sek) <input id="intervalPace" type="text" value="3:45/km" placeholder="min/km vai s" /></label>
-                  <label>Atpūta <input id="restDuration" type="text" value="2 min" /></label>
+                  <label>Temps (min/km vai sek) <input id="intervalPace" type="text" placeholder="min/km vai s" /></label>
+                  <label>Atpūta <input id="restDuration" type="text" /></label>
                 </div>
               </div>
 
               <div id="mainFields" hidden>
                 <p class="section-label" id="mainSectionLabel">Pamatdaļa</p>
                 <div class="field-grid">
-                  <label id="mainDurationLabel">Ilgums <input id="mainDuration" type="text" value="45 min" /></label>
-                  <label id="mainPulseLabel">Pulss <input id="mainPulse" type="text" value="145-155" /></label>
+                  <label id="mainDurationLabel">Ilgums <input id="mainDuration" type="text" /></label>
+                  <label id="mainPulseLabel">Pulss <input id="mainPulse" type="text" /></label>
                 </div>
+                <label id="tempoPaceRow" hidden>Temps (min/km) <input id="tempoPace" type="text" placeholder="piem. 4:15/km" /></label>
               </div>
 
               <label id="freeTextRow" hidden>
@@ -164,12 +171,12 @@
               <div id="cooldownSection">
                 <p class="section-label">Atsildīšanās</p>
                 <label class="checkbox-row" id="cooldownToggleRow" hidden>
-                  <input id="includeCooldown" type="checkbox" checked />
+                  <input id="includeCooldown" type="checkbox" />
                   <span>Atsildīšanās</span>
                 </label>
                 <div class="field-grid" id="cooldownFields">
-                  <label>Ilgums <input id="cooldownDuration" type="text" value="15 min" /></label>
-                  <label>Pulss <input id="cooldownPulse" type="text" value="120-135" /></label>
+                  <label>Ilgums <input id="cooldownDuration" type="text" /></label>
+                  <label>Pulss <input id="cooldownPulse" type="text" /></label>
                 </div>
               </div>
 
@@ -178,6 +185,7 @@
                 <span>Tikai šim sportistam</span>
               </label>
 
+              <p class="preview-label">Treniņa priekšskatījums</p>
               <div class="generated-preview" id="customPreview"></div>
 
               <button id="saveTemplateOnlyBtn" class="primary-action" type="button">Saglabāt sagatavēs</button>
@@ -263,15 +271,17 @@
             <div class="panel-body" id="polarTestsBody"></div>
           </section>
 
-          <section class="panel collapsible collapsed" id="exerciseLibraryPanel">
+          <section class="panel collapsible collapsed" id="healthJournalPanel">
             <div class="panel-header">
               <div class="panel-header-text">
-                <h2>VFS/SFS vingrinājumu bibliotēka</h2>
+                <h2>Veselības žurnāls</h2>
+                <span class="panel-subtitle">Slimības, traumas, sāpes</span>
               </div>
-              <button class="collapse-toggle" type="button" aria-label="Rādīt vingrinājumus">▶</button>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt veselības žurnālu">▶</button>
             </div>
-            <div class="panel-body" id="exerciseLibraryBody"></div>
+            <div class="panel-body" id="healthJournalBody"></div>
           </section>
+
 
           </div>
         </aside>
@@ -286,7 +296,6 @@
               <button id="openRaceBtn" class="secondary-action" type="button">🏁 Pievienot sacensības</button>
               <button id="raceCalendarBtn" class="secondary-action" type="button">📅 Sacensību kalendārs</button>
             </div>
-            <button id="calendarModeToggle" class="secondary-action" type="button">📱 Mobilais izskats</button>
           </div>
 
           <div id="weekView">
@@ -295,6 +304,7 @@
                 <p class="eyebrow">Nedēļas plāns</p>
                 <h2 id="weekLabel"></h2>
               </div>
+              <div id="activeAthleteName"></div>
               <div class="week-nav">
                 <button id="weekPrev" class="secondary-action" type="button">Iepriekšējā nedēļa</button>
                 <button id="weekNext" class="secondary-action" type="button">Nākamā nedēļa</button>
@@ -438,6 +448,94 @@
       </form>
     </dialog>
 
+    <dialog class="session-dialog edit-dialog" id="editPlanDialog">
+      <form method="dialog">
+        <div class="dialog-header">
+          <h2>Rediģēt treniņu</h2>
+          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
+        </div>
+
+        <label>
+          Treniņa tips
+          <select id="epType">
+            <option value="Vieglais skrējiens">Vieglais skrējiens</option>
+            <option value="Garais skrējiens">Garais skrējiens</option>
+            <option value="Intervāli">Intervāli</option>
+            <option value="Tempa skrējiens">Tempa skrējiens</option>
+            <option value="VFS">VFS</option>
+            <option value="SFS">SFS</option>
+            <option value="Velo">Velo</option>
+            <option value="Cits">Cits</option>
+          </select>
+        </label>
+
+        <div id="epWarmupSection">
+          <p class="section-label">Iesildīšanās</p>
+          <label class="checkbox-row" id="epWarmupToggleRow" hidden>
+            <input id="epIncludeWarmup" type="checkbox" />
+            <span>Iesildīšanās</span>
+          </label>
+          <div class="field-grid" id="epWarmupFields">
+            <label>Ilgums <input id="epWarmupDuration" type="text" value="15 min" /></label>
+            <label>Pulss <input id="epWarmupPulse" type="text" value="130-145" /></label>
+          </div>
+        </div>
+
+        <div id="epDrillsRow">
+          <label class="checkbox-row">
+            <input id="epIncludeDrills" type="checkbox" checked />
+            <span>Drills</span>
+          </label>
+        </div>
+
+        <div id="epIntervalFields">
+          <p class="section-label">Pamatdaļa</p>
+          <div class="field-grid">
+            <label>Garums/Ilgums <input id="epIntervalLength" type="text" value="600 m" /></label>
+            <label>Reizes <input id="epRepeatCount" type="text" value="6" /></label>
+          </div>
+          <div class="field-grid">
+            <label>Temps (min/km vai sek) <input id="epIntervalPace" type="text" value="3:45/km" placeholder="min/km vai s" /></label>
+            <label>Atpūta <input id="epRestDuration" type="text" value="2 min" /></label>
+          </div>
+        </div>
+
+        <div id="epMainFields" hidden>
+          <p class="section-label" id="epMainSectionLabel">Pamatdaļa</p>
+          <div class="field-grid">
+            <label id="epMainDurationLabel">Ilgums <input id="epMainDuration" type="text" value="45 min" /></label>
+            <label id="epMainPulseLabel">Pulss <input id="epMainPulse" type="text" value="145-155" /></label>
+          </div>
+          <label id="epTempoPaceRow" hidden>Temps (min/km) <input id="epTempoPace" type="text" value="4:15/km" placeholder="piem. 4:15/km" /></label>
+        </div>
+
+        <label id="epFreeTextRow" hidden>
+          Apraksts
+          <textarea id="epFreeText" rows="3"></textarea>
+        </label>
+
+        <div id="epCooldownSection">
+          <p class="section-label">Atsildīšanās</p>
+          <label class="checkbox-row" id="epCooldownToggleRow" hidden>
+            <input id="epIncludeCooldown" type="checkbox" />
+            <span>Atsildīšanās</span>
+          </label>
+          <div class="field-grid" id="epCooldownFields">
+            <label>Ilgums <input id="epCooldownDuration" type="text" value="15 min" /></label>
+            <label>Pulss <input id="epCooldownPulse" type="text" value="120-135" /></label>
+          </div>
+        </div>
+
+        <p class="preview-label">Treniņa priekšskatījums</p>
+        <div class="generated-preview" id="epPreview"></div>
+
+        <div class="dialog-actions split-actions">
+          <button value="cancel" type="submit">Atcelt</button>
+          <button class="primary-action" id="saveEditPlanBtn" type="button">Saglabāt izmaiņas</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog class="session-dialog" id="logDialog">
       <form method="dialog">
         <div class="dialog-header">
@@ -560,11 +658,17 @@
           <h2>Mainīt paroli</h2>
           <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
         </div>
-        <label>Jaunā parole
-          <input id="newPassword" type="password" autocomplete="new-password" placeholder="min 5 rakstzīmes" />
+        <label>Jaunā parole (min. 5 simboli)
+          <span class="pw-wrapper">
+            <input id="newPassword" type="password" autocomplete="new-password" />
+            <button id="toggleNewPw" class="pw-toggle" type="button" aria-label="Rādīt/slēpt paroli">👁️</button>
+          </span>
         </label>
         <label>Apstiprināt jauno paroli
-          <input id="confirmPassword" type="password" autocomplete="new-password" placeholder="atkārto paroli" />
+          <span class="pw-wrapper">
+            <input id="confirmPassword" type="password" autocomplete="new-password" placeholder="atkārto paroli" />
+            <button id="toggleConfirmPw" class="pw-toggle" type="button" aria-label="Rādīt/slēpt paroli">👁️</button>
+          </span>
         </label>
         <div id="passwordError" class="auth-error" hidden></div>
         <div class="dialog-actions">
@@ -600,12 +704,7 @@
         </div>
         <label>Vārds <input id="newUserFirstName" required /></label>
         <label>Uzvārds <input id="newUserLastName" required /></label>
-        <label>Loma
-          <select id="newUserRole">
-            <option value="athlete">Sportists</option>
-            <option value="coach">Treneris</option>
-          </select>
-        </label>
+
         <label>Lietotājvārds
           <input id="newUserUsername" class="generated-username" readonly tabindex="-1" />
         </label>
@@ -676,23 +775,24 @@
       </form>
     </dialog>
 
-    <dialog class="session-dialog" id="exerciseDialog">
+    <dialog class="session-dialog" id="healthDialog">
       <form method="dialog">
         <div class="dialog-header">
-          <h2>Vingrinājums</h2>
+          <h2>Veselības ieraksts</h2>
           <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
         </div>
-        <label>Nosaukums <input id="exTitle" /></label>
-        <label>Kategorija
-          <select id="exCategory">
-            <option value="VFS">VFS</option>
-            <option value="SFS">SFS</option>
-          </select>
+        <div class="field-grid">
+          <label>No <input id="hjStartDate" type="date" /></label>
+          <label>Līdz <input id="hjEndDate" type="date" placeholder="tukšs, ja viena diena" /></label>
+        </div>
+        <label>Apraksts <textarea id="hjDescription" rows="4"></textarea></label>
+        <label class="checkbox-row">
+          <input id="hjNoTrainings" type="checkbox" />
+          <span>Treniņi šajā dienā/dienās netiek veikti</span>
         </label>
-        <label>Saturs <textarea id="exContent" rows="10"></textarea></label>
         <div class="dialog-actions split-actions">
-          <button class="delete-action" id="deleteExerciseBtn" type="button" hidden>Dzēst</button>
-          <button class="primary-action" id="saveExerciseBtn" type="button">Saglabāt</button>
+          <button class="delete-action" id="deleteHealthBtn" type="button" hidden>Dzēst</button>
+          <button class="primary-action" id="saveHealthBtn" type="button">Saglabāt</button>
         </div>
       </form>
     </dialog>

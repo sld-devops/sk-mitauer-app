@@ -55,7 +55,7 @@ async function getAthletes() {
   const { data } = await supabase
     .from("profiles")
     .select("id, full_name, group_name, role, hr_zones, thresholds, garmin_url, strava_url, spreadsheet_url")
-    .or(`role.eq.athlete,id.eq.${user.id}`)
+    .neq("role", "coach")
     .order("full_name");
   return data || [];
 }
@@ -322,21 +322,6 @@ async function getWeeklyTrend(athleteId, numWeeks) {
     .gte("date", startStr)
     .lte("date", endStr);
 
-  const { data: plansData } = await supabase
-    .from("plans")
-    .select("date, title")
-    .eq("athlete_id", athleteId)
-    .gte("date", startStr)
-    .lte("date", endStr);
-
-  const vfsSfsDates = new Set();
-  if (plansData) {
-    for (const p of plansData) {
-      const t = (p.title || "").toLowerCase();
-      if (t === "vfs" || t === "sfs") vfsSfsDates.add(p.date);
-    }
-  }
-
   const weeks = {};
   for (let i = 0; i < numWeeks; i++) {
     const m = new Date(startDate);
@@ -354,12 +339,12 @@ async function getWeeklyTrend(athleteId, numWeeks) {
       if (!weeks[key]) continue;
       if (entry.activity_type === "run") {
         weeks[key].run_km += Number(entry.distance_km) || 0;
-        weeks[key].run_min += Number(entry.duration_min) || 0;
-        if (vfsSfsDates.has(entry.date)) {
-          weeks[key].vfs_sfs_min += Number(entry.duration_min) || 0;
-        }
+      }
+      weeks[key].run_min += Number(entry.duration_min) / 60 || 0;
+      if (entry.activity_type === "gym") {
+        weeks[key].vfs_sfs_min += Number(entry.duration_min) / 60 || 0;
       } else if (entry.activity_type === "bike") {
-        weeks[key].velo_min += Number(entry.duration_min) || 0;
+        weeks[key].velo_min += Number(entry.duration_min) / 60 || 0;
       }
     }
   }
@@ -381,21 +366,6 @@ async function getMonthlyTrend(athleteId, numMonths) {
     .gte("date", startStr)
     .lte("date", endStr);
 
-  const { data: plansData } = await supabase
-    .from("plans")
-    .select("date, title")
-    .eq("athlete_id", athleteId)
-    .gte("date", startStr)
-    .lte("date", endStr);
-
-  const vfsSfsDates = new Set();
-  if (plansData) {
-    for (const p of plansData) {
-      const t = (p.title || "").toLowerCase();
-      if (t === "vfs" || t === "sfs") vfsSfsDates.add(p.date);
-    }
-  }
-
   const months = {};
   for (let i = 0; i < numMonths; i++) {
     const m = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
@@ -410,12 +380,12 @@ async function getMonthlyTrend(athleteId, numMonths) {
       if (!months[ms]) continue;
       if (entry.activity_type === "run") {
         months[ms].run_km += Number(entry.distance_km) || 0;
-        months[ms].run_min += Number(entry.duration_min) || 0;
-        if (vfsSfsDates.has(entry.date)) {
-          months[ms].vfs_sfs_min += Number(entry.duration_min) || 0;
-        }
+      }
+      months[ms].run_min += Number(entry.duration_min) / 60 || 0;
+      if (entry.activity_type === "gym") {
+        months[ms].vfs_sfs_min += Number(entry.duration_min) / 60 || 0;
       } else if (entry.activity_type === "bike") {
-        months[ms].velo_min += Number(entry.duration_min) || 0;
+        months[ms].velo_min += Number(entry.duration_min) / 60 || 0;
       }
     }
   }
@@ -498,6 +468,52 @@ async function upsertDayNote(data) {
     .select()
     .single();
   if (error) throw error;
+}
+
+async function getWeekStatuses(athleteIds, weekStartStr) {
+  if (!athleteIds.length) return {};
+  const startParts = weekStartStr.split("-").map(Number);
+  const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 28);
+  const weekEndStr = isoLocal(endDate);
+
+  const [plansRes, dayNotesRes, racesRes] = await Promise.all([
+    supabase.from("plans").select("athlete_id, date").in("athlete_id", athleteIds).gte("date", weekStartStr).lte("date", weekEndStr),
+    supabase.from("day_notes").select("athlete_id, date").in("athlete_id", athleteIds).gte("date", weekStartStr).lte("date", weekEndStr).eq("is_rest_day", true),
+    supabase.from("races").select("athlete_id, date").in("athlete_id", athleteIds).gte("date", weekStartStr).lte("date", weekEndStr),
+  ]);
+
+  const covered = {};
+  athleteIds.forEach(id => { covered[id] = new Set(); });
+  (plansRes.data || []).forEach(p => { if (covered[p.athlete_id]) covered[p.athlete_id].add(p.date); });
+  (dayNotesRes.data || []).forEach(d => { if (covered[d.athlete_id]) covered[d.athlete_id].add(d.date); });
+  (racesRes.data || []).forEach(r => { if (covered[r.athlete_id]) covered[r.athlete_id].add(r.date); });
+
+  const statuses = {};
+  athleteIds.forEach(id => {
+    const weeks = [];
+    for (let w = 0; w < 4; w++) {
+      let allCovered = true;
+      for (let d = 0; d < 7; d++) {
+        const dt = new Date(startDate);
+        dt.setDate(dt.getDate() + w * 7 + d);
+        const ds = isoLocal(dt);
+        if (!covered[id].has(ds)) { allCovered = false; break; }
+      }
+      weeks.push(allCovered);
+    }
+    statuses[id] = weeks;
+  });
+  return statuses;
+}
+
+function isoLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 async function getRestrictions(athleteId) {
@@ -632,18 +648,18 @@ async function deletePolarTest(id) {
   if (error) throw error;
 }
 
-async function getExercises() {
+async function getHealthEntries(athleteId) {
   const { data } = await supabase
-    .from("exercise_library")
+    .from("health_entries")
     .select("*")
-    .order("category", { ascending: true })
-    .order("title", { ascending: true });
+    .eq("athlete_id", athleteId)
+    .order("start_date", { ascending: false });
   return data || [];
 }
 
-async function insertExercise(data) {
+async function insertHealthEntry(data) {
   const { data: result, error } = await supabase
-    .from("exercise_library")
+    .from("health_entries")
     .insert(data)
     .select()
     .single();
@@ -651,18 +667,20 @@ async function insertExercise(data) {
   return result;
 }
 
-async function updateExercise(id, updates) {
+async function updateHealthEntry(id, updates) {
   const { error } = await supabase
-    .from("exercise_library")
+    .from("health_entries")
     .update(updates)
     .eq("id", id);
   if (error) throw error;
 }
 
-async function deleteExercise(id) {
+async function deleteHealthEntry(id) {
   const { error } = await supabase
-    .from("exercise_library")
+    .from("health_entries")
     .delete()
     .eq("id", id);
   if (error) throw error;
 }
+
+
