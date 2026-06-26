@@ -683,4 +683,38 @@ async function deleteHealthEntry(id) {
   if (error) throw error;
 }
 
+async function getLabTests(athleteId) {
+  const { data } = await supabase
+    .from("lab_tests")
+    .select("*")
+    .eq("athlete_id", athleteId)
+    .order("date", { ascending: false });
+  return data || [];
+}
+
+async function insertLabTest(data) {
+  const { data: result, error } = await supabase
+    .from("lab_tests")
+    .insert(data)
+    .select()
+    .single();
+  if (error) throw error;
+  return result;
+}
+
+async function deleteLabTest(id) {
+  const { error } = await supabase
+    .from("lab_tests")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
+}
+
+async function getAthleteHealthCounts() {
+  const { data } = await supabase
+    .from("health_entries")
+    .select("athlete_id, start_date, end_date");
+  return data || [];
+}
+
 

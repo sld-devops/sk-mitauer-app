@@ -64,7 +64,7 @@
           <div class="planner-panel__scroll">
           <section class="panel collapsible collapsed" id="adminPanel" hidden>
             <div class="panel-header">
-              <h2>Administrēšana</h2>
+              <h2>Sportistu pārvaldība</h2>
               <button class="collapse-toggle" type="button" aria-label="Rādīt administrēšanu">▶</button>
             </div>
             <div class="panel-body">
@@ -149,7 +149,7 @@
                   <label>Reizes <input id="repeatCount" type="text" /></label>
                 </div>
                 <div class="field-grid">
-                  <label>Temps (min/km vai sek) <input id="intervalPace" type="text" placeholder="min/km vai s" /></label>
+                  <label>Temps (min/km vai sek) <input id="intervalPace" type="text" /></label>
                   <label>Atpūta <input id="restDuration" type="text" /></label>
                 </div>
               </div>
@@ -160,7 +160,11 @@
                   <label id="mainDurationLabel">Ilgums <input id="mainDuration" type="text" /></label>
                   <label id="mainPulseLabel">Pulss <input id="mainPulse" type="text" /></label>
                 </div>
-                <label id="tempoPaceRow" hidden>Temps (min/km) <input id="tempoPace" type="text" placeholder="piem. 4:15/km" /></label>
+                <label id="tempoPaceRow" hidden>Temps (min/km) <input id="tempoPace" type="text" /></label>
+                <label class="checkbox-row" id="koptreniņšRow" hidden>
+                  <input id="includeKoptreniņš" type="checkbox" />
+                  <span>Koptreniņš</span>
+                </label>
               </div>
 
               <label id="freeTextRow" hidden>
@@ -219,12 +223,26 @@
             <div class="panel-body" id="thresholdsBody"></div>
           </section>
 
-          <section class="panel collapsible collapsed" id="recordsPanel">
+          <section class="panel collapsible collapsed" id="healthJournalPanel">
             <div class="panel-header">
-              <h2>Personīgie rekordi</h2>
-              <button class="collapse-toggle" type="button" aria-label="Rādīt rekordus">▶</button>
+              <div class="panel-header-text">
+                <h2>Veselības žurnāls</h2>
+                <span class="panel-subtitle">Slimības, traumas, sāpes</span>
+              </div>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt veselības žurnālu">▶</button>
             </div>
-            <div class="panel-body" id="recordsBody"></div>
+            <div class="panel-body" id="healthJournalBody"></div>
+          </section>
+
+          <section class="panel collapsible collapsed" id="labTestsPanel">
+            <div class="panel-header">
+              <div class="panel-header-text">
+                <h2>Laboratoriskie izmeklējumi</h2>
+                <span class="panel-subtitle">Asins ainas un izmeklējumi</span>
+              </div>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt laboratoriskos izmeklējumus">▶</button>
+            </div>
+            <div class="panel-body" id="labTestsBody"></div>
           </section>
 
           <section class="panel collapsible collapsed" id="restrictionsPanel">
@@ -249,6 +267,14 @@
             <div class="panel-body" id="diaryBody"></div>
           </section>
 
+          <section class="panel collapsible collapsed" id="recordsPanel">
+            <div class="panel-header">
+              <h2>Personīgie rekordi</h2>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt rekordus">▶</button>
+            </div>
+            <div class="panel-body" id="recordsBody"></div>
+          </section>
+
           <section class="panel collapsible collapsed" id="selfTestsPanel">
             <div class="panel-header">
               <div class="panel-header-text">
@@ -269,17 +295,6 @@
               <button class="collapse-toggle" type="button" aria-label="Rādīt polar testus">▶</button>
             </div>
             <div class="panel-body" id="polarTestsBody"></div>
-          </section>
-
-          <section class="panel collapsible collapsed" id="healthJournalPanel">
-            <div class="panel-header">
-              <div class="panel-header-text">
-                <h2>Veselības žurnāls</h2>
-                <span class="panel-subtitle">Slimības, traumas, sāpes</span>
-              </div>
-              <button class="collapse-toggle" type="button" aria-label="Rādīt veselības žurnālu">▶</button>
-            </div>
-            <div class="panel-body" id="healthJournalBody"></div>
           </section>
 
 
@@ -409,7 +424,7 @@
             <label>Reizes <input id="editRepeatCount" type="text" value="6" /></label>
           </div>
           <div class="field-grid">
-            <label>Temps (min/km vai sek) <input id="editIntervalPace" type="text" value="3:45/km" placeholder="min/km vai s" /></label>
+            <label>Temps (min/km vai sek) <input id="editIntervalPace" type="text" value="3:45/km" /></label>
             <label>Atpūta <input id="editRestDuration" type="text" value="2 min" /></label>
           </div>
         </div>
@@ -421,6 +436,11 @@
             <label id="editMainPulseLabel">Pulss <input id="editMainPulse" type="text" value="145-155" /></label>
           </div>
         </div>
+
+        <label class="checkbox-row" id="editKoptreniņšRow" hidden>
+          <input id="editIncludeKoptreniņš" type="checkbox" />
+          <span>Koptreniņš</span>
+        </label>
 
         <label id="editFreeTextRow" hidden>
           Apraksts
@@ -495,7 +515,7 @@
             <label>Reizes <input id="epRepeatCount" type="text" value="6" /></label>
           </div>
           <div class="field-grid">
-            <label>Temps (min/km vai sek) <input id="epIntervalPace" type="text" value="3:45/km" placeholder="min/km vai s" /></label>
+            <label>Temps (min/km vai sek) <input id="epIntervalPace" type="text" value="3:45/km" /></label>
             <label>Atpūta <input id="epRestDuration" type="text" value="2 min" /></label>
           </div>
         </div>
@@ -506,8 +526,13 @@
             <label id="epMainDurationLabel">Ilgums <input id="epMainDuration" type="text" value="45 min" /></label>
             <label id="epMainPulseLabel">Pulss <input id="epMainPulse" type="text" value="145-155" /></label>
           </div>
-          <label id="epTempoPaceRow" hidden>Temps (min/km) <input id="epTempoPace" type="text" value="4:15/km" placeholder="piem. 4:15/km" /></label>
+          <label id="epTempoPaceRow" hidden>Temps (min/km) <input id="epTempoPace" type="text" value="4:15/km" /></label>
         </div>
+
+        <label class="checkbox-row" id="epKoptreniņšRow" hidden>
+          <input id="epIncludeKoptreniņš" type="checkbox" />
+          <span>Koptreniņš</span>
+        </label>
 
         <label id="epFreeTextRow" hidden>
           Apraksts
@@ -793,6 +818,33 @@
         <div class="dialog-actions split-actions">
           <button class="delete-action" id="deleteHealthBtn" type="button" hidden>Dzēst</button>
           <button class="primary-action" id="saveHealthBtn" type="button">Saglabāt</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="session-dialog" id="labTestDialog">
+      <form method="dialog">
+        <div class="dialog-header">
+          <h2>Pievienot izmeklējumu</h2>
+          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit" formnovalidate>×</button>
+        </div>
+        <div class="field-grid">
+          <label>Datums <input id="labTestDate" type="date" /></label>
+          <label>Tips
+            <select id="labTestType">
+              <option value="asins_aina">Asins aina</option>
+              <option value="slodzes_tests">Slodzes tests</option>
+              <option value="cits">Cits</option>
+            </select>
+          </label>
+        </div>
+        <label>Nosaukums <input id="labTestName" type="text" placeholder="piem. Pilna asins aina 06.2026" /></label>
+        <label>Fails
+          <input id="labTestFile" type="file" accept=".pdf,.jpg,.jpeg,.png" />
+        </label>
+        <div class="dialog-actions split-actions">
+          <button class="delete-action" id="deleteLabTestBtn" type="button" hidden>Dzēst</button>
+          <button class="primary-action" id="saveLabTestBtn" type="button">Saglabāt</button>
         </div>
       </form>
     </dialog>

@@ -68,6 +68,8 @@ let polarTests = [];
 let editingPolarTestId = null;
 let healthEntries = [];
 let editingHealthId = null;
+let labTests = [];
+let editingLabTestId = null;
 
 let athleteNextWeeksPlans = {};
 let readDiaryEntryIds = new Set();
@@ -75,6 +77,24 @@ let seenRecordIds = new Set();
 let seenHealthIds = new Set();
 let seenSelfTestIds = new Set();
 let seenPolarTestIds = new Set();
+let seenLabTestIds = new Set();
+let athleteHealthSet = new Set();
+
+async function refreshAthleteHealthSet() {
+  try {
+    const allHealth = await getAthleteHealthCounts();
+    const todayStr = formatDateISO(new Date());
+    athleteHealthSet = new Set(
+      allHealth
+        .filter(e => e.start_date <= todayStr && (!e.end_date || e.end_date >= todayStr))
+        .map(e => e.athlete_id)
+    );
+  } catch (e) {
+    athleteHealthSet = new Set();
+  }
+}
+
+let seenRaceIds = new Set();
 let weekStatuses = {};
 let panelCollapsed = localStorage.getItem("panelCollapsed") === "true";
 
@@ -188,11 +208,57 @@ function markAllPolarTestsSeen(athleteId, tests) {
   saveSeenPolarTestIds();
 }
 
+function loadSeenLabTestIds() {
+  try {
+    const stored = localStorage.getItem("seenLabTestIds");
+    if (stored) seenLabTestIds = new Set(JSON.parse(stored));
+  } catch (e) {
+    seenLabTestIds = new Set();
+  }
+}
+
+function saveSeenLabTestIds() {
+  localStorage.setItem("seenLabTestIds", JSON.stringify([...seenLabTestIds]));
+}
+
+function isLabTestSeen(athleteId, testId) {
+  return seenLabTestIds.has(`${athleteId}:${testId}`);
+}
+
+function markAllLabTestsSeen(athleteId, tests) {
+  tests.forEach(t => seenLabTestIds.add(`${athleteId}:${t.id}`));
+  saveSeenLabTestIds();
+}
+
+function loadSeenRaceIds() {
+  try {
+    const stored = localStorage.getItem("seenRaceIds");
+    if (stored) seenRaceIds = new Set(JSON.parse(stored));
+  } catch (e) {
+    seenRaceIds = new Set();
+  }
+}
+
+function saveSeenRaceIds() {
+  localStorage.setItem("seenRaceIds", JSON.stringify([...seenRaceIds]));
+}
+
+function isRaceSeen(athleteId, raceId) {
+  return seenRaceIds.has(`${athleteId}:${raceId}`);
+}
+
+function markAllRacesSeen(athleteId, races) {
+  races.forEach(r => seenRaceIds.add(`${athleteId}:${r.id}`));
+  saveSeenRaceIds();
+}
+
 loadReadDiaryIds();
 loadSeenRecordIds();
 loadSeenHealthIds();
 loadSeenSelfTestIds();
 loadSeenPolarTestIds();
+loadSeenLabTestIds();
+loadSeenRaceIds();
 if (panelCollapsed) document.querySelector(".layout")?.classList.add("panel-collapsed");
 
 const athleteSelect = document.getElementById("athleteSelect");
@@ -305,10 +371,9 @@ function parseTimeToSec(timeStr) {
 function formatPart(label, duration, pulse) {
   const dur = duration.trim();
   if (!dur) return "";
-  const durShort = dur.replace(/\s*min\s*/i, "'");
-  const pulseStr = pulse.trim().replace(/\s*sr\s*$/i, "").trim();
-  const pulsePart = pulseStr ? `; ${pulseStr}sr` : "";
-  return `${label}: ${durShort}${pulsePart}`;
+  const pulseStr = pulse.trim();
+  const pulsePart = pulseStr ? `; ${pulseStr}` : "";
+  return `${label}: ${dur}${pulsePart}`;
 }
 
 function getDrillsPart() {
@@ -364,7 +429,9 @@ function getGeneratedTraining() {
 
   if (cooldown) lines.push(cooldown);
 
-  return { title: type, details: lines.join("\n") };
+  const koptreniņš = isSimple && document.getElementById("includeKoptreniņš")?.checked;
+  const title = koptreniņš ? `${type} Koptreniņš` : type;
+  return { title, details: lines.join("\n") };
 }
 
 function getEditTraining() {
@@ -388,10 +455,9 @@ function getEditTraining() {
   function formatPart(label, duration, pulse) {
     const dur = duration.value.trim();
     if (!dur) return "";
-    const durShort = dur.replace(/\s*min\s*/i, "'");
-    const pulseStr = pulse.value.trim().replace(/\s*sr\s*$/i, "").trim();
-    const pulsePart = pulseStr ? `; ${pulseStr}sr` : "";
-    return `${label}: ${durShort}${pulsePart}`;
+    const pulseStr = pulse.value.trim();
+    const pulsePart = pulseStr ? `; ${pulseStr}` : "";
+    return `${label}: ${dur}${pulsePart}`;
   }
 
   const warmup = isEasyOrLong
@@ -411,14 +477,14 @@ function getEditTraining() {
     let main = "Pamatdaļa: ";
     if (count && len) main += `${count}x${len}`;
     if (pace) main += ` (${pace.trim()})`;
-    if (rest) main += `; caur ${rest.replace(/\s*min\s*/i, "'")}`;
+    if (rest) main += `; caur ${rest}`;
     lines.push(main);
   } else {
     const mainLabel = isVelo ? "Velo" : "Pamatdaļa";
     const mainDuration = document.getElementById("editMainDuration");
     const mainPulse = document.getElementById("editMainPulse");
     const main = isSimple
-      ? (mainDuration.value.trim() ? `${mainLabel}: ${mainDuration.value.trim().replace(/\s*min\s*/i, "'")}` : "")
+      ? (mainDuration.value.trim() ? `${mainLabel}: ${mainDuration.value.trim()}` : "")
       : isVelo ? formatPart(mainLabel, mainDuration, mainPulse)
       : formatPart(mainLabel, mainDuration, mainPulse);
     if (main) lines.push(main);
@@ -426,7 +492,9 @@ function getEditTraining() {
 
   if (cooldown) lines.push(cooldown);
 
-  return { title: type, details: lines.join("\n") };
+  const koptreniņš = isSimple && document.getElementById("editIncludeKoptreniņš")?.checked;
+  const title = koptreniņš ? `${type} Koptreniņš` : type;
+  return { title, details: lines.join("\n") };
 }
 
 function getEditPlanTraining() {
@@ -446,10 +514,9 @@ function getEditPlanTraining() {
   function epFormatPart(label, durId, pulseId) {
     const dur = getVal(durId);
     if (!dur) return "";
-    const durShort = dur.replace(/\s*min\s*/i, "'");
-    const pulseStr = getVal(pulseId).replace(/\s*sr\s*$/i, "").trim();
-    const pulsePart = pulseStr ? `; ${pulseStr}sr` : "";
-    return `${label}: ${durShort}${pulsePart}`;
+    const pulseStr = getVal(pulseId);
+    const pulsePart = pulseStr ? `; ${pulseStr}` : "";
+    return `${label}: ${dur}${pulsePart}`;
   }
 
   const warmup = isEasyOrLong
@@ -469,13 +536,13 @@ function getEditPlanTraining() {
     let main = "Pamatdaļa: ";
     if (count && len) main += `${count}x${len}`;
     if (pace) main += ` (${pace.trim()})`;
-    if (rest) main += `; caur ${rest.replace(/\s*min\s*/i, "'")}`;
+    if (rest) main += `; caur ${rest}`;
     lines.push(main);
   } else {
     const mainLabel = isVelo ? "Velo" : "Pamatdaļa";
     let main = "";
     if (isSimple) {
-      main = getVal("epMainDuration") ? `${mainLabel}: ${getVal("epMainDuration").replace(/\s*min\s*/i, "'")}` : "";
+      main = getVal("epMainDuration") ? `${mainLabel}: ${getVal("epMainDuration")}` : "";
     } else if (isVelo) {
       main = epFormatPart(mainLabel, "epMainDuration", "epMainPulse");
     } else {
@@ -490,7 +557,9 @@ function getEditPlanTraining() {
 
   if (cooldown) lines.push(cooldown);
 
-  return { title: type, details: lines.join("\n") };
+  const koptreniņš = isSimple && document.getElementById("epIncludeKoptreniņš")?.checked;
+  const title = koptreniņš ? `${type} Koptreniņš` : type;
+  return { title, details: lines.join("\n") };
 }
 
 function getSelectedTraining() {
@@ -693,6 +762,18 @@ async function loadNonTemplateData() {
     healthEntries = [];
   }
 
+  try {
+    await refreshAthleteHealthSet();
+  } catch (e) {
+    athleteHealthSet = new Set();
+  }
+
+  try {
+    labTests = await getLabTests(athleteId);
+  } catch (e) {
+    labTests = [];
+  }
+
   if (viewMode === "month") {
     const monthStart = getMonthStart(currentMonthDate);
     const monthEnd = getMonthEnd(currentMonthDate);
@@ -707,6 +788,7 @@ async function loadNonTemplateData() {
   await loadWeekOverviewPlanData();
   await refreshWeekStatuses([athleteId]);
   render();
+  updateRaceCalendarBadge();
 }
 
 async function loadWeekOverviewPlanData() {
@@ -802,8 +884,9 @@ function renderAthleteDropdown() {
   list.innerHTML = athletes
     .map((a) => {
       const isSelected = a.id === athleteSelect.value;
+      const healthBadge = athleteHealthSet.has(a.id) ? '<span class="health-dropdown-badge">🩹</span> ' : "";
       return `<div class="athlete-row ${isSelected ? "selected" : ""}" data-athlete-id="${a.id}">
-        <span class="athlete-name">${a.full_name}</span>
+        <span class="athlete-name">${healthBadge}${a.full_name}</span>
         <span class="athlete-indicators">${weekIndicators(a.id)}</span>
       </div>`;
     })
@@ -863,6 +946,8 @@ function renderCustomBuilder() {
     cooldownFields.hidden = true;
     const tpr = document.getElementById("tempoPaceRow");
     if (tpr) tpr.hidden = true;
+    const ktr = document.getElementById("koptreniņšRow");
+    if (ktr) ktr.hidden = true;
     return;
   }
   const isEasyOrLong = type === "Vieglais skrējiens" || type === "Garais skrējiens";
@@ -875,6 +960,9 @@ function renderCustomBuilder() {
   mainFields.hidden = isInterval || isCits;
   freeTextRow.hidden = !isCits;
   drillsRow.hidden = isEasyOrLong || isSimple || isVelo || isCits;
+
+  const koptreniņšRow = document.getElementById("koptreniņšRow");
+  if (koptreniņšRow) koptreniņšRow.hidden = !isSimple;
 
   includeDrills.checked = isInterval || type === "Tempa skrējiens";
 
@@ -930,6 +1018,9 @@ function renderEditCustomBuilder() {
   document.getElementById("editMainFields").hidden = isInterval || isCits;
   document.getElementById("editFreeTextRow").hidden = !isCits;
   document.getElementById("editDrillsRow").hidden = isEasyOrLong || isSimple || isVelo || isCits;
+
+  const editKoptreniņšRow = document.getElementById("editKoptreniņšRow");
+  if (editKoptreniņšRow) editKoptreniņšRow.hidden = !isSimple;
 
   document.getElementById("editWarmupToggleRow").hidden = !isEasyOrLong;
   document.getElementById("editCooldownToggleRow").hidden = !isEasyOrLong;
@@ -988,6 +1079,9 @@ function renderEditPlanBuilder() {
   document.getElementById("epMainFields").hidden = isInterval || isCits;
   document.getElementById("epFreeTextRow").hidden = !isCits;
   document.getElementById("epDrillsRow").hidden = isEasyOrLong || isSimple || isVelo || isCits;
+
+  const epKoptreniņšRow = document.getElementById("epKoptreniņšRow");
+  if (epKoptreniņšRow) epKoptreniņšRow.hidden = !isSimple;
 
   document.getElementById("epWarmupToggleRow").hidden = !isEasyOrLong;
   document.getElementById("epCooldownToggleRow").hidden = !isEasyOrLong;
@@ -1062,14 +1156,14 @@ function parsePlanToForm(plan) {
   for (const line of lines) {
     if (line.startsWith("Iesildīšanās:")) {
       document.getElementById("epIncludeWarmup").checked = true;
-      const m = line.match(/: (.+?)(?:; (.+)sr)?$/);
+      const m = line.match(/: (.+?)(?:; (.+?)(?:sr)?)?$/);
       if (m) {
         if (m[1]) document.getElementById("epWarmupDuration").value = m[1];
         if (m[2]) document.getElementById("epWarmupPulse").value = m[2];
       }
     } else if (line.startsWith("Atsildīšanās:")) {
       document.getElementById("epIncludeCooldown").checked = true;
-      const m = line.match(/: (.+?)(?:; (.+)sr)?$/);
+      const m = line.match(/: (.+?)(?:; (.+?)(?:sr)?)?$/);
       if (m) {
         if (m[1]) document.getElementById("epCooldownDuration").value = m[1];
         if (m[2]) document.getElementById("epCooldownPulse").value = m[2];
@@ -1088,9 +1182,9 @@ function parsePlanToForm(plan) {
           const paceMatch = mainContent.match(/\(([^)]+)\)/);
           if (paceMatch) document.getElementById("epIntervalPace").value = paceMatch[1].trim();
           const restMatch = mainContent.match(/caur\s+(.+)/);
-          if (restMatch) document.getElementById("epRestDuration").value = restMatch[1].replace("'", " min");
+          if (restMatch) document.getElementById("epRestDuration").value = restMatch[1];
         } else {
-          const pulseMatch = mainContent.match(/(.+?);\s*(.+?)sr(?:;\s*(.+))?$/);
+          const pulseMatch = mainContent.match(/(.+?);\s*(.+?)(?:sr)?(?:;\s*(.+))?$/);
           if (pulseMatch) {
             document.getElementById("epMainDuration").value = pulseMatch[1].trim();
             document.getElementById("epMainPulse").value = pulseMatch[2].trim();
@@ -1170,15 +1264,15 @@ function parseTrainingToForm(template) {
 
     if (label === "Iesildīšanās") {
       hasWarmup = true;
-      const durMatch = rest.match(/^(\d+)['′]/);
+      const durMatch = rest.match(/^(\d+)(?:['′]| min)/);
       if (durMatch) setVal("editWarmupDuration", durMatch[1] + " min");
-      const pulseMatch = rest.match(/(\d+-\d+)sr/);
+      const pulseMatch = rest.match(/(\d+-\d+)(?:sr)?/);
       if (pulseMatch) setVal("editWarmupPulse", pulseMatch[1]);
     } else if (label === "Atsildīšanās") {
       hasCooldown = true;
-      const durMatch = rest.match(/^(\d+)['′]/);
+      const durMatch = rest.match(/^(\d+)(?:['′]| min)/);
       if (durMatch) setVal("editCooldownDuration", durMatch[1] + " min");
-      const pulseMatch = rest.match(/(\d+-\d+)sr/);
+      const pulseMatch = rest.match(/(\d+-\d+)(?:sr)?/);
       if (pulseMatch) setVal("editCooldownPulse", pulseMatch[1]);
     } else if (line === "Drill") {
       hasDrills = true;
@@ -1192,13 +1286,12 @@ function parseTrainingToForm(template) {
         if (paceMatch) setVal("editIntervalPace", paceMatch[1].trim());
         const restMatch = rest.match(/caur\s+(\S+)/);
         if (restMatch) {
-          const r = restMatch[1].replace(/'$/, "");
-          if (!r.includes("min")) setVal("editRestDuration", r + " min"); else setVal("editRestDuration", r);
+          setVal("editRestDuration", restMatch[1]);
         }
       } else {
-        const durMatch = rest.match(/^(\d+)['′]/);
+        const durMatch = rest.match(/^(\d+)(?:['′]| min)/);
         if (durMatch) setVal("editMainDuration", durMatch[1] + " min");
-        const pulseMatch = rest.match(/(\d+-\d+)sr/);
+        const pulseMatch = rest.match(/(\d+-\d+)(?:sr)?/);
         if (pulseMatch) setVal("editMainPulse", pulseMatch[1]);
       }
     }
@@ -1228,6 +1321,33 @@ function extractMainPart(details) {
   return main.length ? main[0] : lines[0] || "";
 }
 
+function formatDetailsForCard(details) {
+  if (!details) return "";
+  const lines = details.split("\n");
+  const result = [];
+  for (const line of lines) {
+    if (line.trim() === "Drill") {
+      if (result.length > 0) {
+        result[result.length - 1] += " + Drill";
+      }
+    } else {
+      result.push(line);
+    }
+  }
+  return result.join("\n");
+}
+
+function badgeForTitle(title) {
+  const t = (title || "").toLowerCase();
+  if (t.includes("vieglais")) return "🐢";
+  if (t.includes("garais")) return "⌛";
+  if (t.includes("intervāli")) return "⚡";
+  if (t.includes("tempa")) return "📈";
+  if (t.includes("vfs") || t.includes("sfs")) return "💪";
+  if (t.includes("velo")) return "🚴";
+  return "📄";
+}
+
 function renderPlanCard(plan) {
   const isCoach = activeRole === "coach";
   const coachDisabled = !isCoach ? "disabled" : "";
@@ -1241,8 +1361,9 @@ function renderPlanCard(plan) {
       <article class="session-card${notCompleted ? " not-completed" : ""}" data-plan-id="${plan.id}">
         <h3>${plan.title}</h3>
         ${todBadge}
+        <span class="plan-type-badge">${badgeForTitle(plan.title)}</span>
         ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
-        <p>${(plan.details || "").replace(/\n/g, "<br>")}</p>
+        <p>${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}</p>
         <div class="comment-label">Trenera komentārs</div>
         <textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach">${plan.coach_comment || ""}</textarea>
         ${notCompleted ? `<div class="not-completed-badge"><span class="not-completed-icon">!</span> Sportists atzīmēja kā neizpildītu</div>${plan.athlete_comment ? `<div class="comment-label">Sportista komentārs</div><div class="log-notes not-completed-comment">${plan.athlete_comment}</div>` : ""}` : ""}
@@ -1307,8 +1428,9 @@ function renderPlanCard(plan) {
     <article class="session-card${notCompleted ? " not-completed" : ""}" data-plan-id="${plan.id}">
       <h3>${plan.title}</h3>
       ${todBadge}
+      <span class="plan-type-badge">${badgeForTitle(plan.title)}</span>
       ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
-      <p>${(plan.details || "").replace(/\n/g, "<br>")}</p>
+      <p>${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}</p>
       <div class="comment-label">Trenera komentārs</div>
       <textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" disabled>${plan.coach_comment || ""}</textarea>
       <label class="checkbox-row"><input type="checkbox" data-cb-plan="${plan.id}" ${notCompleted ? "checked" : ""} /> Treniņš nav izpildīts</label>
@@ -1539,10 +1661,8 @@ function renderCalendar() {
 
       const todayStr = formatDateISO(new Date());
       const dayRestriction = restrictions.find(r => dateStr >= r.start_date && (!r.end_date || dateStr <= r.end_date));
-      const restrictionBadge = dayRestriction ? `<div class="day-restriction-badge">🚫</div>` : "";
       const restrictedClass = dayRestriction ? " restricted-day" : "";
       const dayHealth = healthEntries.find(e => dateStr >= e.start_date && (!e.end_date || dateStr <= e.end_date));
-      const healthBadge = dayHealth ? `<span class="day-health-badge" title="${escapeHtml(dayHealth.description)}">🩹</span>` : "";
       const raceHtml = dayRaces.length
         ? `<div class="race-list">
             <div class="race-section-header">🏁 ${dateStr >= todayStr ? "Gaidāmās sacensības" : "Aizvadītās sacensības"}</div>
@@ -1573,11 +1693,9 @@ function renderCalendar() {
               <span>${dayName}</span>
             </div>
             <span class="day-date">${date.getDate()}.${date.getMonth() + 1}.</span>
-            ${restrictionBadge}
-            ${healthBadge}
           </div>
           ${raceHtml}
-          ${activeRole === "coach" && !dayRestriction ? `<div class="time-of-day-buttons"><button class="add-day-button" data-day="${dateStr}" data-tod="morning" type="button">Ieplānot no rīta</button><button class="add-day-button" data-day="${dateStr}" data-tod="afternoon" type="button">Ieplānot pusdienā</button><button class="add-day-button" data-day="${dateStr}" data-tod="evening" type="button">Ieplānot vakarā</button></div>` : ""}
+          ${activeRole === "coach" && !dayRestriction ? `<div class="time-of-day-buttons"><button class="add-day-button" data-day="${dateStr}" data-tod="morning" type="button">🌄 Ieplānot no rīta</button><button class="add-day-button" data-day="${dateStr}" data-tod="afternoon" type="button">☀️ Ieplānot pusdienā</button><button class="add-day-button" data-day="${dateStr}" data-tod="evening" type="button">🌇 Ieplānot vakarā</button></div>` : ""}
           ${dayPlans.length
             ? dayPlans.map(renderPlanCard).join("")
             : dayRaces.length
@@ -1585,29 +1703,43 @@ function renderCalendar() {
                 ? `<textarea class="inline-comment" data-comment-day="${dateStr}">${dayNote?.coach_comment || ""}</textarea>`
                 : ""
               : dayRestriction
-                ? `<div class="empty-day">Aktīvs ierobežojums</div><div class="restriction-reason">${escapeHtml(dayRestriction.reason)}</div>${activeRole === "coach" ? `<textarea class="inline-comment" data-comment-day="${dateStr}">${dayNote?.coach_comment || ""}</textarea>` : ""}`
+                ? `<div class="day-restriction-text">🚫 ${escapeHtml(dayRestriction.reason)}</div>`
                 : activeRole === "coach"
-                  ? `<label class="rest-day-toggle"><input type="checkbox" data-rest-day="${dateStr}" ${dayNote?.is_rest_day ? "checked" : ""} />Ieplānot brīvdienu</label>${dayNote?.is_rest_day ? `<textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Trenera komentārs...">${dayNote?.coach_comment || ""}</textarea>` : ""}`
+                  ? `<div class="day-rest-text">${dayNote?.is_rest_day ? `<div class="rest-day-toggle-btn" data-rest-day="${dateStr}" role="button" tabindex="0">🌴 Brīvdiena atcelt</div><textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Trenera komentārs...">${dayNote?.coach_comment || ""}</textarea>` : `<div class="rest-day-toggle-btn" data-rest-day="${dateStr}" role="button" tabindex="0">🌴 Ieplānot brīvdienu</div>`}</div>`
                   : dayNote?.is_rest_day
-                    ? `<div class="rest-day-athlete"><span class="rest-day-badge">☑ Brīvdiena</span>${dayNote?.coach_comment ? `<div class="rest-day-coach-comment">Trenera komentārs: ${escapeHtml(dayNote.coach_comment)}</div>` : ""}<textarea class="rest-day-athlete-comment" data-rest-athlete-comment="${dateStr}" placeholder="Tavs komentārs..." rows="1">${dayNote?.athlete_comment || ""}</textarea></div>`
+                    ? `<div class="day-rest-text">🌴 ${dayNote?.coach_comment ? escapeHtml(dayNote.coach_comment) : ""}</div><textarea class="rest-day-athlete-comment" data-rest-athlete-comment="${dateStr}" placeholder="Tavs komentārs..." rows="1">${dayNote?.athlete_comment || ""}</textarea>`
                     : `<div class="empty-day">Pašlaik plāns vēl nav sastādīts</div>`
           }
           ${dayLog.filter(l => !l.plan_id).map(renderLogCard).join("")}
           ${dayHealth ? `<div class="day-health-text">🩹 ${escapeHtml(dayHealth.description)}</div>` : ""}
+          ${(dayRestriction || dayHealth) && activeRole === "coach"
+            ? `<div class="comment-label">Trenera komentārs</div><textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Komentārs...">${dayNote?.coach_comment || ""}</textarea>`
+            : ""}
+          ${(dayRestriction || dayHealth) && activeRole !== "coach" && dayNote?.coach_comment
+            ? `<div class="day-coach-comment">${escapeHtml(dayNote.coach_comment)}</div>`
+            : ""}
         </section>
       `;
     })
     .join("");
 
-  document.querySelectorAll("[data-rest-day]").forEach(cb => {
-    cb.addEventListener("change", async () => {
-      const date = cb.dataset.restDay;
+  document.querySelectorAll("[data-rest-day]").forEach(btn => {
+    const toggleRestDay = async () => {
+      const date = btn.dataset.restDay;
       const athleteId = getSelectedAthleteId();
+      const isCurrentlyRest = btn.textContent.includes("Brīvdiena atcelt");
       try {
-        await upsertDayNote({ athlete_id: athleteId, date, is_rest_day: cb.checked });
+        await upsertDayNote({ athlete_id: athleteId, date, is_rest_day: !isCurrentlyRest });
         await loadNonTemplateData();
       } catch (e) {
         console.error(e);
+      }
+    };
+    btn.addEventListener("click", toggleRestDay);
+    btn.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleRestDay();
       }
     });
   });
@@ -2238,6 +2370,9 @@ function openSelfTestDialog(existing) {
   dlg.showModal();
 }
 
+document.getElementById("saveLabTestBtn")?.addEventListener("click", saveLabTest);
+document.getElementById("deleteLabTestBtn")?.addEventListener("click", deleteLabTestFile);
+
 document.getElementById("saveSelfTestBtn")?.addEventListener("click", async () => {
   const athleteId = getSelectedAthleteId();
   const date = document.getElementById("stDate").value;
@@ -2461,6 +2596,251 @@ function renderHealthJournal() {
   }
 }
 
+const LABTEST_TYPE_LABEL = {
+  asins_aina: "🧪 Asins aina",
+  slodzes_tests: "💉 Slodzes tests",
+  cits: "📄 Cits"
+};
+
+const LABTEST_TYPE_CLASS = {
+  asins_aina: "labtest-type-asins",
+  slodzes_tests: "labtest-type-slodzes",
+  cits: "labtest-type-cits"
+};
+
+function renderLabTests() {
+  const body = document.getElementById("labTestsBody");
+  if (!body) return;
+  const athleteId = getSelectedAthleteId();
+  if (!athleteId) return;
+  const isAthleteView = (activeRole === "athlete" || isManager) && currentUser.id === athleteId;
+
+  let html = "";
+
+  if (isAthleteView) {
+    html += `<button class="primary-action" id="addLabTestBtn" type="button">+ Pievienot</button>`;
+  }
+
+  if (labTests.length === 0) {
+    html += `<p class="empty-state">Nav pievienotu izmeklējumu.</p>`;
+  } else {
+    html += `<div class="labtest-list">`;
+    labTests.forEach(t => {
+      html += `<div class="labtest-row" data-labtest-id="${t.id}">
+        <span class="labtest-date">${formatDateLV(t.date)}</span>
+        <span class="labtest-type-badge ${LABTEST_TYPE_CLASS[t.type] || ""}">${LABTEST_TYPE_LABEL[t.type] || t.type}</span>
+        <span class="labtest-name">${escapeHtml(t.name)}</span>
+        <span class="labtest-actions">
+          <a class="labtest-download-btn" href="#" data-labtest-id="${t.id}" title="Lejupielādēt">⬇</a>
+          ${isAthleteView ? `<button class="labtest-delete-btn" data-labtest-id="${t.id}" title="Dzēst">✕</button>` : ""}
+        </span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  body.innerHTML = html;
+
+  document.getElementById("addLabTestBtn")?.addEventListener("click", () => openLabTestDialog(null));
+
+  body.querySelectorAll(".labtest-download-btn").forEach(a => {
+    a.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const t = labTests.find(lt => lt.id === a.dataset.labtestId);
+      if (!t) return;
+      try {
+        const { data, error } = await supabase
+          .storage
+          .from("lab-test-files")
+          .createSignedUrl(t.file_path, 60);
+        if (error) throw error;
+        if (data?.signedUrl) {
+          const link = document.createElement("a");
+          link.href = data.signedUrl;
+          link.download = t.file_name;
+          link.click();
+        }
+      } catch (e) {
+        alert("Neizdevās lejupielādēt: " + (e.message || e));
+      }
+    });
+  });
+
+  body.querySelectorAll(".labtest-delete-btn").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const t = labTests.find(lt => lt.id === btn.dataset.labtestId);
+      if (!t) return;
+      if (!confirm(`Dzēst "${t.name}"?`)) return;
+      try {
+        await supabase.storage.from("lab-test-files").remove([t.file_path]);
+        await deleteLabTest(t.id);
+        labTests = await getLabTests(athleteId);
+        renderLabTests();
+      } catch (e) {
+        alert("Neizdevās dzēst: " + (e.message || e));
+      }
+    });
+  });
+
+  const panel = document.getElementById("labTestsPanel");
+  if (panel) {
+    const toggle = panel.querySelector(".collapse-toggle");
+    if (activeRole === "coach") {
+      const unseen = labTests.filter(t => !isLabTestSeen(athleteId, t.id)).length;
+      panel.classList.toggle("has-entries", unseen > 0);
+      if (toggle) {
+        toggle.dataset.count = unseen > 9 ? "9+" : String(unseen);
+      }
+    } else {
+      panel.classList.toggle("has-entries", false);
+      if (toggle) {
+        toggle.dataset.count = "0";
+      }
+    }
+  }
+}
+
+function openLabTestDialog(existing) {
+  const dlg = document.getElementById("labTestDialog");
+  const athleteId = getSelectedAthleteId();
+  const isAthleteView = (activeRole === "athlete" || isManager) && currentUser.id === athleteId;
+
+  const dateField = document.getElementById("labTestDate");
+  const typeField = document.getElementById("labTestType");
+  const nameField = document.getElementById("labTestName");
+  const fileField = document.getElementById("labTestFile");
+  const deleteBtn = document.getElementById("deleteLabTestBtn");
+  const saveBtn = document.getElementById("saveLabTestBtn");
+  const dlgTitle = dlg.querySelector("h2");
+
+  if (existing) {
+    editingLabTestId = existing.id;
+    dlgTitle.textContent = "Rediģēt izmeklējumu";
+    dateField.value = existing.date;
+    typeField.value = existing.type;
+    nameField.value = existing.name;
+    fileField.value = "";
+    fileField.required = false;
+    deleteBtn.hidden = !isAthleteView;
+    saveBtn.textContent = "Saglabāt izmaiņas";
+    fileField.disabled = false;
+  } else {
+    editingLabTestId = null;
+    dlgTitle.textContent = "Pievienot izmeklējumu";
+    dateField.value = formatDateISO(new Date());
+    typeField.value = "asins_aina";
+    nameField.value = "";
+    fileField.value = "";
+    fileField.required = true;
+    deleteBtn.hidden = true;
+    saveBtn.textContent = "Saglabāt";
+    fileField.disabled = false;
+  }
+
+  dateField.disabled = !isAthleteView;
+  typeField.disabled = !isAthleteView;
+  nameField.disabled = !isAthleteView;
+  fileField.disabled = !isAthleteView;
+
+  dlg.showModal();
+}
+
+async function saveLabTest() {
+  const athleteId = getSelectedAthleteId();
+  if (!athleteId) return;
+  const date = document.getElementById("labTestDate").value;
+  const type = document.getElementById("labTestType").value;
+  const name = document.getElementById("labTestName").value.trim();
+  const fileInput = document.getElementById("labTestFile");
+
+  if (!date || !name) { alert("Aizpildiet datumu un nosaukumu!"); return; }
+
+  if (editingLabTestId) {
+    const existing = labTests.find(t => t.id === editingLabTestId);
+    if (!existing) return;
+
+    try {
+      if (fileInput.files.length > 0) {
+        await supabase.storage.from("lab-test-files").remove([existing.file_path]);
+        const file = fileInput.files[0];
+        const filePath = `${athleteId}/${Date.now()}-${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from("lab-test-files")
+          .upload(filePath, file);
+        if (uploadError) throw uploadError;
+
+        await supabase
+          .from("lab_tests")
+          .update({
+            date,
+            type,
+            name,
+            file_path: filePath,
+            file_name: file.name,
+            file_type: file.type,
+          })
+          .eq("id", editingLabTestId);
+      } else {
+        await supabase
+          .from("lab_tests")
+          .update({ date, type, name })
+          .eq("id", editingLabTestId);
+      }
+    } catch (e) {
+      alert("Neizdevās atjaunināt: " + (e.message || e));
+      return;
+    }
+  } else {
+    if (fileInput.files.length === 0) { alert("Izvēlieties failu!"); return; }
+    const file = fileInput.files[0];
+    const filePath = `${athleteId}/${Date.now()}-${file.name}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from("lab-test-files")
+        .upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      await insertLabTest({
+        athlete_id: athleteId,
+        date,
+        type,
+        name,
+        file_path: filePath,
+        file_name: file.name,
+        file_type: file.type,
+      });
+    } catch (e) {
+      alert("Neizdevās saglabāt: " + (e.message || e));
+      return;
+    }
+  }
+
+  editingLabTestId = null;
+  labTests = await getLabTests(athleteId);
+  renderLabTests();
+  document.getElementById("labTestDialog").close();
+}
+
+async function deleteLabTestFile() {
+  if (!editingLabTestId) return;
+  const existing = labTests.find(t => t.id === editingLabTestId);
+  if (!existing) return;
+  if (!confirm(`Dzēst "${existing.name}"?`)) return;
+
+  try {
+    await supabase.storage.from("lab-test-files").remove([existing.file_path]);
+    await deleteLabTest(editingLabTestId);
+    editingLabTestId = null;
+    labTests = await getLabTests(getSelectedAthleteId());
+    renderLabTests();
+    document.getElementById("labTestDialog").close();
+  } catch (e) {
+    alert("Neizdevās dzēst: " + (e.message || e));
+  }
+}
+
 function openHealthDialog(entryId) {
   editingHealthId = entryId;
   const hjStartDate = document.getElementById("hjStartDate");
@@ -2513,6 +2893,7 @@ document.getElementById("saveHealthBtn")?.addEventListener("click", async () => 
     }
     document.getElementById("healthDialog").close();
     healthEntries = await getHealthEntries(athleteId);
+    await refreshAthleteHealthSet();
     render();
   } catch (e) {
     console.error(e);
@@ -2526,6 +2907,7 @@ document.getElementById("deleteHealthBtn")?.addEventListener("click", async () =
     await deleteHealthEntry(editingHealthId);
     document.getElementById("healthDialog").close();
     healthEntries = await getHealthEntries(getSelectedAthleteId());
+    await refreshAthleteHealthSet();
     render();
   } catch (e) {
     console.error(e);
@@ -2643,8 +3025,6 @@ function renderMonthView() {
       const dayLog = monthLogEntries.filter((l) => l.date === dateStr);
       const dayNote = monthDayNotes.find((n) => n.date === dateStr);
 
-      const hasLog = dayLog.length > 0;
-      const hasNote = !!dayNote?.coach_comment;
       const isRestDay = !!dayNote?.is_rest_day;
       const dayRestriction = restrictions.find(r => dateStr >= r.start_date && (!r.end_date || dateStr <= r.end_date));
       const dayHealth = healthEntries.find(e => dateStr >= e.start_date && (!e.end_date || dateStr <= e.end_date));
@@ -2669,15 +3049,13 @@ function renderMonthView() {
         <div class="month-day-cell ${isOtherMonth ? "other-month" : ""}${isToday ? " today" : ""}${dayRestriction ? " restricted-day" : ""}" data-date="${dateStr}">
           <div class="month-day-num">
             ${d.getDate()}.
-            ${hasLog ? '<span class="month-dot done" title="Izpilde ierakstīta">✓</span>' : ""}
-            ${hasNote ? '<span class="month-dot note" title="Piezīme">💬</span>' : ""}
-            ${isRestDay ? '<span class="month-dot rest" title="Brīvdiena">B</span>' : ""}
             ${dayRestriction ? '<span class="month-dot restriction" title="Ierobežojums">🚫</span>' : ""}
             ${dayHealth ? '<span class="month-dot health" title="' + escapeHtml(dayHealth.description) + '">🩹</span>' : ""}
+            ${dayPlans.map(p => `<span class="month-type-badge">${badgeForTitle(p.title)}</span>`).join("")}
           </div>
           ${dayRestriction ? `<div class="month-restriction-text">🚫 ${escapeHtml(dayRestriction.reason)}</div>` : ""}
           ${dayHealth ? `<div class="month-health-text">🩹 ${escapeHtml(dayHealth.description)}</div>` : ""}
-          ${isRestDay && !dayPlans.length && !dayRaces.length ? `<div class="month-rest-day">Brīvdiena</div>` : ""}
+          ${isRestDay && !dayPlans.length && !dayRaces.length ? `<div class="day-rest-text">🌴 Brīvdiena</div>` : ""}
           ${racesHtml}
           ${plansHtml}
         </div>
@@ -2730,8 +3108,6 @@ function renderMonthViewInline() {
       const dayLog = monthLogEntries.filter((l) => l.date === dateStr);
       const dayNote = monthDayNotes.find((n) => n.date === dateStr);
 
-      const hasLog = dayLog.length > 0;
-      const hasNote = !!dayNote?.coach_comment;
       const isRestDay = !!dayNote?.is_rest_day;
       const dayRestriction = restrictions.find(r => dateStr >= r.start_date && (!r.end_date || dateStr <= r.end_date));
       const dayHealth = healthEntries.find(e => dateStr >= e.start_date && (!e.end_date || dateStr <= e.end_date));
@@ -2756,15 +3132,13 @@ function renderMonthViewInline() {
         <div class="month-day-cell ${isOtherMonth ? "other-month" : ""}${isToday ? " today" : ""}${dayRestriction ? " restricted-day" : ""}" data-date="${dateStr}">
           <div class="month-day-num">
             ${d.getDate()}.
-            ${hasLog ? '<span class="month-dot done" title="Izpilde ierakstīta">✓</span>' : ""}
-            ${hasNote ? '<span class="month-dot note" title="Piezīme">💬</span>' : ""}
-            ${isRestDay ? '<span class="month-dot rest" title="Brīvdiena">B</span>' : ""}
             ${dayRestriction ? '<span class="month-dot restriction" title="Ierobežojums">🚫</span>' : ""}
             ${dayHealth ? '<span class="month-dot health" title="' + escapeHtml(dayHealth.description) + '">🩹</span>' : ""}
+            ${dayPlans.map(p => `<span class="month-type-badge">${badgeForTitle(p.title)}</span>`).join("")}
           </div>
           ${dayRestriction ? `<div class="month-restriction-text">🚫 ${escapeHtml(dayRestriction.reason)}</div>` : ""}
           ${dayHealth ? `<div class="month-health-text">🩹 ${escapeHtml(dayHealth.description)}</div>` : ""}
-          ${isRestDay && !dayPlans.length && !dayRaces.length ? `<div class="month-rest-day">Brīvdiena</div>` : ""}
+          ${isRestDay && !dayPlans.length && !dayRaces.length ? `<div class="day-rest-text">🌴 Brīvdiena</div>` : ""}
           ${racesHtml}
           ${plansHtml}
         </div>
@@ -2829,6 +3203,7 @@ function render() {
     renderSelfTests();
     renderPolarTests();
     renderHealthJournal();
+    renderLabTests();
     renderAdminAthleteList();
   } else {
     calendarGrid.innerHTML = '<p class="empty-state">Nav sportistu. Pievienojiet lietotājus.</p>';
@@ -2842,6 +3217,7 @@ function render() {
     document.getElementById("selfTestsBody").innerHTML = "";
     document.getElementById("polarTestsBody").innerHTML = "";
     document.getElementById("healthJournalBody").innerHTML = "";
+    document.getElementById("labTestsBody").innerHTML = "";
   }
   document.getElementById("hrZonesPanel").hidden = !hasAthletes;
   document.getElementById("thresholdsPanel").hidden = !hasAthletes;
@@ -2850,6 +3226,7 @@ function render() {
   document.getElementById("selfTestsPanel").hidden = !hasAthletes;
   document.getElementById("polarTestsPanel").hidden = !hasAthletes;
   document.getElementById("healthJournalPanel").hidden = !hasAthletes;
+  document.getElementById("labTestsPanel").hidden = !hasAthletes;
 }
 
 athleteSelect.addEventListener("change", async () => {
@@ -3039,6 +3416,17 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
         const athleteId = getSelectedAthleteId();
         if (athleteId && polarTests.length) {
           markAllPolarTestsSeen(athleteId, polarTests);
+          panel.classList.toggle("has-entries", false);
+          btn.dataset.count = "0";
+        }
+      }
+    }
+
+    if (panel.id === "labTestsPanel" && wasCollapsed && !panel.classList.contains("collapsed")) {
+      if (activeRole === "coach") {
+        const athleteId = getSelectedAthleteId();
+        if (athleteId && labTests.length) {
+          markAllLabTestsSeen(athleteId, labTests);
           panel.classList.toggle("has-entries", false);
           btn.dataset.count = "0";
         }
@@ -3426,12 +3814,12 @@ document.querySelectorAll("[data-source]").forEach((button) => {
   });
 });
 
-[customType, warmupDuration, warmupPulse, includeWarmup, includeCooldown, includeDrills, repeatCount, intervalLength, intervalPace, restDuration, mainDuration, mainPulse, cooldownDuration, cooldownPulse, document.getElementById("tempoPace")].forEach((input) => {
+[customType, warmupDuration, warmupPulse, includeWarmup, includeCooldown, includeDrills, repeatCount, intervalLength, intervalPace, restDuration, mainDuration, mainPulse, cooldownDuration, cooldownPulse, document.getElementById("tempoPace"), document.getElementById("includeKoptreniņš")].forEach((input) => {
   input.addEventListener("input", renderSourcePicker);
   input.addEventListener("change", renderSourcePicker);
 });
 
-["editTrainingType", "editWarmupDuration", "editWarmupPulse", "editIncludeWarmup", "editIncludeCooldown", "editIncludeDrills", "editRepeatCount", "editIntervalLength", "editIntervalPace", "editRestDuration", "editMainDuration", "editMainPulse", "editCooldownDuration", "editCooldownPulse"].forEach((id) => {
+["editTrainingType", "editWarmupDuration", "editWarmupPulse", "editIncludeWarmup", "editIncludeCooldown", "editIncludeDrills", "editRepeatCount", "editIntervalLength", "editIntervalPace", "editRestDuration", "editMainDuration", "editMainPulse", "editCooldownDuration", "editCooldownPulse", "editIncludeKoptreniņš"].forEach((id) => {
   const el = document.getElementById(id);
   if (el) {
     el.addEventListener("input", renderEditCustomBuilder);
@@ -3657,11 +4045,11 @@ document.getElementById("saveEditPlanBtn")?.addEventListener("click", async () =
   }
 });
 
-[document.getElementById("epType"), document.getElementById("epIncludeWarmup"), document.getElementById("epIncludeCooldown")].forEach((el) => {
+[document.getElementById("epType"), document.getElementById("epIncludeWarmup"), document.getElementById("epIncludeCooldown"), document.getElementById("epIncludeKoptreniņš")].forEach((el) => {
   el?.addEventListener("change", () => renderEditPlanBuilder());
 });
 
-["epType", "epWarmupDuration", "epWarmupPulse", "epIncludeWarmup", "epIncludeCooldown", "epIncludeDrills", "epRepeatCount", "epIntervalLength", "epIntervalPace", "epRestDuration", "epMainDuration", "epMainPulse", "epCooldownDuration", "epCooldownPulse", "epTempoPace", "epFreeText"].forEach((id) => {
+["epType", "epWarmupDuration", "epWarmupPulse", "epIncludeWarmup", "epIncludeCooldown", "epIncludeDrills", "epRepeatCount", "epIntervalLength", "epIntervalPace", "epRestDuration", "epMainDuration", "epMainPulse", "epCooldownDuration", "epCooldownPulse", "epTempoPace", "epFreeText", "epIncludeKoptreniņš"].forEach((id) => {
   document.getElementById(id)?.addEventListener("input", () => renderEditPlanPreview());
 });
 document.getElementById("epIncludeWarmup")?.addEventListener("change", () => renderEditPlanPreview());
@@ -3829,7 +4217,7 @@ function parseTimeToMinutes(str) {
 
 function getActivityType(title) {
   const t = (title || "").toLowerCase();
-  if (t === "vfs" || t === "sfs") return "gym";
+  if (t.includes("vfs") || t.includes("sfs")) return "gym";
   if (t === "velo") return "bike";
   return "run";
 }
@@ -3878,9 +4266,8 @@ saveLogBtn.addEventListener("click", async () => {
   const feeling = feelingEl.value;
   const notes = document.getElementById("logAthleteComment")?.value.trim() || "";
 
-  const totalTimeStr = document.querySelector(".log-total-time")?.value || "";
-  const runningKm = parseFloat(document.querySelector(".log-running-km")?.value) || 0;
-  const durationMin = parseTimeToMinutes(totalTimeStr);
+  const durationMin = 0;
+  const runningKm = 0;
   const planTitleEl = document.querySelector(".log-plan-block h3");
   const planTitle = planTitleEl ? planTitleEl.textContent : "";
   const activityType = getActivityType(planTitle);
@@ -3954,7 +4341,7 @@ function openPlanLogDialog(planId) {
       for (let i = 0; i < count; i++) {
         html += `<label>${i + 1}. atkārtojums <input class="log-interval-pace" data-log-interval="${i}" placeholder="${extractPace(line)}" /></label>`;
       }
-      html += `</div><button class="log-add-subtask" type="button" data-section="Pamatdaļa">+</button></div>`;
+      html += `</div></div>`;
     } else if (line.includes(":")) {
       const paceStr = extractPace(line);
       const paceField = paceStr ? `<label>Izp. vidējais temps <input class="log-actual-pace" placeholder="${paceStr}" /></label>` : "";
@@ -3966,7 +4353,6 @@ function openPlanLogDialog(planId) {
           <label>Izp. vidējais pulss <input class="log-actual-pulse" placeholder="${pulseStr || ""}" /></label>
           ${paceField}
         </div>
-        <button class="log-add-subtask" type="button" data-section="${line.split(":")[0]}">+</button>
       </div>`;
     } else if (line === "Drill") {
       html += `<div class="log-section-row" data-log-section="Drill">
@@ -3974,7 +4360,6 @@ function openPlanLogDialog(planId) {
         <div class="field-grid">
           <label>Izp. ilgums <input class="log-actual-duration" placeholder="15'" /></label>
         </div>
-        <button class="log-add-subtask" type="button" data-section="Drill">+</button>
       </div>`;
     } else {
       html += `<div class="log-section-row">
@@ -3984,15 +4369,6 @@ function openPlanLogDialog(planId) {
   });
   html += `</div>`;
 
-  const existingDuration = existingLog?.duration_min
-    ? Math.floor(existingLog.duration_min / 60) + "h" + (existingLog.duration_min % 60 ? existingLog.duration_min % 60 + "m" : "")
-    : "";
-  const existingKm = existingLog?.distance_km || "";
-
-  html += `<div class="log-training-stats">
-    <label>Kopējais laiks treniņā <input class="log-total-time" type="text" value="${existingDuration}" placeholder="piem. 1h30m" /></label>
-    <label>Kopējie kilometri treniņā <input class="log-running-km" type="number" step="0.1" value="${existingKm}" placeholder="0.0" /></label>
-  </div>`;
   html += RATING_HTML;
   html += `<div class="comment-label">Sportista komentārs</div><textarea class="inline-comment" id="logAthleteComment" rows="2" placeholder="Ieraksti komentāru..."></textarea>`;
   logFormContent.innerHTML = html;
@@ -4056,7 +4432,7 @@ function openLogDialog(dateStr) {
         for (let i = 0; i < count; i++) {
           html += `<label>${i + 1}. atkārtojums <input class="log-interval-pace" data-log-interval="${i}" placeholder="${extractPace(line)}" /></label>`;
         }
-        html += `</div><button class="log-add-subtask" type="button" data-section="Pamatdaļa">+</button></div>`;
+        html += `</div></div>`;
       } else if (line.includes(":")) {
         const paceStr = extractPace(line);
         const paceField = paceStr ? `<label>Izp. vidējais temps <input class="log-actual-pace" placeholder="${paceStr}" /></label>` : "";
@@ -4068,7 +4444,6 @@ function openLogDialog(dateStr) {
             <label>Izp. vidējais pulss <input class="log-actual-pulse" placeholder="${pulseStr || ""}" /></label>
             ${paceField}
           </div>
-          <button class="log-add-subtask" type="button" data-section="${line.split(":")[0]}">+</button>
         </div>`;
       } else if (line === "Drill") {
         html += `<div class="log-section-row" data-log-section="Drill">
@@ -4076,7 +4451,6 @@ function openLogDialog(dateStr) {
           <div class="field-grid">
             <label>Izp. ilgums <input class="log-actual-duration" placeholder="15'" /></label>
           </div>
-          <button class="log-add-subtask" type="button" data-section="Drill">+</button>
         </div>`;
       } else {
         html += `<div class="log-section-row">
@@ -4087,15 +4461,6 @@ function openLogDialog(dateStr) {
     html += `</div>`;
   });
 
-  const existingDuration = existingLog?.duration_min
-    ? Math.floor(existingLog.duration_min / 60) + "h" + (existingLog.duration_min % 60 ? existingLog.duration_min % 60 + "m" : "")
-    : "";
-  const existingKm = existingLog?.distance_km || "";
-
-  html += `<div class="log-training-stats">
-    <label>Kopējais laiks treniņā <input class="log-total-time" type="text" value="${existingDuration}" placeholder="piem. 1h30m" /></label>
-    <label>Kopējie kilometri treniņā <input class="log-running-km" type="number" step="0.1" value="${existingKm}" placeholder="0.0" /></label>
-  </div>`;
   html += RATING_HTML;
   html += `<div class="comment-label">Sportista komentārs</div><textarea class="inline-comment" id="logAthleteComment" rows="2" placeholder="Ieraksti komentāru..."></textarea>`;
   logFormContent.innerHTML = html;
@@ -4143,51 +4508,6 @@ function extractPulse(line) {
   return m ? m[1] + "sr" : "";
 }
 
-function addSubtaskRow(section) {
-  const sectionRow = document.querySelector(`[data-log-section="${section}"]`);
-  if (!sectionRow) return;
-  const wrapper = sectionRow.closest(".log-plan-block") || sectionRow.parentElement;
-  const html = `
-    <div class="log-section-row subtask-row" data-log-section="${section}">
-      <div class="log-target">— papildu</div>
-      <div class="field-grid">
-        <label>Izp. ilgums <input class="log-actual-duration" placeholder="15'" /></label>
-        <label>Izp. vidējais pulss <input class="log-actual-pulse" placeholder="120-130" /></label>
-        <label>Izp. temps <input class="log-actual-pace" placeholder="4:15/km" /></label>
-      </div>
-      <button class="log-remove-subtask" type="button">&#215;</button>
-    </div>`;
-  sectionRow.insertAdjacentHTML("afterend", html);
-  sectionRow.nextElementSibling.querySelector(".log-remove-subtask")?.addEventListener("click", function () {
-    this.closest(".log-section-row").remove();
-  });
-}
-
-function attachAddSubtaskHandlers() {
-  document.querySelectorAll(".log-add-subtask").forEach((btn) => {
-    btn.addEventListener("click", function () {
-      const section = this.dataset.section;
-      const row = this.closest(".log-section-row");
-      const planBlock = row.closest(".log-plan-block");
-      const existing = planBlock.querySelectorAll(`.log-section-row[data-log-section="${section}"]`);
-      const lastRow = existing[existing.length - 1];
-      const html = `
-        <div class="log-section-row subtask-row" data-log-section="${section}">
-          <div class="log-target">— papildu</div>
-          <div class="field-grid">
-            <label>Izp. ilgums <input class="log-actual-duration" placeholder="15'" /></label>
-            <label>Izp. vidējais pulss <input class="log-actual-pulse" placeholder="120-130" /></label>
-            <label>Izp. temps <input class="log-actual-pace" placeholder="4:15/km" /></label>
-          </div>
-          <button class="log-remove-subtask" type="button">&#215;</button>
-        </div>`;
-      lastRow.insertAdjacentHTML("afterend", html);
-      lastRow.nextElementSibling.querySelector(".log-remove-subtask")?.addEventListener("click", function () {
-        this.closest(".log-section-row").remove();
-      });
-    });
-  });
-}
 function parsePulseBounds(pulseStr) {
   if (!pulseStr) return null;
   const s = pulseStr.replace(/sr$/, "").trim();
@@ -4576,6 +4896,31 @@ function renderRaceTab(tab) {
   });
 }
 
+function updateRaceCalendarBadge() {
+  const btn = document.getElementById("raceCalendarBtn");
+  if (!btn) return;
+  let badge = btn.querySelector(".race-calendar-badge");
+  if (activeRole === "coach") {
+    const athleteId = getSelectedAthleteId();
+    if (athleteId) {
+      getRaces(athleteId).then(allRaces => {
+        const today = formatDateISO(new Date());
+        const upcoming = allRaces.filter(r => r.date >= today);
+        const unseen = upcoming.filter(r => !isRaceSeen(athleteId, r.id)).length;
+        if (!badge) {
+          badge = document.createElement("span");
+          badge.className = "race-calendar-badge";
+          btn.appendChild(badge);
+        }
+        badge.textContent = unseen > 9 ? "9+" : String(unseen);
+        badge.hidden = unseen === 0;
+      });
+    }
+  } else {
+    if (badge) badge.hidden = true;
+  }
+}
+
 function refreshRaceCalendar() {
   const dialog = document.getElementById("raceListDialog");
   if (!dialog.open) return;
@@ -4590,6 +4935,16 @@ function openRaceCalendarDialog() {
   if (upcomingTab) upcomingTab.classList.add("active");
   renderRaceTab("upcoming");
   document.getElementById("raceListDialog").showModal();
+  if (activeRole === "coach") {
+    const athleteId = getSelectedAthleteId();
+    if (athleteId) {
+      getRaces(athleteId).then(allRaces => {
+        markAllRacesSeen(athleteId, allRaces);
+        const badge = document.getElementById("raceCalendarBtn")?.querySelector(".race-calendar-badge");
+        if (badge) badge.hidden = true;
+      });
+    }
+  }
 }
 
 document.getElementById("raceCalendarBtn")?.addEventListener("click", openRaceCalendarDialog);
