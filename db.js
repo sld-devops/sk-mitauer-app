@@ -309,8 +309,11 @@ function trendMonthStart(date) {
 async function getWeeklyTrend(athleteId, numWeeks) {
   const endDate = trendMonday(new Date());
   endDate.setDate(endDate.getDate() + 6);
-  const startDate = new Date(endDate);
+  let startDate = new Date(endDate);
   startDate.setDate(startDate.getDate() - (numWeeks * 7) + 1);
+
+  const TREND_START = new Date(2026, 5, 1);
+  if (startDate < TREND_START) startDate = new Date(TREND_START);
 
   const startStr = trendDateISO(startDate);
   const endStr = trendDateISO(endDate);
@@ -323,7 +326,9 @@ async function getWeeklyTrend(athleteId, numWeeks) {
     .lte("date", endStr);
 
   const weeks = {};
-  for (let i = 0; i < numWeeks; i++) {
+  const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+  const numBuckets = Math.max(Math.ceil(totalDays / 7), 1);
+  for (let i = 0; i < numBuckets; i++) {
     const m = new Date(startDate);
     m.setDate(m.getDate() + i * 7);
     const mon = trendMonday(m);
@@ -349,12 +354,36 @@ async function getWeeklyTrend(athleteId, numWeeks) {
     }
   }
 
+  const weekKeys = Object.keys(weeks);
+  if (weekKeys.length) {
+    const { data: summaries } = await supabase
+      .from("weekly_summaries")
+      .select("week_start, run_km, run_min, vfs_sfs_min, velo_min")
+      .eq("athlete_id", athleteId)
+      .gte("week_start", weekKeys[0])
+      .lte("week_start", weekKeys[weekKeys.length - 1]);
+    if (summaries) {
+      for (const s of summaries) {
+        const wk = trendDateISO(trendMonday(new Date(s.week_start + "T00:00:00")));
+        if (weeks[wk]) {
+          if (s.run_km) weeks[wk].run_km = s.run_km;
+          if (s.run_min) weeks[wk].run_min = s.run_min;
+          if (s.vfs_sfs_min) weeks[wk].vfs_sfs_min = s.vfs_sfs_min;
+          if (s.velo_min) weeks[wk].velo_min = s.velo_min;
+        }
+      }
+    }
+  }
+
   return Object.values(weeks);
 }
 
 async function getMonthlyTrend(athleteId, numMonths) {
   const endDate = new Date();
-  const startDate = new Date(endDate.getFullYear(), endDate.getMonth() - numMonths + 1, 1);
+  let startDate = new Date(endDate.getFullYear(), endDate.getMonth() - numMonths + 1, 1);
+
+  const TREND_START = new Date(2026, 5, 1);
+  if (startDate < TREND_START) startDate = new Date(TREND_START);
 
   const startStr = trendDateISO(startDate);
   const endStr = trendDateISO(endDate);
@@ -367,10 +396,11 @@ async function getMonthlyTrend(athleteId, numMonths) {
     .lte("date", endStr);
 
   const months = {};
-  for (let i = 0; i < numMonths; i++) {
-    const m = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
-    const key = trendDateISO(m);
+  const cursor = new Date(startDate);
+  while (cursor <= endDate) {
+    const key = trendDateISO(cursor);
     months[key] = { month_start: key, run_km: 0, run_min: 0, vfs_sfs_min: 0, velo_min: 0 };
+    cursor.setMonth(cursor.getMonth() + 1);
   }
 
   if (logs) {
@@ -386,6 +416,24 @@ async function getMonthlyTrend(athleteId, numMonths) {
         months[ms].vfs_sfs_min += Number(entry.duration_min) / 60 || 0;
       } else if (entry.activity_type === "bike") {
         months[ms].velo_min += Number(entry.duration_min) / 60 || 0;
+      }
+    }
+  }
+
+  const { data: summaries } = await supabase
+    .from("weekly_summaries")
+    .select("week_start, run_km, run_min, vfs_sfs_min, velo_min")
+    .eq("athlete_id", athleteId)
+    .gte("week_start", startStr)
+    .lte("week_start", endStr);
+  if (summaries) {
+    for (const s of summaries) {
+      const monthKey = trendDateISO(trendMonthStart(new Date(s.week_start + "T00:00:00")));
+      if (months[monthKey]) {
+        if (s.run_km) months[monthKey].run_km += s.run_km;
+        if (s.run_min) months[monthKey].run_min += s.run_min;
+        if (s.vfs_sfs_min) months[monthKey].vfs_sfs_min += s.vfs_sfs_min;
+        if (s.velo_min) months[monthKey].velo_min += s.velo_min;
       }
     }
   }
@@ -708,6 +756,16 @@ async function deleteLabTest(id) {
     .delete()
     .eq("id", id);
   if (error) throw error;
+}
+
+async function getNotCompletedAthleteIds() {
+  const { data } = await supabase
+    .from("plans")
+    .select("athlete_id")
+    .eq("completed", false);
+  if (!data) return [];
+  const ids = [...new Set(data.map(d => d.athlete_id))];
+  return ids;
 }
 
 async function getAthleteHealthCounts() {

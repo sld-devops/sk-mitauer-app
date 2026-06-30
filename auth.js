@@ -112,6 +112,7 @@ async function changePassword() {
 loginBtn.addEventListener("click", login);
 authForm.addEventListener("submit", function(e){ e.preventDefault(); login(); });
 logoutBtn.addEventListener("click", logout);
+
 changePasswordBtn.addEventListener("click", () => {
   passwordErrorEl.hidden = true;
   newPasswordInput.value = "";

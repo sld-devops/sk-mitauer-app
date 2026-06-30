@@ -13,10 +13,10 @@
   <body>
     <div id="authView">
       <div class="auth-logo">
-        <img src="skmitauer.png" alt="SK Mitauer" />
+        <img src="skmitauer.png" alt="Toma Komass" />
       </div>
       <div class="auth-card">
-        <h1>SK Mitauer treniņu plāns</h1>
+        <h1>TOMA KOMASA SPORTISTU PORTĀLS</h1>
         <form id="authForm" class="auth-form" autocomplete="on">
           <label>
             Lietotājvārds
@@ -46,8 +46,8 @@
         <div class="header-left">
           <button id="mobileMenuBtn" class="secondary-action" type="button" aria-label="Izvēlne">☰</button>
           <div class="header-titles">
-            <p class="eyebrow">SK Mitauer</p>
-            <h1>TRENIŅU KALENDĀRS</h1>
+            <p class="eyebrow">Toma Komasa</p>
+            <h1>SPORTISTU PORTĀLS</h1>
           </div>
           <button id="exerciseLibraryBtn" class="secondary-action" type="button">VFS/SFS/Iesildīšanās/Drill bibliotēka</button>
         </div>
@@ -88,6 +88,16 @@
             <select id="athleteSelect" hidden aria-label="Izvēlies sportistu"></select>
           </section>
 
+          <section class="panel collapsible collapsed" id="profileCoachSection">
+            <div class="panel-header">
+              <h2>Sociāli tīkli un treniņu arhīvs</h2>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt profilu">▶</button>
+            </div>
+            <div class="panel-body">
+              <div class="profile-card" id="profileCard"></div>
+            </div>
+          </section>
+
           <section class="panel collapsible collapsed" id="trainingPickerPanel" hidden>
             <div class="panel-header">
               <h2>Treniņu plānošana</h2>
@@ -110,17 +120,18 @@
               <div class="custom-builder" id="customBuilder" hidden>
               <label>
                 Treniņa tips
-<select id="customType">
-                   <option value="" selected disabled>Izvēlies...</option>
-                   <option value="Vieglais skrējiens">Vieglais skrējiens</option>
-                   <option value="Garais skrējiens">Garais skrējiens</option>
-                   <option value="Intervāli">Intervāli</option>
-                   <option value="Tempa skrējiens">Tempa skrējiens</option>
-                   <option value="VFS">VFS</option>
-                   <option value="SFS">SFS</option>
-                   <option value="Velo">Velo</option>
-                   <option value="Cits">Cits</option>
-                 </select>
+                <select id="customType">
+                    <option value="" selected disabled>Izvēlies...</option>
+                    <option value="Atjaunojošais/lēnais skrējiens">Atjaunojošais/lēnais skrējiens</option>
+                    <option value="Garais skrējiens">Garais skrējiens</option>
+                    <option value="Intervāli (vienāda garuma/ilguma)">Intervāli (vienāda garuma/ilguma)</option>
+                    <option value="Intervāli (dažāda garuma/ilguma)">Intervāli (dažāda garuma/ilguma)</option>
+                    <option value="Tempa skrējiens">Tempa skrējiens</option>
+                    <option value="Cita veida skrējiens">Cita veida skrējiens</option>
+                    <option value="VFS">VFS</option>
+                    <option value="SFS">SFS</option>
+                    <option value="Velo">Velo</option>
+                   </select>
               </label>
 
               <div id="warmupSection">
@@ -154,6 +165,16 @@
                 </div>
               </div>
 
+              <div id="varIntervalFields" hidden>
+                <p class="section-label">Pamatdaļa</p>
+                <div id="varSegmentList"></div>
+                <button id="varAddSegment" class="secondary-action" type="button" style="width:100%;margin-bottom:6px">+ Pievienot segmentu</button>
+                <div class="field-grid">
+                  <label>Apļi <input id="varLaps" type="text" /></label>
+                  <label>Atpūta starp blokiem <input id="varRestBetweenLaps" type="text" /></label>
+                </div>
+              </div>
+
               <div id="mainFields" hidden>
                 <p class="section-label" id="mainSectionLabel">Pamatdaļa</p>
                 <div class="field-grid">
@@ -168,8 +189,13 @@
               </div>
 
               <label id="freeTextRow" hidden>
-                Apraksts
+                Pamatdaļas apraksts
                 <textarea id="customFreeText" rows="3"></textarea>
+              </label>
+
+              <label id="customNameRow" hidden>
+                Nosaukums kalendārā
+                <input id="customName" type="text" placeholder="Fartleks, Progresīvais, u.c." />
               </label>
 
               <div id="cooldownSection">
@@ -197,16 +223,6 @@
           </div>
           </section>
 
-          <section class="panel collapsible collapsed" id="profileCoachSection">
-            <div class="panel-header">
-              <h2>Profils</h2>
-              <button class="collapse-toggle" type="button" aria-label="Rādīt profilu">▶</button>
-            </div>
-            <div class="panel-body">
-              <div class="profile-card" id="profileCard"></div>
-            </div>
-          </section>
-
           <section class="panel collapsible collapsed" id="hrZonesPanel">
             <div class="panel-header">
               <h2>Sirdsritma darba zonas</h2>
@@ -227,7 +243,7 @@
             <div class="panel-header">
               <div class="panel-header-text">
                 <h2>Veselības žurnāls</h2>
-                <span class="panel-subtitle">Slimības, traumas, sāpes</span>
+                <span class="panel-subtitle">Sūdzības par sāpēm, esoša trauma, slimība, jūtama pārslodze u.c.</span>
               </div>
               <button class="collapse-toggle" type="button" aria-label="Rādīt veselības žurnālu">▶</button>
             </div>
@@ -238,7 +254,7 @@
             <div class="panel-header">
               <div class="panel-header-text">
                 <h2>Laboratoriskie izmeklējumi</h2>
-                <span class="panel-subtitle">Asins ainas un izmeklējumi</span>
+                <span class="panel-subtitle">Fiziskās slodzes testi, asins ainas u.c.</span>
               </div>
               <button class="collapse-toggle" type="button" aria-label="Rādīt laboratoriskos izmeklējumus">▶</button>
             </div>
@@ -249,7 +265,7 @@
             <div class="panel-header">
               <div class="panel-header-text">
                 <h2>Ierobežojumi</h2>
-                <span class="panel-subtitle">Ieplānota diena/periods, kad treniņus nevarēs veikt</span>
+                <span class="panel-subtitle">Diena/periods, kad personīgu iemeslu dēļ treniņus nevarēs veikt</span>
               </div>
               <button class="collapse-toggle" type="button" aria-label="Rādīt ierobežojumus">▶</button>
             </div>
@@ -260,7 +276,7 @@
             <div class="panel-header">
               <div class="panel-header-text">
                 <h2>Dienasgrāmata</h2>
-                <span class="panel-subtitle">Svarīgi notikumi un pavērsieni</span>
+                <span class="panel-subtitle">Dzīves un ikdienas svarīgas piezīmes, kas var ietekmēt treniņprocesu</span>
               </div>
               <button class="collapse-toggle" type="button" aria-label="Rādīt dienasgrāmatu">▶</button>
             </div>
@@ -386,15 +402,16 @@
 
         <label>
           Treniņa tips
-          <select id="editTrainingType" disabled>
-            <option value="Intervāli">Intervāli</option>
-            <option value="Tempa skrējiens">Tempa skrējiens</option>
-            <option value="Vieglais skrējiens">Vieglais skrējiens</option>
-            <option value="Garais skrējiens">Garais skrējiens</option>
-            <option value="VFS">VFS</option>
-            <option value="SFS">SFS</option>
-            <option value="Velo">Velo</option>
-            <option value="Cits">Cits</option>
+            <select id="editTrainingType" disabled>
+              <option value="Atjaunojošais/lēnais skrējiens">Atjaunojošais/lēnais skrējiens</option>
+              <option value="Garais skrējiens">Garais skrējiens</option>
+              <option value="Intervāli (vienāda garuma/ilguma)">Intervāli (vienāda garuma/ilguma)</option>
+              <option value="Intervāli (dažāda garuma/ilguma)">Intervāli (dažāda garuma/ilguma)</option>
+              <option value="Tempa skrējiens">Tempa skrējiens</option>
+              <option value="Cita veida skrējiens">Cita veida skrējiens</option>
+              <option value="VFS">VFS</option>
+              <option value="SFS">SFS</option>
+              <option value="Velo">Velo</option>
           </select>
         </label>
 
@@ -429,6 +446,16 @@
           </div>
         </div>
 
+        <div id="editVarIntervalFields" hidden>
+          <p class="section-label">Pamatdaļa</p>
+          <div id="editVarSegmentList"></div>
+          <button id="editVarAddSegment" class="secondary-action" type="button" style="width:100%;margin-bottom:6px">+ Pievienot segmentu</button>
+          <div class="field-grid">
+            <label>Apļi <input id="editVarLaps" type="text" /></label>
+            <label>Atpūta starp blokiem <input id="editVarRestBetweenLaps" type="text" /></label>
+          </div>
+        </div>
+
         <div id="editMainFields" hidden>
           <p class="section-label" id="editMainSectionLabel">Pamatdaļa</p>
           <div class="field-grid">
@@ -443,8 +470,13 @@
         </label>
 
         <label id="editFreeTextRow" hidden>
-          Apraksts
+          Pamatdaļas apraksts
           <textarea id="editFreeText" rows="3"></textarea>
+        </label>
+
+        <label id="editCustomNameRow" hidden>
+          Nosaukums kalendārā
+          <input id="editCustomName" type="text" placeholder="Fartleks, Progresīvais, u.c." />
         </label>
 
         <div id="editCooldownSection">
@@ -477,15 +509,16 @@
 
         <label>
           Treniņa tips
-          <select id="epType">
-            <option value="Vieglais skrējiens">Vieglais skrējiens</option>
+           <select id="epType">
+            <option value="Atjaunojošais/lēnais skrējiens">Atjaunojošais/lēnais skrējiens</option>
             <option value="Garais skrējiens">Garais skrējiens</option>
-            <option value="Intervāli">Intervāli</option>
-            <option value="Tempa skrējiens">Tempa skrējiens</option>
+              <option value="Intervāli (vienāda garuma/ilguma)">Intervāli (vienāda garuma/ilguma)</option>
+              <option value="Intervāli (dažāda garuma/ilguma)">Intervāli (dažāda garuma/ilguma)</option>
+              <option value="Tempa skrējiens">Tempa skrējiens</option>
+              <option value="Cita veida skrējiens">Cita veida skrējiens</option>
             <option value="VFS">VFS</option>
             <option value="SFS">SFS</option>
             <option value="Velo">Velo</option>
-            <option value="Cits">Cits</option>
           </select>
         </label>
 
@@ -520,6 +553,16 @@
           </div>
         </div>
 
+        <div id="epVarIntervalFields" hidden>
+          <p class="section-label">Pamatdaļa</p>
+          <div id="epVarSegmentList"></div>
+          <button id="epVarAddSegment" class="secondary-action" type="button" style="width:100%;margin-bottom:6px">+ Pievienot segmentu</button>
+          <div class="field-grid">
+            <label>Apļi <input id="epVarLaps" type="text" /></label>
+            <label>Atpūta starp blokiem <input id="epVarRestBetweenLaps" type="text" /></label>
+          </div>
+        </div>
+
         <div id="epMainFields" hidden>
           <p class="section-label" id="epMainSectionLabel">Pamatdaļa</p>
           <div class="field-grid">
@@ -535,8 +578,13 @@
         </label>
 
         <label id="epFreeTextRow" hidden>
-          Apraksts
+          Pamatdaļas apraksts
           <textarea id="epFreeText" rows="3"></textarea>
+        </label>
+
+        <label id="epCustomNameRow" hidden>
+          Nosaukums kalendārā
+          <input id="epCustomName" type="text" placeholder="Fartleks, Progresīvais, u.c." />
         </label>
 
         <div id="epCooldownSection">
@@ -598,7 +646,6 @@
         </div>
         <div class="field-grid">
           <label>Mērķa laiks <input id="raceTargetTime" placeholder="piem. 42:30" /></label>
-          <label>Vidējais temps (min/km) <input id="raceTargetPace" placeholder="piem. 4:15" /></label>
         </div>
         <label>Piezīmes <textarea id="raceNotes" rows="3"></textarea></label>
         <div class="dialog-actions split-actions">
@@ -722,10 +769,10 @@
     </dialog>
 
     <dialog class="session-dialog" id="createUserDialog">
-      <form method="dialog">
+      <form id="createUserForm">
         <div class="dialog-header">
           <h2>Pievienot lietotāju</h2>
-          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
+          <button aria-label="Aizvērt" class="icon-button" id="closeCreateUserBtn" type="button">×</button>
         </div>
         <label>Vārds <input id="newUserFirstName" required /></label>
         <label>Uzvārds <input id="newUserLastName" required /></label>
@@ -736,7 +783,7 @@
         <div id="createUserResult" hidden></div>
         <div id="createUserError" class="auth-error" hidden></div>
         <div class="dialog-actions">
-          <button value="cancel" type="submit">Atcelt</button>
+          <button type="button" id="cancelCreateUserBtn">Atcelt</button>
           <button class="primary-action" id="saveNewUserBtn" type="button">Izveidot</button>
         </div>
       </form>
@@ -811,7 +858,7 @@
           <label>Līdz <input id="hjEndDate" type="date" placeholder="tukšs, ja viena diena" /></label>
         </div>
         <label>Apraksts <textarea id="hjDescription" rows="4"></textarea></label>
-        <label class="checkbox-row">
+        <label class="checkbox-row" id="hjNoTrainingsRow">
           <input id="hjNoTrainings" type="checkbox" />
           <span>Treniņi šajā dienā/dienās netiek veikti</span>
         </label>
@@ -872,6 +919,8 @@
         </div>
       </form>
     </dialog>
+
+    <div id="loadingOverlay" class="loading-overlay" hidden><div class="loading-spinner"></div></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="db.js"></script>

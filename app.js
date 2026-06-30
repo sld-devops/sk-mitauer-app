@@ -6,7 +6,6 @@ const days = [
 let selectedSource = "template";
 let selectedTemplateId = null;
 let activeRole = "athlete";
-let isManager = false;
 let calendarMode = "desktop";
 let templateFilter = "athlete";
 
@@ -79,6 +78,16 @@ let seenSelfTestIds = new Set();
 let seenPolarTestIds = new Set();
 let seenLabTestIds = new Set();
 let athleteHealthSet = new Set();
+let athleteNotCompletedSet = new Set();
+
+async function refreshAthleteNotCompletedSet() {
+  try {
+    const ids = await getNotCompletedAthleteIds();
+    athleteNotCompletedSet = new Set(ids);
+  } catch (e) {
+    athleteNotCompletedSet = new Set();
+  }
+}
 
 async function refreshAthleteHealthSet() {
   try {
@@ -286,8 +295,21 @@ const mainDuration = document.getElementById("mainDuration");
 const mainFields = document.getElementById("mainFields");
 const mainPulse = document.getElementById("mainPulse");
 const profileCard = document.getElementById("profileCard");
+const urlEditState = { garmin: false, strava: false, spreadsheet: false };
+profileCard.addEventListener("click", (e) => {
+  const btn = e.target.closest(".url-edit-btn");
+  if (!btn) return;
+  urlEditState[btn.dataset.field] = true;
+  renderProfile();
+  const input = document.getElementById(`edit${btn.dataset.field}Url`);
+  if (input) input.focus();
+});
 const repeatCount = document.getElementById("repeatCount");
 const restDuration = document.getElementById("restDuration");
+const varIntervalFields = document.getElementById("varIntervalFields");
+const varSegmentList = document.getElementById("varSegmentList");
+const varLaps = document.getElementById("varLaps");
+const varRestBetweenLaps = document.getElementById("varRestBetweenLaps");
 const saveTemplateDialog = document.getElementById("saveTemplateDialog");
 const saveTemplateSummary = document.getElementById("saveTemplateSummary");
 const insertOnlyButton = document.getElementById("insertOnlyButton");
@@ -321,18 +343,16 @@ function getMonday(date) {
 }
 
 function formatDateISO(d) {
-  return d.toISOString().split("T")[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function addDays(date, n) {
   const d = new Date(date);
   d.setDate(d.getDate() + n);
   return d;
-}
-
-function formatPulse(pulse) {
-  const cleanPulse = pulse.trim();
-  return cleanPulse ? `, pulss ${cleanPulse}` : "";
 }
 
 function calcPace(timeStr, distanceStr) {
@@ -383,11 +403,19 @@ function getDrillsPart() {
 function getGeneratedTraining() {
   const type = customType.value;
 
-  if (type === "Cits") {
-    return { title: "Cits", details: customFreeText.value.trim() };
+  if (type === OTHER_RUN_TYPE) {
+    const warmup = formatPart("Iesildīšanās", warmupDuration.value, warmupPulse.value);
+    const drills = getDrillsPart();
+    const cooldown = formatPart("Atsildīšanās", cooldownDuration.value, cooldownPulse.value);
+    const lines = [warmup, drills].filter(Boolean);
+    const mainText = customFreeText.value.trim();
+    if (mainText) lines.push(`Pamatdaļa: ${mainText}`);
+    if (cooldown) lines.push(cooldown);
+    const title = customName.value.trim() || OTHER_RUN_TYPE;
+    return { title, details: lines.join("\n") };
   }
 
-  const isEasyOrLong = type === "Vieglais skrējiens" || type === "Garais skrējiens";
+  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
   const isSimple = type === "VFS" || type === "SFS";
   const isVelo = type === "Velo";
 
@@ -400,7 +428,10 @@ function getGeneratedTraining() {
     : (isSimple || isVelo) ? "" : formatPart("Atsildīšanās", cooldownDuration.value, cooldownPulse.value);
   const lines = [warmup, drills].filter(Boolean);
 
-  if (type === "Intervāli") {
+  if (type === VAR_INTERVAL_TYPE) {
+    const main = buildVarIntervalMain(varSegmentList, varLaps, varRestBetweenLaps);
+    if (main) lines.push(main);
+  } else if (isIntervalType(type)) {
     const count = repeatCount.value.trim();
     const len = intervalLength.value.trim();
     const pace = intervalPace.value.trim();
@@ -408,13 +439,13 @@ function getGeneratedTraining() {
     let main = "Pamatdaļa: ";
     if (count && len) main += `${count}x${len}`;
     if (pace) main += ` (${pace.trim()})`;
-    if (rest) main += `; caur ${rest.replace(/\s*min\s*/i, "'")}`;
+    if (rest) main += `; caur ${rest}`;
     lines.push(main);
   } else {
     const mainLabel = isVelo ? "Velo" : "Pamatdaļa";
     let main = "";
     if (isSimple) {
-      main = mainDuration.value.trim() ? `${mainLabel}: ${mainDuration.value.trim().replace(/\s*min\s*/i, "'")}` : "";
+      main = mainDuration.value.trim() ? `${mainLabel}: ${mainDuration.value.trim()}` : "";
     } else if (isVelo) {
       main = formatPart(mainLabel, mainDuration.value, mainPulse.value);
     } else {
@@ -437,11 +468,21 @@ function getGeneratedTraining() {
 function getEditTraining() {
   const type = document.getElementById("editTrainingType").value;
 
-  if (type === "Cits") {
-    return { title: "Cits", details: document.getElementById("editFreeText").value.trim() };
+  if (type === OTHER_RUN_TYPE) {
+    const warmup = formatPart("Iesildīšanās",
+      document.getElementById("editWarmupDuration"), document.getElementById("editWarmupPulse"));
+    const drills = document.getElementById("editIncludeDrills").checked ? "Drill" : "";
+    const cooldown = formatPart("Atsildīšanās",
+      document.getElementById("editCooldownDuration"), document.getElementById("editCooldownPulse"));
+    const lines = [warmup, drills].filter(Boolean);
+    const mainText = document.getElementById("editFreeText").value.trim();
+    if (mainText) lines.push(`Pamatdaļa: ${mainText}`);
+    if (cooldown) lines.push(cooldown);
+    const title = document.getElementById("editCustomName").value.trim() || OTHER_RUN_TYPE;
+    return { title, details: lines.join("\n") };
   }
 
-  const isEasyOrLong = type === "Vieglais skrējiens" || type === "Garais skrējiens";
+  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
   const isSimple = type === "VFS" || type === "SFS";
   const isVelo = type === "Velo";
 
@@ -469,7 +510,14 @@ function getEditTraining() {
     : (isSimple || isVelo) ? "" : formatPart("Atsildīšanās", cooldownDuration, cooldownPulse);
   const lines = [warmup, drills].filter(Boolean);
 
-  if (type === "Intervāli") {
+  if (type === VAR_INTERVAL_TYPE) {
+    const main = buildVarIntervalMain(
+      document.getElementById("editVarSegmentList"),
+      document.getElementById("editVarLaps"),
+      document.getElementById("editVarRestBetweenLaps")
+    );
+    if (main) lines.push(main);
+  } else if (isIntervalType(type)) {
     const count = document.getElementById("editRepeatCount").value.trim();
     const len = document.getElementById("editIntervalLength").value.trim();
     const pace = document.getElementById("editIntervalPace").value.trim();
@@ -500,11 +548,30 @@ function getEditTraining() {
 function getEditPlanTraining() {
   const type = document.getElementById("epType").value;
 
-  if (type === "Cits") {
-    return { title: "Cits", details: document.getElementById("epFreeText").value.trim() };
+  if (type === OTHER_RUN_TYPE) {
+    const getVal = id => document.getElementById(id).value.trim();
+    const getBool = id => document.getElementById(id).checked;
+
+    function epFormatPart(label, durId, pulseId) {
+      const dur = getVal(durId);
+      if (!dur) return "";
+      const pulseStr = getVal(pulseId);
+      const pulsePart = pulseStr ? `; ${pulseStr}` : "";
+      return `${label}: ${dur}${pulsePart}`;
+    }
+
+    const warmup = epFormatPart("Iesildīšanās", "epWarmupDuration", "epWarmupPulse");
+    const drills = getBool("epIncludeDrills") ? "Drill" : "";
+    const cooldown = epFormatPart("Atsildīšanās", "epCooldownDuration", "epCooldownPulse");
+    const lines = [warmup, drills].filter(Boolean);
+    const mainText = getVal("epFreeText");
+    if (mainText) lines.push(`Pamatdaļa: ${mainText}`);
+    if (cooldown) lines.push(cooldown);
+    const title = getVal("epCustomName") || OTHER_RUN_TYPE;
+    return { title, details: lines.join("\n") };
   }
 
-  const isEasyOrLong = type === "Vieglais skrējiens" || type === "Garais skrējiens";
+  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
   const isSimple = type === "VFS" || type === "SFS";
   const isVelo = type === "Velo";
 
@@ -528,7 +595,14 @@ function getEditPlanTraining() {
     : (isSimple || isVelo) ? "" : epFormatPart("Atsildīšanās", "epCooldownDuration", "epCooldownPulse");
   const lines = [warmup, drills].filter(Boolean);
 
-  if (type === "Intervāli") {
+  if (type === VAR_INTERVAL_TYPE) {
+    const main = buildVarIntervalMain(
+      document.getElementById("epVarSegmentList"),
+      document.getElementById("epVarLaps"),
+      document.getElementById("epVarRestBetweenLaps")
+    );
+    if (main) lines.push(main);
+  } else if (isIntervalType(type)) {
     const count = getVal("epRepeatCount");
     const len = getVal("epIntervalLength");
     const pace = getVal("epIntervalPace");
@@ -560,6 +634,160 @@ function getEditPlanTraining() {
   const koptreniņš = isSimple && document.getElementById("epIncludeKoptreniņš")?.checked;
   const title = koptreniņš ? `${type} Koptreniņš` : type;
   return { title, details: lines.join("\n") };
+}
+
+const VAR_INTERVAL_TYPE = "Intervāli (dažāda garuma/ilguma)";
+const SAME_INTERVAL_TYPE = "Intervāli (vienāda garuma/ilguma)";
+const OTHER_RUN_TYPE = "Cita veida skrējiens";
+
+function isIntervalType(type) {
+  return type === "Intervāli" || type === SAME_INTERVAL_TYPE || type === VAR_INTERVAL_TYPE;
+}
+
+function displayTitle(name) {
+  return name ? name.replace(/\s*\(.*?\)\s*$/, "") : "";
+}
+
+function createVarSegmentRow(container, lengthVal, paceVal, restVal, repsVal) {
+  const row = document.createElement("div");
+  row.className = "var-segment-row";
+  row.style.marginBottom = "6px";
+  row.innerHTML = `
+    <label>Garums/Ilgums <input class="var-seg-length" type="text" value="${lengthVal || ""}" /></label>
+    <label>Temps <input class="var-seg-pace" type="text" value="${paceVal || ""}" /></label>
+    <label>Atpūta <input class="var-seg-rest" type="text" value="${restVal || ""}" /></label>
+    <label>× <input class="var-seg-reps" type="number" min="1" value="${repsVal || "1"}" style="width:50px" /></label>
+    <button class="var-seg-remove secondary-action-sm" type="button">×</button>`;
+  row.querySelector(".var-seg-remove").addEventListener("click", () => row.remove());
+  container.appendChild(row);
+}
+
+function addVarSegmentRow(container) {
+  createVarSegmentRow(container, "", "", "", "");
+}
+
+function clearVarSegments(container) {
+  container.innerHTML = "";
+}
+
+function getVarSegmentData(container) {
+  const rows = container.querySelectorAll(".var-segment-row");
+  const segments = [];
+  rows.forEach(row => {
+    const length = row.querySelector(".var-seg-length")?.value.trim();
+    const pace = row.querySelector(".var-seg-pace")?.value.trim();
+    const rest = row.querySelector(".var-seg-rest")?.value.trim();
+    const reps = parseInt(row.querySelector(".var-seg-reps")?.value) || 1;
+    if (length) segments.push({ length, pace, rest, reps });
+  });
+  return segments;
+}
+
+function syncVarLapsState(segmentList, lapsEl) {
+  const segments = getVarSegmentData(segmentList);
+  const hasMultiRep = segments.some(s => s.reps > 1);
+  lapsEl.disabled = hasMultiRep;
+  if (hasMultiRep) lapsEl.value = "1";
+}
+
+function isVarIntervalLine(line) {
+  const mainIdx = line.indexOf("Pamatdaļa:");
+  if (mainIdx === -1) return false;
+  const after = line.slice(mainIdx + "Pamatdaļa:".length);
+  const m = after.match(/\S+\([^)]+\)/);
+  return m && after.indexOf(" + ", m.index) !== -1;
+}
+
+function parseVarIntervalPaceBounds(line) {
+  const bounds = {};
+  const segments = line.split(" + ");
+  let segIdx = 0;
+  segments.forEach((seg) => {
+    const m = seg.match(/(?:(\d+)x)?\S+\(([^)]+)\)/);
+    if (!m) return;
+    const reps = parseInt(m[1]) || 1;
+    const segBounds = parsePaceBounds(m[2].trim());
+    if (!segBounds) return;
+    for (let r = 0; r < reps; r++) {
+      segIdx++;
+      bounds[`seg${segIdx}`] = segBounds;
+    }
+  });
+  return bounds;
+}
+
+function parseSegmentsFromVarLine(line) {
+  const mainIdx = line.indexOf("Pamatdaļa:");
+  if (mainIdx === -1) return { segments: [], laps: 1, restBetween: "", isGrouped: false };
+  let after = line.slice(mainIdx + "Pamatdaļa:".length).trim();
+
+  let restBetween = "";
+  const restMatch = after.match(/;\s*caur blokiem\s+(.+)/);
+  if (restMatch) {
+    restBetween = restMatch[1].trim();
+    after = after.slice(0, restMatch.index).trim();
+  }
+
+  let laps = 1;
+  const lapsMatch = after.match(/×\s*(\d+)\s*$/);
+  if (lapsMatch) {
+    laps = parseInt(lapsMatch[1]);
+    after = after.replace(/×\s*\d+\s*$/, "").trim();
+  }
+
+  const parts = after.split(" + ").map(s => s.trim()).filter(Boolean);
+  const isGrouped = parts.some(p => /^\d+x/i.test(p));
+
+  const segRegex = /^(?:(\d+)x)?(\S+)\(([^)]+)\)(?:\s*caur\s+(.+))?$/;
+  const segments = parts.map(p => {
+    const m = p.match(segRegex);
+    if (m) {
+      return {
+        length: m[2].trim(),
+        pace: m[3].trim(),
+        rest: (m[4] || "").trim(),
+        reps: isGrouped ? (parseInt(m[1]) || 1) : 1
+      };
+    }
+    return { length: p, pace: "", rest: "", reps: 1 };
+  });
+
+  if (!isGrouped) {
+    segments.forEach(s => { s.reps = laps; });
+  }
+  return { segments, laps: isGrouped ? 1 : laps, restBetween, isGrouped };
+}
+
+function buildVarIntervalMain(segmentListEl, lapsEl, restEl) {
+  const segments = getVarSegmentData(segmentListEl);
+  if (!segments.length) return "";
+  const isGrouped = segments.some(s => s.reps > 1);
+  const parts = segments.map(s => {
+    let p = isGrouped ? `${s.reps}x${s.length}` : s.length;
+    if (s.pace) p += `(${s.pace})`;
+    if (s.rest) p += ` caur ${s.rest}`;
+    return p;
+  });
+  let main = "Pamatdaļa: " + parts.join(" + ");
+  if (!isGrouped) {
+    const laps = lapsEl.value.trim();
+    if (laps) main += ` × ${laps}`;
+  }
+  const rest = restEl.value.trim();
+  if (rest) main += `; caur blokiem ${rest}`;
+  return main;
+}
+
+function parseVarIntervalMain(mainText, segmentListEl, lapsEl, restEl) {
+  clearVarSegments(segmentListEl);
+  const result = parseSegmentsFromVarLine(mainText);
+  result.segments.forEach(s => createVarSegmentRow(segmentListEl, s.length, s.pace, s.rest, s.reps));
+  if (!segmentListEl.children.length) {
+    createVarSegmentRow(segmentListEl, "", "", "", "");
+  }
+  lapsEl.value = String(result.laps);
+  if (result.restBetween) restEl.value = result.restBetween;
+  syncVarLapsState(segmentListEl, lapsEl);
 }
 
 function getSelectedTraining() {
@@ -635,82 +863,81 @@ async function loadNonTemplateData() {
   const athleteId = getSelectedAthleteId();
   if (!athleteId) return;
 
+  showLoading();
+
   const weekStart = currentWeekStart;
   const weekEnd = getWeekEnd(weekStart);
   const weekStartStr = formatDateISO(weekStart);
   const weekEndStr = formatDateISO(weekEnd);
+  const mStartStr = formatDateISO(getMonthStart(weekStart));
+  const mEndStr = formatDateISO(getMonthEnd(weekStart));
 
-  try {
-    plans = await getPlans(athleteId, weekStartStr, weekEndStr);
-  } catch (e) {
-    plans = [];
+  async function safeGet(promise, fallback) {
+    try { return await promise; } catch (e) { return fallback; }
   }
 
-  try {
-    races = await getRacesForWeek(athleteId, weekStartStr, weekEndStr);
-  } catch (e) {
-    races = [];
-  }
+  const [
+    plansRes,
+    racesRes,
+    logEntriesRes,
+    recordsRes,
+    weeklyStatsRes,
+    monthlyRunKmRes,
+    monthlyRunMinRes,
+    weeklyTrendRes,
+    monthlyTrendRes,
+    dayNotesRes,
+    weeklySummaryRes,
+    restrictionsRes,
+    diaryEntriesRes,
+    selfTestsRes,
+    polarTestsRes,
+    healthEntriesRes,
+    labTestsRes,
+  ] = await Promise.all([
+    safeGet(getPlans(athleteId, weekStartStr, weekEndStr), []),
+    safeGet(getRacesForWeek(athleteId, weekStartStr, weekEndStr), []),
+    safeGet(getLogEntries(athleteId, weekStartStr, weekEndStr), []),
+    safeGet(getRecords(athleteId), []),
+    safeGet(getWeeklyStats(athleteId, weekStartStr, weekEndStr), null),
+    safeGet(getMonthlyRunKm(athleteId, mStartStr, mEndStr), 0),
+    safeGet(getMonthlyRunDuration(athleteId, mStartStr, mEndStr), 0),
+    safeGet(getWeeklyTrend(athleteId, trendWeeks), []),
+    safeGet(getMonthlyTrend(athleteId, trendMonths), []),
+    safeGet(getDayNotes(athleteId, weekStartStr, weekEndStr), []),
+    safeGet(getWeeklySummary(athleteId, weekStartStr), null),
+    safeGet(getRestrictions(athleteId), []),
+    safeGet(getDiaryEntries(athleteId), []),
+    safeGet(getSelfTests(athleteId), []),
+    safeGet(getPolarTests(athleteId), []),
+    safeGet(getHealthEntries(athleteId), []),
+    safeGet(getLabTests(athleteId), []),
+  ]);
 
-  try {
-    logEntries = await getLogEntries(athleteId, weekStartStr, weekEndStr);
-  } catch (e) {
-    logEntries = [];
-  }
+  plans = plansRes;
+  races = racesRes;
+  logEntries = logEntriesRes;
+  records = recordsRes;
+  weeklyStats = weeklyStatsRes;
+  monthlyRunKm = monthlyRunKmRes;
+  monthlyRunMin = monthlyRunMinRes;
+  weeklyTrend = weeklyTrendRes;
+  monthlyTrend = monthlyTrendRes;
+  dayNotes = dayNotesRes;
+  weeklySummary = weeklySummaryRes;
+  restrictions = restrictionsRes;
+  diaryEntries = diaryEntriesRes;
+  selfTests = selfTestsRes;
+  polarTests = polarTestsRes;
+  healthEntries = healthEntriesRes;
+  labTests = labTestsRes;
 
-  try {
-    records = await getRecords(athleteId);
-  } catch (e) {
-    records = [];
-  }
+  await Promise.all([
+    safeGet(refreshAthleteHealthSet(), undefined),
+    safeGet(refreshAthleteNotCompletedSet(), undefined),
+  ]);
 
-  try {
-    weeklyStats = await getWeeklyStats(athleteId, weekStartStr, weekEndStr);
-  } catch (e) {
-    weeklyStats = null;
-  }
-
-  try {
-    const monthStart = formatDateISO(getMonthStart(weekStart));
-    const monthEnd = formatDateISO(getMonthEnd(weekStart));
-    monthlyRunKm = await getMonthlyRunKm(athleteId, monthStart, monthEnd);
-  } catch (e) {
-    monthlyRunKm = 0;
-  }
-
-  try {
-    const monthStart = formatDateISO(getMonthStart(weekStart));
-    const monthEnd = formatDateISO(getMonthEnd(weekStart));
-    monthlyRunMin = await getMonthlyRunDuration(athleteId, monthStart, monthEnd);
-  } catch (e) {
-    monthlyRunMin = 0;
-  }
-
-  try {
-    weeklyTrend = await getWeeklyTrend(athleteId, trendWeeks);
-  } catch (e) {
-    weeklyTrend = [];
-  }
-
-  try {
-    monthlyTrend = await getMonthlyTrend(athleteId, trendMonths);
-  } catch (e) {
-    monthlyTrend = [];
-  }
-
-  try {
-    dayNotes = await getDayNotes(athleteId, weekStartStr, weekEndStr);
-  } catch (e) {
-    dayNotes = [];
-  }
-
-  try {
-    weeklySummary = await getWeeklySummary(athleteId, weekStartStr);
-  } catch (e) {
-    weeklySummary = null;
-  }
-
-  if (logEntries.length) {
+  if (logEntries.length && (!weeklySummary || (!weeklySummary.run_km && !weeklySummary.run_min && !weeklySummary.vfs_sfs_min && !weeklySummary.velo_min))) {
     const autoRunKm = logEntries.reduce((s, e) => s + (e.distance_km || 0), 0);
     const autoTotalMin = logEntries.reduce((s, e) => s + (e.duration_min || 0), 0);
     const autoGymMin = logEntries.filter(e => e.activity_type === "gym").reduce((s, e) => s + (e.duration_min || 0), 0);
@@ -732,63 +959,36 @@ async function loadNonTemplateData() {
     }
   }
 
-  try {
-    restrictions = await getRestrictions(athleteId);
-  } catch (e) {
-    restrictions = [];
-  }
-
-  try {
-    diaryEntries = await getDiaryEntries(athleteId);
-  } catch (e) {
-    diaryEntries = [];
-  }
-
-  try {
-    selfTests = await getSelfTests(athleteId);
-  } catch (e) {
-    selfTests = [];
-  }
-
-  try {
-    polarTests = await getPolarTests(athleteId);
-  } catch (e) {
-    polarTests = [];
-  }
-
-  try {
-    healthEntries = await getHealthEntries(athleteId);
-  } catch (e) {
-    healthEntries = [];
-  }
-
-  try {
-    await refreshAthleteHealthSet();
-  } catch (e) {
-    athleteHealthSet = new Set();
-  }
-
-  try {
-    labTests = await getLabTests(athleteId);
-  } catch (e) {
-    labTests = [];
-  }
-
   if (viewMode === "month") {
     const monthStart = getMonthStart(currentMonthDate);
     const monthEnd = getMonthEnd(currentMonthDate);
     const ms = formatDateISO(monthStart);
     const me = formatDateISO(monthEnd);
-    try { monthPlans = await getPlans(athleteId, ms, me); } catch (e) { monthPlans = []; }
-    try { monthRaces = await getRacesForWeek(athleteId, ms, me); } catch (e) { monthRaces = []; }
-    try { monthLogEntries = await getLogEntries(athleteId, ms, me); } catch (e) { monthLogEntries = []; }
-    try { monthDayNotes = await getDayNotes(athleteId, ms, me); } catch (e) { monthDayNotes = []; }
+    const [mp, mr, ml, md] = await Promise.all([
+      safeGet(getPlans(athleteId, ms, me), []),
+      safeGet(getRacesForWeek(athleteId, ms, me), []),
+      safeGet(getLogEntries(athleteId, ms, me), []),
+      safeGet(getDayNotes(athleteId, ms, me), []),
+    ]);
+    monthPlans = mp;
+    monthRaces = mr;
+    monthLogEntries = ml;
+    monthDayNotes = md;
   }
 
   await loadWeekOverviewPlanData();
   await refreshWeekStatuses([athleteId]);
   render();
   updateRaceCalendarBadge();
+  hideLoading();
+}
+
+function showLoading() {
+  document.getElementById("loadingOverlay").hidden = false;
+}
+
+function hideLoading() {
+  document.getElementById("loadingOverlay").hidden = true;
 }
 
 async function loadWeekOverviewPlanData() {
@@ -798,29 +998,29 @@ async function loadWeekOverviewPlanData() {
   const endDate = addDays(monday, 28);
   const startStr = formatDateISO(monday);
   const endStr = formatDateISO(endDate);
-  for (const a of athletes) {
-    try {
-      athleteNextWeeksPlans[a.id] = await getPlans(a.id, startStr, endStr);
-    } catch (e) {
-      athleteNextWeeksPlans[a.id] = [];
-    }
-  }
+  const results = await Promise.all(
+    athletes.map(a =>
+      getPlans(a.id, startStr, endStr).catch(() => [])
+    )
+  );
+  athletes.forEach((a, i) => {
+    athleteNextWeeksPlans[a.id] = results[i];
+  });
 }
 
 async function initApp() {
   try {
     activeRole = currentProfile?.role || "athlete";
-    isManager = ["sandis.linards.duda@skmitauer.app", "toms.komass@skmitauer.app"].includes(currentUser?.email || "");
     trainingPickerPanel.hidden = activeRole !== "coach";
     athleteSelectorPanel.hidden = activeRole !== "coach";
-    athletes = (activeRole === "coach" || isManager) ? await getAthletes() : [currentProfile];
+    athletes = activeRole === "coach" ? await getAthletes() : [currentProfile];
 
 
     if (activeRole === "coach" && athletes.length && !athleteSelect.value) {
       athleteSelect.value = athletes[0].id;
     }
 
-    if (activeRole === "athlete" || isManager) {
+    if (activeRole === "athlete") {
       athleteSelect.value = currentUser.id;
     }
 
@@ -851,7 +1051,7 @@ function renderAthleteDropdown() {
     athleteSelect.value = currentValue;
   }
 
-  if (!athleteSelect.value && (activeRole === "athlete" || isManager) && currentUser) {
+  if (!athleteSelect.value && activeRole === "athlete" && currentUser) {
     athleteSelect.value = currentUser.id;
   }
 
@@ -884,9 +1084,10 @@ function renderAthleteDropdown() {
   list.innerHTML = athletes
     .map((a) => {
       const isSelected = a.id === athleteSelect.value;
-      const healthBadge = athleteHealthSet.has(a.id) ? '<span class="health-dropdown-badge">🩹</span> ' : "";
+      const healthBadge = athleteHealthSet.has(a.id) ? '<span class="health-dropdown-badge">⚕</span> ' : "";
+      const notCompletedBadge = athleteNotCompletedSet.has(a.id) ? '<span class="not-completed-icon">!</span> ' : "";
       return `<div class="athlete-row ${isSelected ? "selected" : ""}" data-athlete-id="${a.id}">
-        <span class="athlete-name">${healthBadge}${a.full_name}</span>
+        <span class="athlete-name">${healthBadge}${notCompletedBadge}${a.full_name}</span>
         <span class="athlete-indicators">${weekIndicators(a.id)}</span>
       </div>`;
     })
@@ -918,7 +1119,7 @@ function renderTemplates() {
 
 function renderCustomPreview() {
   const training = getGeneratedTraining();
-  customPreview.innerHTML = `<strong>${training.title}</strong><span>${training.details.replace(/\n/g, "<br>")}</span>`;
+  customPreview.innerHTML = `<strong>${displayTitle(training.title)}</strong><span>${formatDetailsForCard(training.details).replace(/\n/g, "<br>")}</span>`;
 }
 
 function renderSourcePicker() {
@@ -950,21 +1151,31 @@ function renderCustomBuilder() {
     if (ktr) ktr.hidden = true;
     return;
   }
-  const isEasyOrLong = type === "Vieglais skrējiens" || type === "Garais skrējiens";
+  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
   const isSimple = type === "VFS" || type === "SFS";
   const isVelo = type === "Velo";
-  const isCits = type === "Cits";
-  const isInterval = type === "Intervāli";
+  const isOtherRun = type === OTHER_RUN_TYPE;
+  const isSameInterval = type === SAME_INTERVAL_TYPE || type === "Intervāli";
+  const isVarInterval = type === VAR_INTERVAL_TYPE;
+  const isInterval = isSameInterval || isVarInterval;
 
-  intervalFields.hidden = !isInterval;
-  mainFields.hidden = isInterval || isCits;
-  freeTextRow.hidden = !isCits;
-  drillsRow.hidden = isEasyOrLong || isSimple || isVelo || isCits;
+  intervalFields.hidden = !isSameInterval;
+  varIntervalFields.hidden = !isVarInterval;
+  mainFields.hidden = isInterval || isOtherRun;
+  freeTextRow.hidden = !isOtherRun;
+  drillsRow.hidden = isEasyOrLong || isSimple || isVelo;
 
   const koptreniņšRow = document.getElementById("koptreniņšRow");
   if (koptreniņšRow) koptreniņšRow.hidden = !isSimple;
 
-  includeDrills.checked = isInterval || type === "Tempa skrējiens";
+  if (isVarInterval) {
+    if (!varSegmentList.children.length) addVarSegmentRow(varSegmentList);
+    syncVarLapsState(varSegmentList, varLaps);
+  } else {
+    clearVarSegments(varSegmentList);
+  }
+
+  document.getElementById("customNameRow").hidden = !isOtherRun;
 
   warmupToggleRow.hidden = !isEasyOrLong;
   cooldownToggleRow.hidden = !isEasyOrLong;
@@ -974,7 +1185,7 @@ function renderCustomBuilder() {
     document.getElementById("cooldownSection").hidden = false;
     warmupFields.hidden = !includeWarmup.checked;
     cooldownFields.hidden = !includeCooldown.checked;
-  } else if (isSimple || isVelo || isCits) {
+  } else if (isSimple || isVelo) {
     document.getElementById("warmupSection").hidden = true;
     document.getElementById("cooldownSection").hidden = true;
     warmupFields.hidden = true;
@@ -987,9 +1198,8 @@ function renderCustomBuilder() {
   }
 
   const mainPulseLabel = document.getElementById("mainPulseLabel");
-  const mainDurationLabel = document.getElementById("mainDurationLabel");
 
-  if (isSimple || isCits) {
+  if (isSimple) {
     if (mainPulseLabel) mainPulseLabel.hidden = true;
   } else {
     if (mainPulseLabel) mainPulseLabel.hidden = false;
@@ -1008,19 +1218,31 @@ function renderCustomBuilder() {
 
 function renderEditCustomBuilder() {
   const type = document.getElementById("editTrainingType").value;
-  const isEasyOrLong = type === "Vieglais skrējiens" || type === "Garais skrējiens";
+  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
   const isSimple = type === "VFS" || type === "SFS";
   const isVelo = type === "Velo";
-  const isCits = type === "Cits";
-  const isInterval = type === "Intervāli";
+  const isOtherRun = type === OTHER_RUN_TYPE;
+  const isSameInterval = type === SAME_INTERVAL_TYPE || type === "Intervāli";
+  const isVarInterval = type === VAR_INTERVAL_TYPE;
+  const isInterval = isSameInterval || isVarInterval;
 
-  document.getElementById("editIntervalFields").hidden = !isInterval;
-  document.getElementById("editMainFields").hidden = isInterval || isCits;
-  document.getElementById("editFreeTextRow").hidden = !isCits;
-  document.getElementById("editDrillsRow").hidden = isEasyOrLong || isSimple || isVelo || isCits;
+  document.getElementById("editIntervalFields").hidden = !isSameInterval;
+  document.getElementById("editVarIntervalFields").hidden = !isVarInterval;
+  document.getElementById("editMainFields").hidden = isInterval || isOtherRun;
+  document.getElementById("editFreeTextRow").hidden = !isOtherRun;
+  document.getElementById("editDrillsRow").hidden = isEasyOrLong || isSimple || isVelo;
 
   const editKoptreniņšRow = document.getElementById("editKoptreniņšRow");
   if (editKoptreniņšRow) editKoptreniņšRow.hidden = !isSimple;
+
+  if (isVarInterval) {
+    if (!document.getElementById("editVarSegmentList").children.length) addVarSegmentRow(document.getElementById("editVarSegmentList"));
+    syncVarLapsState(document.getElementById("editVarSegmentList"), document.getElementById("editVarLaps"));
+  } else {
+    clearVarSegments(document.getElementById("editVarSegmentList"));
+  }
+
+  document.getElementById("editCustomNameRow").hidden = !isOtherRun;
 
   document.getElementById("editWarmupToggleRow").hidden = !isEasyOrLong;
   document.getElementById("editCooldownToggleRow").hidden = !isEasyOrLong;
@@ -1030,7 +1252,7 @@ function renderEditCustomBuilder() {
     document.getElementById("editCooldownSection").hidden = false;
     document.getElementById("editWarmupFields").hidden = !document.getElementById("editIncludeWarmup").checked;
     document.getElementById("editCooldownFields").hidden = !document.getElementById("editIncludeCooldown").checked;
-  } else if (isSimple || isVelo || isCits) {
+  } else if (isSimple || isVelo) {
     document.getElementById("editWarmupSection").hidden = true;
     document.getElementById("editCooldownSection").hidden = true;
     document.getElementById("editWarmupFields").hidden = true;
@@ -1043,9 +1265,8 @@ function renderEditCustomBuilder() {
   }
 
   const mainPulseLabel = document.getElementById("editMainPulseLabel");
-  const mainDurationLabel = document.getElementById("editMainDurationLabel");
 
-  if (isSimple || isCits) {
+  if (isSimple) {
     if (mainPulseLabel) mainPulseLabel.hidden = true;
   } else {
     if (mainPulseLabel) mainPulseLabel.hidden = false;
@@ -1064,24 +1285,36 @@ function renderEditCustomBuilder() {
 function renderEditTrainingPreview() {
   const training = getEditTraining();
   const preview = document.getElementById("editTrainingPreview");
-  preview.innerHTML = `<strong>${training.title}</strong><span>${training.details.replace(/\n/g, "<br>")}</span>`;
+  preview.innerHTML = `<strong>${displayTitle(training.title)}</strong><span>${formatDetailsForCard(training.details).replace(/\n/g, "<br>")}</span>`;
 }
 
 function renderEditPlanBuilder() {
   const type = document.getElementById("epType").value;
-  const isEasyOrLong = type === "Vieglais skrējiens" || type === "Garais skrējiens";
+  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
   const isSimple = type === "VFS" || type === "SFS";
   const isVelo = type === "Velo";
-  const isCits = type === "Cits";
-  const isInterval = type === "Intervāli";
+  const isOtherRun = type === OTHER_RUN_TYPE;
+  const isSameInterval = type === SAME_INTERVAL_TYPE || type === "Intervāli";
+  const isVarInterval = type === VAR_INTERVAL_TYPE;
+  const isInterval = isSameInterval || isVarInterval;
 
-  document.getElementById("epIntervalFields").hidden = !isInterval;
-  document.getElementById("epMainFields").hidden = isInterval || isCits;
-  document.getElementById("epFreeTextRow").hidden = !isCits;
-  document.getElementById("epDrillsRow").hidden = isEasyOrLong || isSimple || isVelo || isCits;
+  document.getElementById("epIntervalFields").hidden = !isSameInterval;
+  document.getElementById("epVarIntervalFields").hidden = !isVarInterval;
+  document.getElementById("epMainFields").hidden = isInterval || isOtherRun;
+  document.getElementById("epFreeTextRow").hidden = !isOtherRun;
+  document.getElementById("epDrillsRow").hidden = isEasyOrLong || isSimple || isVelo;
 
   const epKoptreniņšRow = document.getElementById("epKoptreniņšRow");
   if (epKoptreniņšRow) epKoptreniņšRow.hidden = !isSimple;
+
+  if (isVarInterval) {
+    if (!document.getElementById("epVarSegmentList").children.length) addVarSegmentRow(document.getElementById("epVarSegmentList"));
+    syncVarLapsState(document.getElementById("epVarSegmentList"), document.getElementById("epVarLaps"));
+  } else {
+    clearVarSegments(document.getElementById("epVarSegmentList"));
+  }
+
+  document.getElementById("epCustomNameRow").hidden = !isOtherRun;
 
   document.getElementById("epWarmupToggleRow").hidden = !isEasyOrLong;
   document.getElementById("epCooldownToggleRow").hidden = !isEasyOrLong;
@@ -1091,7 +1324,7 @@ function renderEditPlanBuilder() {
     document.getElementById("epCooldownSection").hidden = false;
     document.getElementById("epWarmupFields").hidden = !document.getElementById("epIncludeWarmup").checked;
     document.getElementById("epCooldownFields").hidden = !document.getElementById("epIncludeCooldown").checked;
-  } else if (isSimple || isVelo || isCits) {
+  } else if (isSimple || isVelo) {
     document.getElementById("epWarmupSection").hidden = true;
     document.getElementById("epCooldownSection").hidden = true;
     document.getElementById("epWarmupFields").hidden = true;
@@ -1104,7 +1337,7 @@ function renderEditPlanBuilder() {
   }
 
   const mainPulseLabel = document.getElementById("epMainPulseLabel");
-  if (isSimple || isCits) {
+  if (isSimple) {
     if (mainPulseLabel) mainPulseLabel.hidden = true;
   } else {
     if (mainPulseLabel) mainPulseLabel.hidden = false;
@@ -1126,11 +1359,16 @@ function renderEditPlanBuilder() {
 function renderEditPlanPreview() {
   const training = getEditPlanTraining();
   const preview = document.getElementById("epPreview");
-  preview.innerHTML = `<strong>${training.title}</strong><span>${training.details.replace(/\n/g, "<br>")}</span>`;
+  preview.innerHTML = `<strong>${displayTitle(training.title)}</strong><span>${formatDetailsForCard(training.details).replace(/\n/g, "<br>")}</span>`;
 }
 
 function parsePlanToForm(plan) {
-  document.getElementById("epType").value = plan.title;
+  const knownTypes = ["Atjaunojošais/lēnais skrējiens", "Garais skrējiens", "Intervāli", SAME_INTERVAL_TYPE, VAR_INTERVAL_TYPE, "Tempa skrējiens", OTHER_RUN_TYPE, "VFS", "SFS", "Velo", "Cits"];
+  const isKnownType = knownTypes.includes(plan.title);
+  const resolvedType = isKnownType ? plan.title : OTHER_RUN_TYPE;
+
+  document.getElementById("epType").value = resolvedType;
+  document.getElementById("epCustomName").value = isKnownType ? "" : plan.title;
   document.getElementById("epWarmupDuration").value = "15 min";
   document.getElementById("epWarmupPulse").value = "130-145";
   document.getElementById("epIncludeWarmup").checked = false;
@@ -1175,35 +1413,45 @@ function parsePlanToForm(plan) {
       const mainContent = line.replace(/^(Pamatdaļa|Velo):\s*/, "");
       if (isVelo) document.getElementById("epType").value = "Velo";
       if (mainContent) {
-        const intervalMatch = mainContent.match(/^(\d+)x([\d.\s]+\s*\w+)/);
-        if (intervalMatch && plan.title === "Intervāli") {
-          document.getElementById("epRepeatCount").value = intervalMatch[1];
-          document.getElementById("epIntervalLength").value = intervalMatch[2];
-          const paceMatch = mainContent.match(/\(([^)]+)\)/);
-          if (paceMatch) document.getElementById("epIntervalPace").value = paceMatch[1].trim();
-          const restMatch = mainContent.match(/caur\s+(.+)/);
-          if (restMatch) document.getElementById("epRestDuration").value = restMatch[1];
+        if (resolvedType === OTHER_RUN_TYPE) {
+          document.getElementById("epFreeText").value = mainContent;
         } else {
-          const pulseMatch = mainContent.match(/(.+?);\s*(.+?)(?:sr)?(?:;\s*(.+))?$/);
-          if (pulseMatch) {
-            document.getElementById("epMainDuration").value = pulseMatch[1].trim();
-            document.getElementById("epMainPulse").value = pulseMatch[2].trim();
-            if (pulseMatch[3]) document.getElementById("epTempoPace").value = pulseMatch[3].trim();
+          const isVar = plan.title === VAR_INTERVAL_TYPE && isVarIntervalLine(line);
+          if (isVar) {
+            parseVarIntervalMain(line,
+              document.getElementById("epVarSegmentList"),
+              document.getElementById("epVarLaps"),
+              document.getElementById("epVarRestBetweenLaps")
+            );
+          } else if (mainContent.match(/^(\d+)x([\d.\s]+\s*\w+)/) && isIntervalType(plan.title)) {
+            const intervalMatch = mainContent.match(/^(\d+)x([\d.\s]+\s*\w+)/);
+            if (intervalMatch) {
+              document.getElementById("epRepeatCount").value = intervalMatch[1];
+              document.getElementById("epIntervalLength").value = intervalMatch[2];
+            }
+            const paceMatch = mainContent.match(/\(([^)]+)\)/);
+            if (paceMatch) document.getElementById("epIntervalPace").value = paceMatch[1].trim();
+            const restMatch = mainContent.match(/caur\s+(.+)/);
+            if (restMatch) document.getElementById("epRestDuration").value = restMatch[1];
           } else {
-            const tempoMatch = mainContent.match(/^(.+?);\s+(.+)/);
-            if (tempoMatch) {
-              document.getElementById("epMainDuration").value = tempoMatch[1].trim();
-              document.getElementById("epTempoPace").value = tempoMatch[2].trim();
+            const pulseMatch = mainContent.match(/(.+?);\s*(.+?)(?:sr)?(?:;\s*(.+))?$/);
+            if (pulseMatch) {
+              document.getElementById("epMainDuration").value = pulseMatch[1].trim();
+              document.getElementById("epMainPulse").value = pulseMatch[2].trim();
+              if (pulseMatch[3]) document.getElementById("epTempoPace").value = pulseMatch[3].trim();
             } else {
-              document.getElementById("epMainDuration").value = mainContent.trim();
+              const tempoMatch = mainContent.match(/^(.+?);\s+(.+)/);
+              if (tempoMatch) {
+                document.getElementById("epMainDuration").value = tempoMatch[1].trim();
+                document.getElementById("epTempoPace").value = tempoMatch[2].trim();
+              } else {
+                document.getElementById("epMainDuration").value = mainContent.trim();
+              }
             }
           }
         }
       }
     }
-  }
-  if (plan.title === "Cits") {
-    document.getElementById("epFreeText").value = details;
   }
   renderEditPlanBuilder();
 }
@@ -1223,10 +1471,13 @@ function parseTrainingToForm(template) {
 
   document.getElementById("editTrainingName").value = name;
 
+  const knownTypes = ["Atjaunojošais/lēnais skrējiens", "Garais skrējiens", "Intervāli", SAME_INTERVAL_TYPE, VAR_INTERVAL_TYPE, "Tempa skrējiens", OTHER_RUN_TYPE, "VFS", "SFS", "Velo", "Cits"];
+  const isKnownType = knownTypes.includes(name);
   let type = name;
+  if (!isKnownType) type = OTHER_RUN_TYPE;
   if (name === "Intervālu treniņš") type = "Intervāli";
-  else if (name === "Cits") type = "Cits";
   setVal("editTrainingType", type);
+  setVal("editCustomName", isKnownType ? "" : name);
 
   const lines = details.split("\n").map(l => l.trim()).filter(Boolean);
 
@@ -1277,32 +1528,40 @@ function parseTrainingToForm(template) {
     } else if (line === "Drill") {
       hasDrills = true;
     } else if (label === "Pamatdaļa" || label === "Velo") {
-      const intervalMatch = rest.match(/(\d+)x(\S+)/);
-      if (intervalMatch) {
+      if (type === VAR_INTERVAL_TYPE && isVarIntervalLine(line)) {
         hasIntervals = true;
-        setVal("editRepeatCount", intervalMatch[1]);
-        setVal("editIntervalLength", intervalMatch[2]);
-        const paceMatch = rest.match(/\(([^)]+)\)/);
-        if (paceMatch) setVal("editIntervalPace", paceMatch[1].trim());
-        const restMatch = rest.match(/caur\s+(\S+)/);
-        if (restMatch) {
-          setVal("editRestDuration", restMatch[1]);
-        }
+        parseVarIntervalMain(
+          line,
+          document.getElementById("editVarSegmentList"),
+          document.getElementById("editVarLaps"),
+          document.getElementById("editVarRestBetweenLaps")
+        );
+      } else if (type === OTHER_RUN_TYPE) {
+        setVal("editFreeText", rest);
       } else {
-        const durMatch = rest.match(/^(\d+)(?:['′]| min)/);
-        if (durMatch) setVal("editMainDuration", durMatch[1] + " min");
-        const pulseMatch = rest.match(/(\d+-\d+)(?:sr)?/);
-        if (pulseMatch) setVal("editMainPulse", pulseMatch[1]);
+        const intervalMatch = rest.match(/(\d+)x(\S+)/);
+        if (intervalMatch) {
+          hasIntervals = true;
+          setVal("editRepeatCount", intervalMatch[1]);
+          setVal("editIntervalLength", intervalMatch[2]);
+          const paceMatch = rest.match(/\(([^)]+)\)/);
+          if (paceMatch) setVal("editIntervalPace", paceMatch[1].trim());
+          const restMatch = rest.match(/caur\s+(\S+)/);
+          if (restMatch) {
+            setVal("editRestDuration", restMatch[1]);
+          }
+        } else {
+          const durMatch = rest.match(/^(\d+)(?:['′]| min)/);
+          if (durMatch) setVal("editMainDuration", durMatch[1] + " min");
+          const pulseMatch = rest.match(/(\d+-\d+)(?:sr)?/);
+          if (pulseMatch) setVal("editMainPulse", pulseMatch[1]);
+        }
       }
     }
   }
 
-  if (type === "Cits") {
-    setVal("editFreeText", details);
-  }
-
   setChecked("editIncludeDrills", hasDrills);
-  if (type !== "Vieglais skrējiens" && type !== "Garais skrējiens") {
+  if (type !== "Atjaunojošais/lēnais skrējiens" && type !== "Garais skrējiens") {
     setChecked("editIncludeWarmup", hasWarmup);
     setChecked("editIncludeCooldown", hasCooldown);
   }
@@ -1339,13 +1598,13 @@ function formatDetailsForCard(details) {
 
 function badgeForTitle(title) {
   const t = (title || "").toLowerCase();
-  if (t.includes("vieglais")) return "🐢";
+  if (t.includes("vieglais") || t.includes("atjaunojošais") || t.includes("lēnais")) return "🐢";
   if (t.includes("garais")) return "⌛";
   if (t.includes("intervāli")) return "⚡";
   if (t.includes("tempa")) return "📈";
   if (t.includes("vfs") || t.includes("sfs")) return "💪";
   if (t.includes("velo")) return "🚴";
-  return "📄";
+  return "🎲";
 }
 
 function renderPlanCard(plan) {
@@ -1358,8 +1617,8 @@ function renderPlanCard(plan) {
 
   if (isCoach) {
     return `
-      <article class="session-card${notCompleted ? " not-completed" : ""}" data-plan-id="${plan.id}">
-        <h3>${plan.title}</h3>
+      <article class="session-card is-draggable${notCompleted ? " not-completed" : ""}" data-plan-id="${plan.id}">
+        <h3>${displayTitle(plan.title)}</h3>
         ${todBadge}
         <span class="plan-type-badge">${badgeForTitle(plan.title)}</span>
         ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
@@ -1372,24 +1631,20 @@ function renderPlanCard(plan) {
     `;
   }
 
-  function renderInlineLog(data, paceBoundsMap, pulseBoundsMap) {
+  function renderInlineLog(data, paceBoundsMap) {
     return data.map(entry => {
       let line = `<div class="log-line">`;
       if (entry.intervals && entry.intervals.length) {
         const done = entry.intervals.filter(Boolean);
-        const bounds = paceBoundsMap?.[entry.section];
-        if (bounds) {
-          const colored = done.map(v => {
-            const p = parseAthleteInput(v);
-            const c = p ? getPaceColor(p, bounds) : "";
-            return c ? `<span class="pace-text-${c}">${v}</span>` : v;
-          });
-          line += `<strong>${entry.section}:</strong> ${colored.join(", ")}`;
-        } else {
-          line += `<strong>${entry.section}:</strong> ${done.join(", ")}`;
-        }
+        const colored = done.map((v, i) => {
+          const p = parseAthleteInput(v);
+          const segBounds = paceBoundsMap?.[`seg${i + 1}`] || paceBoundsMap?.[entry.section];
+          const c = p ? getPaceColor(p, segBounds) : "";
+          return c ? `<span class="pace-text-${c}">${v}</span>` : v;
+        });
+        line += `<strong>${entry.section}:</strong> ${colored.join(", ")}`;
       } else {
-        const dur = entry.duration ? entry.duration + (entry.duration.includes("'") ? "" : "'") : "";
+        const dur = entry.duration || "";
         const rawPulse = entry.pulse ? entry.pulse + (entry.pulse.includes("vid.") ? "" : "vid.") : "";
         const bounds = paceBoundsMap?.[entry.section];
         let paceHtml = "";
@@ -1400,11 +1655,7 @@ function renderPlanCard(plan) {
         }
         let pulseHtml = "";
         if (rawPulse) {
-          const pb = pulseBoundsMap?.[entry.section];
-          const pv = parseAthletePulse(entry.pulse);
-          const pc = pv && pb ? getPulseColor(pv, pb) : "";
-          const colored = pc ? `<span class="pace-text-${pc}">${entry.pulse}</span>` : entry.pulse;
-          pulseHtml = "; " + colored + "vid.";
+          pulseHtml = "; " + entry.pulse + "vid.";
         }
         line += `<strong>${entry.section}:</strong> ${dur}${pulseHtml}${paceHtml ? "; " + paceHtml : ""}`;
       }
@@ -1419,20 +1670,18 @@ function renderPlanCard(plan) {
   const planLogNotes = planLog?.notes ? `<div class="comment-label">Sportista komentārs</div><div class="log-notes">${planLog.notes}</div>` : "";
 
   const paceBoundsMap = buildPaceBoundsMap(plan.details);
-  const pulseBoundsMap = buildPulseBoundsMap(plan.details);
-  const logBlock = planLogData.length
-    ? `<div class="log-card log-inline"><div class="log-header"><h3>Izpildīts</h3>${logActions}</div>${renderInlineLog(planLogData, paceBoundsMap, pulseBoundsMap)}${feelingBadge}${planLogNotes}</div>`
+  const logBlock = planLog
+    ? `<div class="log-card log-inline"><div class="log-header"><h3>Izpildīts</h3>${logActions}</div>${planLogData.length ? renderInlineLog(planLogData, paceBoundsMap) : ""}${feelingBadge}${planLogNotes}</div>`
     : `<button class="add-day-button log-plan-button" data-log-plan="${plan.id}" type="button">Ierakstīt izpildi</button>`;
 
   return `
     <article class="session-card${notCompleted ? " not-completed" : ""}" data-plan-id="${plan.id}">
-      <h3>${plan.title}</h3>
+      <h3>${displayTitle(plan.title)}</h3>
       ${todBadge}
       <span class="plan-type-badge">${badgeForTitle(plan.title)}</span>
       ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
       <p>${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}</p>
-      <div class="comment-label">Trenera komentārs</div>
-      <textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" disabled>${plan.coach_comment || ""}</textarea>
+      ${plan.coach_comment ? `<div class="comment-label">Trenera komentārs</div><textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" disabled>${plan.coach_comment}</textarea>` : ""}
       <label class="checkbox-row"><input type="checkbox" data-cb-plan="${plan.id}" ${notCompleted ? "checked" : ""} /> Treniņš nav izpildīts</label>
       ${notCompleted ? `<div class="comment-label">Sportista komentārs</div><textarea class="inline-comment not-completed-comment" data-comment-plan="${plan.id}" data-comment-type="athlete">${plan.athlete_comment || ""}</textarea>` : ""}
       ${logBlock}
@@ -1442,57 +1691,46 @@ function renderPlanCard(plan) {
 
 function renderLogCard(log) {
   const data = log.log_data || [];
-  if (!data.length) return "";
+  if (!data.length && !log?.feeling && !log?.notes) return "";
   const plan = log.plan_id ? plans.find(p => p.id === log.plan_id) : null;
   const paceBoundsMap = buildPaceBoundsMap(plan?.details);
-  const pulseBoundsMap = buildPulseBoundsMap(plan?.details);
-  const items = data.map((entry) => {
-    let line = `<div class="log-line">`;
-    if (entry.intervals && entry.intervals.length) {
-      const done = entry.intervals.filter(Boolean);
-      const bounds = paceBoundsMap[entry.section];
-      if (bounds) {
-        const colored = done.map(v => {
+  const items = data.length
+    ? data.map((entry) => {
+      let line = `<div class="log-line">`;
+      if (entry.intervals && entry.intervals.length) {
+        const done = entry.intervals.filter(Boolean);
+        const colored = done.map((v, i) => {
           const p = parseAthleteInput(v);
-          const c = p ? getPaceColor(p, bounds) : "";
+          const segBounds = paceBoundsMap?.[`seg${i + 1}`] || paceBoundsMap?.[entry.section];
+          const c = p ? getPaceColor(p, segBounds) : "";
           return c ? `<span class="pace-text-${c}">${v}</span>` : v;
         });
         line += `<strong>${entry.section}:</strong> ${colored.join(", ")}`;
       } else {
-        line += `<strong>${entry.section}:</strong> ${done.join(", ")}`;
+        const dur = entry.duration || "";
+        const rawPulse = entry.pulse ? entry.pulse + (entry.pulse.includes("vid.") ? "" : "vid.") : "";
+        const bounds = paceBoundsMap[entry.section];
+        let paceHtml = "";
+        if (entry.pace) {
+          const p = parseAthleteInput(entry.pace);
+          const c = p && bounds ? getPaceColor(p, bounds) : "";
+          paceHtml = c ? `<span class="pace-text-${c}">${entry.pace}</span>` : entry.pace;
+        }
+        let pulseHtml = "";
+        if (rawPulse) {
+          pulseHtml = "; " + entry.pulse + "vid.";
+        }
+        line += `<strong>${entry.section}:</strong> ${dur}${pulseHtml}${paceHtml ? "; " + paceHtml : ""}`;
       }
-    } else {
-      const dur = entry.duration ? entry.duration + (entry.duration.includes("'") ? "" : "'") : "";
-      const rawPulse = entry.pulse ? entry.pulse + (entry.pulse.includes("vid.") ? "" : "vid.") : "";
-      const bounds = paceBoundsMap[entry.section];
-      let paceHtml = "";
-      if (entry.pace) {
-        const p = parseAthleteInput(entry.pace);
-        const c = p && bounds ? getPaceColor(p, bounds) : "";
-        paceHtml = c ? `<span class="pace-text-${c}">${entry.pace}</span>` : entry.pace;
-      }
-      let pulseHtml = "";
-      if (rawPulse) {
-        const pb = pulseBoundsMap?.[entry.section];
-        const pv = parseAthletePulse(entry.pulse);
-        const pc = pv && pb ? getPulseColor(pv, pb) : "";
-        const colored = pc ? `<span class="pace-text-${pc}">${entry.pulse}</span>` : entry.pulse;
-        pulseHtml = "; " + colored + "vid.";
-      }
-      line += `<strong>${entry.section}:</strong> ${dur}${pulseHtml}${paceHtml ? "; " + paceHtml : ""}`;
-    }
-    line += `</div>`;
-    return line;
-  }).join("");
+      line += `</div>`;
+      return line;
+    }).join("")
+    : "";
   const feelingBadge = log?.feeling ? feelingBadgeHtml(log.feeling) : "";
   const logNotes = log?.notes ? `<div class="comment-label">Sportista komentārs</div><div class="log-notes">${log.notes}</div>` : "";
-  const athleteIsOwner = (activeRole === "athlete" || isManager) && currentUser.id === getSelectedAthleteId();
+  const athleteIsOwner = (activeRole === "athlete") && currentUser.id === getSelectedAthleteId();
   const logActions = athleteIsOwner ? `<div class="log-actions"><button class="edit-log-btn" data-log-day="${log.date}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${log.id}" type="button">×</button></div>` : "";
   return `<div class="session-card log-card"><div class="log-header"><h3>Izpildīts</h3>${logActions}</div>${items}${feelingBadge}${logNotes}</div>`;
-}
-
-function minToHours(m) {
-  return ((m || 0) / 60).toFixed(1);
 }
 
 function renderStats() {
@@ -1669,7 +1907,7 @@ function renderCalendar() {
             ${dayRaces.map((r) => {
               const isUpcoming = dateStr >= todayStr;
               const hasResult = !!r.result_time;
-              const isAthleteOwner = (activeRole === "athlete" || isManager) && currentUser.id === athleteId;
+              const isAthleteOwner = (activeRole === "athlete") && currentUser.id === athleteId;
               return `
               <div class="race-chip${isUpcoming && !hasResult ? " upcoming" : ""}" data-race-id="${r.id}">
                 <div class="race-label">${r.name}</div>
@@ -1705,13 +1943,13 @@ function renderCalendar() {
               : dayRestriction
                 ? `<div class="day-restriction-text">🚫 ${escapeHtml(dayRestriction.reason)}</div>`
                 : activeRole === "coach"
-                  ? `<div class="day-rest-text">${dayNote?.is_rest_day ? `<div class="rest-day-toggle-btn" data-rest-day="${dateStr}" role="button" tabindex="0">🌴 Brīvdiena atcelt</div><textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Trenera komentārs...">${dayNote?.coach_comment || ""}</textarea>` : `<div class="rest-day-toggle-btn" data-rest-day="${dateStr}" role="button" tabindex="0">🌴 Ieplānot brīvdienu</div>`}</div>`
+                  ? `<div class="day-rest-text">${dayNote?.is_rest_day ? `🌴 Brīvdiena<textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Trenera komentārs...">${dayNote?.coach_comment || ""}</textarea>` : `<div class="rest-day-toggle-btn" data-rest-day="${dateStr}" role="button" tabindex="0">🌴 Ieplānot brīvdienu</div>`}</div>`
                   : dayNote?.is_rest_day
-                    ? `<div class="day-rest-text">🌴 ${dayNote?.coach_comment ? escapeHtml(dayNote.coach_comment) : ""}</div><textarea class="rest-day-athlete-comment" data-rest-athlete-comment="${dateStr}" placeholder="Tavs komentārs..." rows="1">${dayNote?.athlete_comment || ""}</textarea>`
+                    ? `<div class="day-rest-text">🌴 Brīvdiena${dayNote?.coach_comment ? "<br>" + escapeHtml(dayNote.coach_comment) : ""}</div><textarea class="rest-day-athlete-comment" data-rest-athlete-comment="${dateStr}" placeholder="Tavs komentārs..." rows="1">${dayNote?.athlete_comment || ""}</textarea>`
                     : `<div class="empty-day">Pašlaik plāns vēl nav sastādīts</div>`
           }
           ${dayLog.filter(l => !l.plan_id).map(renderLogCard).join("")}
-          ${dayHealth ? `<div class="day-health-text">🩹 ${escapeHtml(dayHealth.description)}</div>` : ""}
+          ${dayHealth ? `<div class="day-health-text">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
           ${(dayRestriction || dayHealth) && activeRole === "coach"
             ? `<div class="comment-label">Trenera komentārs</div><textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Komentārs...">${dayNote?.coach_comment || ""}</textarea>`
             : ""}
@@ -1727,9 +1965,8 @@ function renderCalendar() {
     const toggleRestDay = async () => {
       const date = btn.dataset.restDay;
       const athleteId = getSelectedAthleteId();
-      const isCurrentlyRest = btn.textContent.includes("Brīvdiena atcelt");
       try {
-        await upsertDayNote({ athlete_id: athleteId, date, is_rest_day: !isCurrentlyRest });
+        await upsertDayNote({ athlete_id: athleteId, date, is_rest_day: true });
         await loadNonTemplateData();
       } catch (e) {
         console.error(e);
@@ -1751,7 +1988,7 @@ function renderWeeklySummary() {
   const ws = document.getElementById("weeklySummary");
   if (!ws) return;
   const athleteId = getSelectedAthleteId();
-  const isAthleteView = (activeRole === "athlete" || isManager) && currentUser.id === athleteId;
+  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
 
   const s = weeklySummary || {};
   const runKm = s.run_km ?? "";
@@ -1805,34 +2042,15 @@ function renderWeeklySummary() {
       try {
         await upsertWeeklySummary(updates);
         weeklySummary = await getWeeklySummary(athleteId, weekStart);
+        if (isAthleteView) {
+          weeklyTrend = await getWeeklyTrend(athleteId, trendWeeks);
+          renderStats();
+        }
       } catch (e) {
         console.error(e);
       }
     });
   });
-}
-
-function renderRecords() {
-  const list = document.getElementById("recordsList");
-  if (!list) return;
-  const athleteId = getSelectedAthleteId();
-
-  if (!records.length) {
-    list.innerHTML = "<p class='empty-day'>Nav rekordu</p>";
-    return;
-  }
-
-  list.innerHTML = records
-    .map(
-      (r) =>
-        `<div class="record-row">
-          <span class="record-dist">${r.distance}</span>
-          <span class="record-time">${r.time}</span>
-          <span class="record-date">${r.date || ""}</span>
-          ${isCoach() || currentUser.id === athleteId ? `<button class="delete-record-btn" data-record="${r.id}">×</button>` : ""}
-        </div>`
-    )
-    .join("");
 }
 
 async function loadProfileData() {
@@ -1850,41 +2068,42 @@ function renderProfile() {
     ? athletes.find((a) => a.id === athleteId) || currentProfile
     : currentProfile;
   const canEdit = currentUser.id === athleteId;
-  const canEditUrls = canEdit || isCoach();
+  const canEditUrls = profile.role === "athlete" && canEdit;
+
+  function urlRow(id, label, field, url, logo, placeholder) {
+    const editing = canEditUrls && (urlEditState[field] || !url);
+    if (editing) {
+      return `<input id="${id}" value="${url || ""}" placeholder="${placeholder}" />`;
+    }
+    if (url) {
+      const editBtn = canEditUrls
+        ? `<button class="url-edit-btn" data-field="${field}" type="button">Labot</button>`
+        : "";
+      return `<div class="profile-url-row"><a href="${url}" target="_blank" rel="noopener"><img class="profile-logo" src="${logo}" alt="${label}"></a>${editBtn}</div>`;
+    }
+    return `<span class="muted">— Nav norādīts</span>`;
+  }
 
   profileCard.innerHTML = `
     <div class="profile-header">
       <div class="profile-name">${profile.full_name}</div>
     </div>
     <section class="profile-section">
-      <label>Garmin
-        ${canEditUrls
-          ? `<input id="editGarminUrl" value="${profile.garmin_url || ""}" placeholder="https://connect.garmin.com/..." />`
-          : profile.garmin_url
-            ? `<div class="profile-url-row"><a href="${profile.garmin_url}" target="_blank" rel="noopener">${profile.garmin_url}</a></div>`
-            : `<span class="muted">— Nav norādīts</span>`
-        }
-      </label>
-      <label>Strava
-        ${canEditUrls
-          ? `<input id="editStravaUrl" value="${profile.strava_url || ""}" placeholder="https://strava.com/..." />`
-          : profile.strava_url
-            ? `<div class="profile-url-row"><a href="${profile.strava_url}" target="_blank" rel="noopener">${profile.strava_url}</a></div>`
-            : `<span class="muted">— Nav norādīts</span>`
-        }
-      </label>
-      <label>Kalendāra arhīvs
-        ${canEditUrls
-          ? `<input id="editSpreadsheetUrl" value="${profile.spreadsheet_url || ""}" placeholder="https://docs.google.com/spreadsheets/..." />`
-          : profile.spreadsheet_url
-            ? `<div class="profile-url-row"><a href="${profile.spreadsheet_url}" target="_blank" rel="noopener">${profile.spreadsheet_url}</a></div>`
-            : `<span class="muted">— Nav norādīts</span>`
-        }
+      <label>${urlRow("editGarminUrl", "Garmin", "garmin", profile.garmin_url, "https://pngimg.com/uploads/garmin/garmin_PNG5.png", "https://connect.garmin.com/...")}</label>
+      <label>${urlRow("editStravaUrl", "Strava", "strava", profile.strava_url, "https://upload.wikimedia.org/wikipedia/commons/c/cb/Strava_Logo.svg", "https://strava.com/...")}</label>
+      <label>Treniņu plāna arhīvs
+        ${urlRow("editSpreadsheetUrl", "Kalendāra arhīvs", "spreadsheet", profile.spreadsheet_url, "https://cloud.gmelius.com/public/logos/google/Google_Sheets_Logo_512px.png", "https://docs.google.com/spreadsheets/...")}
       </label>
     </section>
   `;
   ["editGarminUrl", "editStravaUrl", "editSpreadsheetUrl"].forEach(id => {
-    document.getElementById(id)?.addEventListener("change", saveProfileUrls);
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener("blur", saveProfileUrls);
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") e.target.blur();
+      });
+    }
   });
 }
 
@@ -1937,16 +2156,16 @@ function renderThresholds() {
   document.getElementById("thresholdsBody").innerHTML = `
     <div class="profile-section">
       <div class="field-grid">
-        <label>Laktāta temps (min/km) <input id="editLtPace" value="${thresholds.lt_pace || ""}" ${disabled} /></label>
-        <label>Laktāta pulss <input id="editLtHr" value="${thresholds.lt_hr || ""}" ${disabled} /></label>
-      </div>
-      <div class="field-grid">
         <label>Aerobais temps (min/km) <input id="editAerobicPace" value="${thresholds.aerobic_pace || ""}" ${disabled} /></label>
         <label>Aerobais pulss <input id="editAerobicHr" value="${thresholds.aerobic_hr || ""}" ${disabled} /></label>
       </div>
       <div class="field-grid">
         <label>Anaerobais temps (min/km) <input id="editAnaerobicPace" value="${thresholds.anaerobic_pace || ""}" ${disabled} /></label>
         <label>Anaerobais pulss <input id="editAnaerobicHr" value="${thresholds.anaerobic_hr || ""}" ${disabled} /></label>
+      </div>
+      <div class="field-grid">
+        <label>Laktāta temps (min/km) <input id="editLtPace" value="${thresholds.lt_pace || ""}" ${disabled} /></label>
+        <label>Laktāta pulss <input id="editLtHr" value="${thresholds.lt_hr || ""}" ${disabled} /></label>
       </div>
     </div>
   `;
@@ -2131,11 +2350,12 @@ function renderRestrictions() {
 
   document.querySelectorAll(".delete-restriction-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
+      if (!confirm("Dzēst šo ierobežojumu?")) return;
       try {
         await deleteRestriction(btn.dataset.restriction);
         await loadNonTemplateData();
       } catch (e) {
-        console.error(e);
+        alert("Neizdevās dzēst: " + (e.message || e));
       }
     });
   });
@@ -2296,7 +2516,7 @@ function renderSelfTests() {
   const body = document.getElementById("selfTestsBody");
   if (!body) return;
   const athleteId = getSelectedAthleteId();
-  const isAthleteView = (activeRole === "athlete" || isManager) && currentUser.id === athleteId;
+  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
 
   if (!isAthleteView && activeRole !== "coach") {
     body.innerHTML = "";
@@ -2347,7 +2567,7 @@ function renderSelfTests() {
 function openSelfTestDialog(existing) {
   const dlg = document.getElementById("selfTestDialog");
   const athleteId = getSelectedAthleteId();
-  const isAthleteView = (activeRole === "athlete" || isManager) && currentUser.id === athleteId;
+  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
 
   if (existing) {
     editingSelfTestId = existing.id;
@@ -2417,7 +2637,7 @@ function renderPolarTests() {
   const body = document.getElementById("polarTestsBody");
   if (!body) return;
   const athleteId = getSelectedAthleteId();
-  const isAthleteView = (activeRole === "athlete" || isManager) && currentUser.id === athleteId;
+  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
 
   if (!isAthleteView && activeRole !== "coach") {
     body.innerHTML = "";
@@ -2469,7 +2689,7 @@ function renderPolarTests() {
 function openPolarTestDialog(existing) {
   const dlg = document.getElementById("polarTestDialog");
   const athleteId = getSelectedAthleteId();
-  const isAthleteView = (activeRole === "athlete" || isManager) && currentUser.id === athleteId;
+  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
 
   if (existing) {
     editingPolarTestId = existing.id;
@@ -2613,7 +2833,7 @@ function renderLabTests() {
   if (!body) return;
   const athleteId = getSelectedAthleteId();
   if (!athleteId) return;
-  const isAthleteView = (activeRole === "athlete" || isManager) && currentUser.id === athleteId;
+  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
 
   let html = "";
 
@@ -2704,7 +2924,7 @@ function renderLabTests() {
 function openLabTestDialog(existing) {
   const dlg = document.getElementById("labTestDialog");
   const athleteId = getSelectedAthleteId();
-  const isAthleteView = (activeRole === "athlete" || isManager) && currentUser.id === athleteId;
+  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
 
   const dateField = document.getElementById("labTestDate");
   const typeField = document.getElementById("labTestType");
@@ -2864,6 +3084,7 @@ function openHealthDialog(entryId) {
     hjNoTrainings.checked = false;
     deleteBtn.hidden = true;
   }
+  document.getElementById("hjNoTrainingsRow").hidden = activeRole !== "coach";
   document.getElementById("healthDialog").showModal();
 }
 
@@ -3031,7 +3252,7 @@ function renderMonthView() {
 
       const plansHtml = dayPlans.map((p) => `
         <div class="month-plan${dayRaces.length ? " month-plan-race" : ""}${p.completed === false ? " not-completed" : ""}">
-          <strong>${p.completed === false ? '<span class="not-completed-icon">!</span> ' : ""}${p.title}</strong>
+          <strong>${p.completed === false ? '<span class="not-completed-icon">!</span> ' : ""}${displayTitle(p.title)}</strong>
           <span>${(p.details || "").replace(/\n/g, " · ")}</span>
         </div>
       `).join("");
@@ -3050,11 +3271,11 @@ function renderMonthView() {
           <div class="month-day-num">
             ${d.getDate()}.
             ${dayRestriction ? '<span class="month-dot restriction" title="Ierobežojums">🚫</span>' : ""}
-            ${dayHealth ? '<span class="month-dot health" title="' + escapeHtml(dayHealth.description) + '">🩹</span>' : ""}
+            ${dayHealth ? '<span class="month-dot health" title="' + escapeHtml(dayHealth.description) + '">⚕</span>' : ""}
             ${dayPlans.map(p => `<span class="month-type-badge">${badgeForTitle(p.title)}</span>`).join("")}
           </div>
           ${dayRestriction ? `<div class="month-restriction-text">🚫 ${escapeHtml(dayRestriction.reason)}</div>` : ""}
-          ${dayHealth ? `<div class="month-health-text">🩹 ${escapeHtml(dayHealth.description)}</div>` : ""}
+          ${dayHealth ? `<div class="month-health-text">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
           ${isRestDay && !dayPlans.length && !dayRaces.length ? `<div class="day-rest-text">🌴 Brīvdiena</div>` : ""}
           ${racesHtml}
           ${plansHtml}
@@ -3114,7 +3335,7 @@ function renderMonthViewInline() {
 
       const plansHtml = dayPlans.map((p) => `
         <div class="month-plan${dayRaces.length ? " month-plan-race" : ""}${p.completed === false ? " not-completed" : ""}">
-          <strong>${p.completed === false ? '<span class="not-completed-icon">!</span> ' : ""}${p.title}</strong>
+          <strong>${p.completed === false ? '<span class="not-completed-icon">!</span> ' : ""}${displayTitle(p.title)}</strong>
           <span>${extractMainPart(p.details)}</span>
         </div>
       `).join("");
@@ -3133,11 +3354,11 @@ function renderMonthViewInline() {
           <div class="month-day-num">
             ${d.getDate()}.
             ${dayRestriction ? '<span class="month-dot restriction" title="Ierobežojums">🚫</span>' : ""}
-            ${dayHealth ? '<span class="month-dot health" title="' + escapeHtml(dayHealth.description) + '">🩹</span>' : ""}
+            ${dayHealth ? '<span class="month-dot health" title="' + escapeHtml(dayHealth.description) + '">⚕</span>' : ""}
             ${dayPlans.map(p => `<span class="month-type-badge">${badgeForTitle(p.title)}</span>`).join("")}
           </div>
           ${dayRestriction ? `<div class="month-restriction-text">🚫 ${escapeHtml(dayRestriction.reason)}</div>` : ""}
-          ${dayHealth ? `<div class="month-health-text">🩹 ${escapeHtml(dayHealth.description)}</div>` : ""}
+          ${dayHealth ? `<div class="month-health-text">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
           ${isRestDay && !dayPlans.length && !dayRaces.length ? `<div class="day-rest-text">🌴 Brīvdiena</div>` : ""}
           ${racesHtml}
           ${plansHtml}
@@ -3176,7 +3397,7 @@ function render() {
   trainingPickerPanel.hidden = activeRole !== "coach" || !hasAthletes;
   athleteSelectorPanel.hidden = activeRole !== "coach" || !hasAthletes;
   document.getElementById("restrictionsPanel").hidden = !hasAthletes;
-  document.getElementById("adminPanel").hidden = !isManager || !hasAthletes;
+  document.getElementById("adminPanel").hidden = activeRole !== "coach" || !hasAthletes;
   document.getElementById("openRaceBtn").hidden = activeRole === "coach" || !hasAthletes;
   document.getElementById("raceCalendarBtn").hidden = !hasAthletes;
 
@@ -3508,13 +3729,17 @@ const createUserResult = document.getElementById("createUserResult");
 const createUserError = document.getElementById("createUserError");
 
 createUserBtn?.addEventListener("click", () => {
-document.getElementById("newUserFirstName").value = "";
-    document.getElementById("newUserLastName").value = "";
-    document.getElementById("newUserUsername").value = "";
+  document.getElementById("newUserFirstName").value = "";
+  document.getElementById("newUserLastName").value = "";
+  document.getElementById("newUserUsername").value = "";
   createUserResult.hidden = true;
   createUserError.hidden = true;
   createUserDialog?.showModal();
 });
+
+document.getElementById("closeCreateUserBtn")?.addEventListener("click", () => createUserDialog?.close());
+document.getElementById("cancelCreateUserBtn")?.addEventListener("click", () => createUserDialog?.close());
+document.getElementById("createUserForm")?.addEventListener("submit", (e) => e.preventDefault());
 
 document.getElementById("newUserFirstName")?.addEventListener("input", updateGeneratedUsername);
 document.getElementById("newUserLastName")?.addEventListener("input", updateGeneratedUsername);
@@ -3572,6 +3797,9 @@ saveNewUserBtn?.addEventListener("click", async () => {
       if (fb) fb.style.display = "inline";
     });
 
+    athletes = await getAthletes();
+    renderAthleteDropdown();
+    renderAdminAthleteList();
     loadAllData();
   } catch (e) {
     createUserError.textContent = e instanceof Error ? e.message : "Nezināma kļūda";
@@ -3775,7 +4003,7 @@ document.getElementById("templatePicker").addEventListener("click", async (e) =>
   await loadAllData();
 });
 
-templateList.addEventListener("click", (event) => {
+templateList.addEventListener("click", async (event) => {
   const editBtn = event.target.closest("[data-edit-template]");
   if (editBtn) {
     event.stopPropagation();
@@ -3793,11 +4021,14 @@ templateList.addEventListener("click", (event) => {
     event.stopPropagation();
     const id = deleteBtn.dataset.deleteTemplate;
     if (confirm("Dzēst šo sagatavi?")) {
-      deleteTemplate(id).then(() => {
+      try {
+        await deleteTemplate(id);
         templates = templates.filter((t) => t.id !== id);
         if (selectedTemplateId === id) selectedTemplateId = templates[0]?.id || null;
         render();
-      }).catch(console.error);
+      } catch (e) {
+        alert("Neizdevās dzēst sagatavi: " + (e.message || e));
+      }
     }
     return;
   }
@@ -3814,20 +4045,51 @@ document.querySelectorAll("[data-source]").forEach((button) => {
   });
 });
 
-[customType, warmupDuration, warmupPulse, includeWarmup, includeCooldown, includeDrills, repeatCount, intervalLength, intervalPace, restDuration, mainDuration, mainPulse, cooldownDuration, cooldownPulse, document.getElementById("tempoPace"), document.getElementById("includeKoptreniņš")].forEach((input) => {
-  input.addEventListener("input", renderSourcePicker);
-  input.addEventListener("change", renderSourcePicker);
+varSegmentList.addEventListener("input", () => {
+  renderCustomPreview();
+  syncVarLapsState(varSegmentList, varLaps);
+});
+document.getElementById("varAddSegment")?.addEventListener("click", () => {
+  addVarSegmentRow(varSegmentList);
+  renderCustomPreview();
+});
+document.getElementById("editVarAddSegment")?.addEventListener("click", () => {
+  addVarSegmentRow(document.getElementById("editVarSegmentList"));
+  renderEditTrainingPreview();
+});
+document.getElementById("epVarAddSegment")?.addEventListener("click", () => {
+  addVarSegmentRow(document.getElementById("epVarSegmentList"));
+  renderEditPlanPreview();
 });
 
-["editTrainingType", "editWarmupDuration", "editWarmupPulse", "editIncludeWarmup", "editIncludeCooldown", "editIncludeDrills", "editRepeatCount", "editIntervalLength", "editIntervalPace", "editRestDuration", "editMainDuration", "editMainPulse", "editCooldownDuration", "editCooldownPulse", "editIncludeKoptreniņš"].forEach((id) => {
+[customType, warmupDuration, warmupPulse, includeWarmup, includeCooldown, includeDrills, repeatCount, intervalLength, intervalPace, restDuration, mainDuration, mainPulse, cooldownDuration, cooldownPulse, document.getElementById("tempoPace"), document.getElementById("includeKoptreniņš"), varLaps, varRestBetweenLaps, document.getElementById("customName"), document.getElementById("customFreeText")].forEach((input) => {
+  input?.addEventListener("input", renderSourcePicker);
+  input?.addEventListener("change", renderSourcePicker);
+});
+customType.addEventListener("change", () => {
+  const t = customType.value;
+  includeDrills.checked = t === SAME_INTERVAL_TYPE || t === "Intervāli" || t === VAR_INTERVAL_TYPE || t === "Tempa skrējiens" || t === OTHER_RUN_TYPE;
+});
+
+["editTrainingType", "editWarmupDuration", "editWarmupPulse", "editIncludeWarmup", "editIncludeCooldown", "editIncludeDrills", "editRepeatCount", "editIntervalLength", "editIntervalPace", "editRestDuration", "editMainDuration", "editMainPulse", "editCooldownDuration", "editCooldownPulse", "editIncludeKoptreniņš", "editVarLaps", "editVarRestBetweenLaps", "editCustomName", "editFreeText"].forEach((id) => {
   const el = document.getElementById(id);
   if (el) {
     el.addEventListener("input", renderEditCustomBuilder);
     el.addEventListener("change", renderEditCustomBuilder);
   }
 });
+document.getElementById("editTrainingType")?.addEventListener("change", () => {
+  const t = document.getElementById("editTrainingType").value;
+  document.getElementById("editIncludeDrills").checked = t === SAME_INTERVAL_TYPE || t === "Intervāli" || t === VAR_INTERVAL_TYPE || t === "Tempa skrējiens" || t === OTHER_RUN_TYPE;
+});
+document.getElementById("editVarSegmentList")?.addEventListener("input", () => {
+  renderEditTrainingPreview();
+  syncVarLapsState(document.getElementById("editVarSegmentList"), document.getElementById("editVarLaps"));
+});
 document.getElementById("editFreeText")?.addEventListener("input", renderEditTrainingPreview);
 document.getElementById("editFreeText")?.addEventListener("change", renderEditTrainingPreview);
+document.getElementById("editCustomName")?.addEventListener("input", renderEditTrainingPreview);
+document.getElementById("editCustomName")?.addEventListener("change", renderEditTrainingPreview);
 document.getElementById("editTrainingName")?.addEventListener("input", renderEditTrainingPreview);
 
 calendarGrid.addEventListener("click", async (event) => {
@@ -3865,11 +4127,12 @@ calendarGrid.addEventListener("click", async (event) => {
   }
 
   if (deletePlanBtn) {
+    if (!confirm("Dzēst šo treniņu?")) return;
     try {
       await deletePlan(deletePlanBtn.dataset.deletePlan);
       await loadNonTemplateData();
     } catch (e) {
-      console.error(e);
+      alert("Neizdevās dzēst: " + (e.message || e));
     }
   }
 
@@ -3886,11 +4149,12 @@ calendarGrid.addEventListener("click", async (event) => {
 
   const deleteLogBtn = event.target.closest("[data-delete-log]");
   if (deleteLogBtn) {
+    if (!confirm("Dzēst šo izpildījuma ierakstu?")) return;
     try {
       await deleteLogEntry(deleteLogBtn.dataset.deleteLog);
       await loadNonTemplateData();
     } catch (e) {
-      console.error(e);
+      alert("Neizdevās dzēst: " + (e.message || e));
     }
   }
 
@@ -3905,16 +4169,78 @@ calendarGrid.addEventListener("click", async (event) => {
       await deleteRace(raceId);
       await loadNonTemplateData();
     } catch (e) {
-      console.error(e);
+      alert("Neizdevās dzēst sacensības: " + (e.message || e));
     }
   }
 
+});
+
+// --- Drag & Drop (Pointer Events) ---
+let dragState = null;
+
+function getDropDay(target) {
+  const col = target.closest(".day-column");
+  if (!col) return null;
+  const btn = col.querySelector("[data-day]");
+  return btn ? btn.dataset.day : null;
+}
+
+document.addEventListener("pointerdown", (e) => {
+  const card = e.target.closest(".session-card.is-draggable");
+  if (!card || e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT" || e.target.closest("button")) return;
+  e.preventDefault();
+  const planId = card.dataset.planId;
+  if (!planId) return;
+  const rect = card.getBoundingClientRect();
+  const clone = card.cloneNode(true);
+  clone.className = "drag-clone";
+  clone.style.width = rect.width + "px";
+  clone.style.left = (e.clientX - rect.width / 2) + "px";
+  clone.style.top = (e.clientY - 12) + "px";
+  document.body.appendChild(clone);
+  dragState = { planId, offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top, clone };
+  document.body.classList.add("is-dragging");
+});
+
+document.addEventListener("pointermove", (e) => {
+  if (!dragState) return;
+  e.preventDefault();
+  dragState.clone.style.left = (e.clientX - dragState.offsetX) + "px";
+  dragState.clone.style.top = (e.clientY - dragState.offsetY) + "px";
+  const target = document.elementFromPoint(e.clientX, e.clientY);
+  document.querySelectorAll(".day-column.drag-target").forEach(el => el.classList.remove("drag-target"));
+  if (target) {
+    const col = target.closest(".day-column");
+    if (col) col.classList.add("drag-target");
+  }
+});
+
+document.addEventListener("pointerup", async (e) => {
+  if (!dragState) return;
+  const target = document.elementFromPoint(e.clientX, e.clientY);
+  const day = target ? getDropDay(target) : null;
+  dragState.clone.remove();
+  document.querySelectorAll(".day-column.drag-target").forEach(el => el.classList.remove("drag-target"));
+  document.body.classList.remove("is-dragging");
+  const { planId } = dragState;
+  dragState = null;
+  if (!day) return;
+  const plan = plans.find(p => p.id === planId);
+  if (!plan || plan.date === day) return;
+  try {
+    await updatePlan(planId, { date: day });
+    await loadNonTemplateData();
+  } catch (err) {
+    alert("Neizdevās pārvietot treniņu: " + (err.message || err));
+  }
 });
 
 calendarGrid.addEventListener("keydown", async (event) => {
   if (event.key !== "Enter" || event.shiftKey) return;
   const textarea = event.target.closest("textarea");
   if (!textarea) return;
+  if (textarea.dataset.saving) return;
+  textarea.dataset.saving = "1";
 
   const raceCommentId = textarea.dataset.commentRace;
   if (raceCommentId) {
@@ -3922,10 +4248,13 @@ calendarGrid.addEventListener("keydown", async (event) => {
     const value = textarea.value.trim();
     try {
       await updateRace(raceCommentId, { result_comment: value });
-      await loadNonTemplateData();
+      const race = races.find(r => r.id === raceCommentId);
+      if (race) race.result_comment = value;
+      render();
     } catch (e) {
-      console.error(e);
+      alert("Neizdevās saglabāt komentāru: " + (e.message || e));
     }
+    delete textarea.dataset.saving;
     return;
   }
 
@@ -3936,10 +4265,13 @@ calendarGrid.addEventListener("keydown", async (event) => {
     const value = textarea.value.trim();
     try {
       await updatePlan(planId, { [`${type}_comment`]: value });
-      await loadNonTemplateData();
+      const plan = plans.find(p => p.id === planId);
+      if (plan) plan[`${type}_comment`] = value;
+      render();
     } catch (e) {
-      console.error(e);
+      alert("Neizdevās saglabāt komentāru: " + (e.message || e));
     }
+    delete textarea.dataset.saving;
     return;
   }
 
@@ -3953,10 +4285,14 @@ calendarGrid.addEventListener("keydown", async (event) => {
         date: dayDate,
         coach_comment: value,
       });
-      await loadNonTemplateData();
+      let note = dayNotes.find(n => n.date === dayDate);
+      if (note) note.coach_comment = value;
+      else dayNotes.push({ date: dayDate, coach_comment: value, athlete_comment: "" });
+      render();
     } catch (e) {
-      console.error(e);
+      alert("Neizdevās saglabāt komentāru: " + (e.message || e));
     }
+    delete textarea.dataset.saving;
     return;
   }
 
@@ -3970,12 +4306,18 @@ calendarGrid.addEventListener("keydown", async (event) => {
         date: restDate,
         athlete_comment: value,
       });
-      await loadNonTemplateData();
+      let note = dayNotes.find(n => n.date === restDate);
+      if (note) note.athlete_comment = value;
+      else dayNotes.push({ date: restDate, athlete_comment: value, coach_comment: "" });
+      render();
     } catch (e) {
-      console.error(e);
+      alert("Neizdevās saglabāt komentāru: " + (e.message || e));
     }
+    delete textarea.dataset.saving;
     return;
   }
+
+  delete textarea.dataset.saving;
 });
 
 calendarGrid.addEventListener("change", async (event) => {
@@ -3985,9 +4327,12 @@ calendarGrid.addEventListener("change", async (event) => {
   const completed = !cb.checked;
   try {
     await updatePlan(planId, { completed });
-    await loadNonTemplateData();
+    const plan = plans.find(p => p.id === planId);
+    if (plan) plan.completed = completed;
+    await refreshAthleteNotCompletedSet();
+    render();
   } catch (e) {
-    console.error(e);
+    alert("Neizdevās atjaunot plāna statusu: " + (e.message || e));
   }
 });
 
@@ -4046,11 +4391,21 @@ document.getElementById("saveEditPlanBtn")?.addEventListener("click", async () =
 });
 
 [document.getElementById("epType"), document.getElementById("epIncludeWarmup"), document.getElementById("epIncludeCooldown"), document.getElementById("epIncludeKoptreniņš")].forEach((el) => {
-  el?.addEventListener("change", () => renderEditPlanBuilder());
+  el?.addEventListener("change", () => {
+    renderEditPlanBuilder();
+    if (el === document.getElementById("epType")) {
+      const t = document.getElementById("epType").value;
+      document.getElementById("epIncludeDrills").checked = t === SAME_INTERVAL_TYPE || t === "Intervāli" || t === VAR_INTERVAL_TYPE || t === "Tempa skrējiens" || t === OTHER_RUN_TYPE;
+    }
+  });
 });
 
-["epType", "epWarmupDuration", "epWarmupPulse", "epIncludeWarmup", "epIncludeCooldown", "epIncludeDrills", "epRepeatCount", "epIntervalLength", "epIntervalPace", "epRestDuration", "epMainDuration", "epMainPulse", "epCooldownDuration", "epCooldownPulse", "epTempoPace", "epFreeText", "epIncludeKoptreniņš"].forEach((id) => {
+["epType", "epWarmupDuration", "epWarmupPulse", "epIncludeWarmup", "epIncludeCooldown", "epIncludeDrills", "epRepeatCount", "epIntervalLength", "epIntervalPace", "epRestDuration", "epMainDuration", "epMainPulse", "epCooldownDuration", "epCooldownPulse", "epTempoPace", "epFreeText", "epIncludeKoptreniņš", "epVarLaps", "epVarRestBetweenLaps", "epCustomName"].forEach((id) => {
   document.getElementById(id)?.addEventListener("input", () => renderEditPlanPreview());
+});
+document.getElementById("epVarSegmentList")?.addEventListener("input", () => {
+  renderEditPlanPreview();
+  syncVarLapsState(document.getElementById("epVarSegmentList"), document.getElementById("epVarLaps"));
 });
 document.getElementById("epIncludeWarmup")?.addEventListener("change", () => renderEditPlanPreview());
 document.getElementById("epIncludeCooldown")?.addEventListener("change", () => renderEditPlanPreview());
@@ -4098,6 +4453,10 @@ async function insertTrainingToDay(dateStr, training, tod = "") {
       created_by: currentUser.id,
       time_of_day: tod || null,
     });
+    const restNote = dayNotes.find(n => n.date === dateStr && n.is_rest_day);
+    if (restNote) {
+      await upsertDayNote({ athlete_id: getSelectedAthleteId(), date: dateStr, is_rest_day: false });
+    }
     await loadNonTemplateData();
   } catch (e) {
     console.error(e);
@@ -4108,7 +4467,7 @@ function openSaveTemplateDialog(day, tod = "") {
   const training = getGeneratedTraining();
   pendingCustomDay = day;
   pendingCustomTod = tod;
-  saveTemplateSummary.innerHTML = `<strong>${training.title}</strong><span>${training.details.replace(/\n/g, "<br>")}</span>`;
+  saveTemplateSummary.innerHTML = `<strong>${displayTitle(training.title)}</strong><span>${training.details.replace(/\n/g, "<br>")}</span>`;
   const mainChecked = document.getElementById("templateForAthlete")?.checked;
   const dialogCheckbox = document.getElementById("saveDialogForAthlete");
   if (dialogCheckbox) dialogCheckbox.checked = mainChecked;
@@ -4135,8 +4494,8 @@ async function saveProfileUrls() {
     if (profile.id === currentUser.id) {
       currentProfile = await getProfile(currentUser.id);
     }
-    await loadNonTemplateData();
-    render();
+    Object.keys(urlEditState).forEach((k) => (urlEditState[k] = false));
+    renderProfile();
   } catch (e) {
     console.error(e);
   }
@@ -4199,7 +4558,7 @@ function feelingBadgeHtml(feeling) {
     "Jaudīgi!": { bg: "#f0fdf4", color: "#16a34a" },
   };
   const c = colors[feeling] || { bg: "var(--surface-alt)", color: "var(--muted)" };
-  return `<div class="feeling-badge" style="background:${c.bg};color:${c.color};border-color:${c.color}">Pašsajūta: ${feeling}</div>`;
+  return `<div class="feeling-badge" style="background:${c.bg};color:${c.color};border-color:${c.color}">${feeling}</div>`;
 }
 
 function parseTimeToMinutes(str) {
@@ -4259,11 +4618,7 @@ saveLogBtn.addEventListener("click", async () => {
   const athleteId = getSelectedAthleteId();
   if (!logDialogDate) return;
   const feelingEl = document.querySelector('input[name="trainingRating"]:checked');
-  if (!feelingEl) {
-    alert("Lūdzu, novērtējiet treniņu!");
-    return;
-  }
-  const feeling = feelingEl.value;
+  const feeling = feelingEl ? feelingEl.value : null;
   const notes = document.getElementById("logAthleteComment")?.value.trim() || "";
 
   const durationMin = 0;
@@ -4328,27 +4683,45 @@ function openPlanLogDialog(planId) {
   logDialogPlanId = plan.id;
   const existingLog = logEntries.find((l) => l.plan_id === plan.id);
   let html = `<p class="log-date">Treniņa ieraksts — ${plan.date}</p>`;
-  html += `<div class="log-plan-block"><h3>${plan.title}</h3>`;
+  html += `<div class="log-plan-block"><h3>${displayTitle(plan.title)}</h3>`;
   const lines = (plan.details || "").split("\n");
   lines.forEach((line) => {
     if (!line.trim()) return;
-    const intervalMatch = line.match(/Pamatdaļa:\s*(\d+)x(\S+)/);
-    if (intervalMatch) {
-      const count = parseInt(intervalMatch[1]);
+    if (isVarIntervalLine(line)) {
+      const result = parseSegmentsFromVarLine(line);
       html += `<div class="log-section-row" data-log-section="Pamatdaļa">
-        <div class="log-target">${line}</div>
-        <div class="field-grid">`;
-      for (let i = 0; i < count; i++) {
-        html += `<label>${i + 1}. atkārtojums <input class="log-interval-pace" data-log-interval="${i}" placeholder="${extractPace(line)}" /></label>`;
-      }
-      html += `</div></div>`;
-    } else if (line.includes(":")) {
-      const paceStr = extractPace(line);
-      const paceField = paceStr ? `<label>Izp. vidējais temps <input class="log-actual-pace" placeholder="${paceStr}" /></label>` : "";
+        <div class="log-target">${line}</div>`;
+      let globalIdx = 0;
+      result.segments.forEach((seg) => {
+        const label = seg.length + (seg.pace ? " @" + seg.pace : "");
+        const count = result.isGrouped ? seg.reps : 1;
+        for (let r = 0; r < count; r++) {
+          html += `<div class="var-seg-log-row">
+            <span class="var-seg-log-label">${escapeHtml(label)}${count > 1 ? " (" + (r + 1) + "." + ")" : ""}</span>
+            <label>Izp. temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" placeholder="${seg.pace || "min/km"}" /></label>
+          </div>`;
+          globalIdx++;
+        }
+      });
+      html += `</div>`;
+    } else {
+      let intervalMatch = line.match(/Pamatdaļa:\s*(\d+)x(\S+)/);
+      if (intervalMatch) {
+        const count = parseInt(intervalMatch[1]);
+        html += `<div class="log-section-row" data-log-section="Pamatdaļa">
+          <div class="log-target">${line}</div>
+          <div class="field-grid">`;
+        for (let i = 0; i < count; i++) {
+          html += `<label>${i + 1}. atkārtojums <input class="log-interval-pace" data-log-interval="${i}" placeholder="${extractPace(line)}" /></label>`;
+        }
+        html += `</div></div>`;
+      } else if (line.includes(":")) {
+        const paceStr = extractPace(line);
+      const paceField = `<label>Izp. vidējais temps <input class="log-actual-pace" placeholder="${paceStr || "min/km"}" /></label>`;
       const pulseStr = extractPulse(line);
       html += `<div class="log-section-row" data-log-section="${line.split(":")[0]}">
         <div class="log-target">${line}</div>
-        <div class="field-grid">
+        <div class="field-grid field-grid-3">
           <label>Izp. ilgums <input class="log-actual-duration" placeholder="${extractDuration(line)}" /></label>
           <label>Izp. vidējais pulss <input class="log-actual-pulse" placeholder="${pulseStr || ""}" /></label>
           ${paceField}
@@ -4362,8 +4735,12 @@ function openPlanLogDialog(planId) {
         </div>
       </div>`;
     } else {
-      html += `<div class="log-section-row">
-        <div class="log-target">${line}</div>
+      const sectionName = line.startsWith("Velo:") ? "Velo" : "Pamatdaļa";
+      html += `<div class="log-section-row" data-log-section="${sectionName}">
+        <div class="log-target">${line}</div><div class="field-grid">
+          <label>Izp. ilgums <input class="log-actual-duration" placeholder="${extractDuration(line)}" /></label>
+          <label>Izp. vidējais pulss <input class="log-actual-pulse" placeholder="${extractPulse(line)}" /></label>
+        </div>
       </div>`;
     }
   });
@@ -4419,23 +4796,41 @@ function openLogDialog(dateStr) {
   }
   let html = `<p class="log-date">Treniņa ieraksts — ${dateStr}</p>`;
   dayPlans.forEach((plan) => {
-    html += `<div class="log-plan-block"><h3>${plan.title}</h3>`;
+    html += `<div class="log-plan-block"><h3>${displayTitle(plan.title)}</h3>`;
     const lines = (plan.details || "").split("\n");
     lines.forEach((line) => {
       if (!line.trim()) return;
-      const intervalMatch = line.match(/Pamatdaļa:\s*(\d+)x(\S+)/);
-      if (intervalMatch) {
-        const count = parseInt(intervalMatch[1]);
+      if (isVarIntervalLine(line)) {
+        const result = parseSegmentsFromVarLine(line);
         html += `<div class="log-section-row" data-log-section="Pamatdaļa">
-          <div class="log-target">${line}</div>
-          <div class="field-grid">`;
-        for (let i = 0; i < count; i++) {
-          html += `<label>${i + 1}. atkārtojums <input class="log-interval-pace" data-log-interval="${i}" placeholder="${extractPace(line)}" /></label>`;
-        }
-        html += `</div></div>`;
-      } else if (line.includes(":")) {
+          <div class="log-target">${line}</div>`;
+        let globalIdx = 0;
+        result.segments.forEach((seg) => {
+          const label = seg.length + (seg.pace ? " @" + seg.pace : "");
+          const count = result.isGrouped ? seg.reps : 1;
+          for (let r = 0; r < count; r++) {
+            html += `<div class="var-seg-log-row">
+              <span class="var-seg-log-label">${escapeHtml(label)}${count > 1 ? " (" + (r + 1) + "." + ")" : ""}</span>
+              <label>Izp. temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" placeholder="${seg.pace || "min/km"}" /></label>
+            </div>`;
+            globalIdx++;
+          }
+        });
+        html += `</div>`;
+      } else {
+        let intervalMatch = line.match(/Pamatdaļa:\s*(\d+)x(\S+)/);
+        if (intervalMatch) {
+          const count = parseInt(intervalMatch[1]);
+          html += `<div class="log-section-row" data-log-section="Pamatdaļa">
+            <div class="log-target">${line}</div>
+            <div class="field-grid">`;
+          for (let i = 0; i < count; i++) {
+            html += `<label>${i + 1}. atkārtojums <input class="log-interval-pace" data-log-interval="${i}" placeholder="${extractPace(line)}" /></label>`;
+          }
+          html += `</div></div>`;
+        } else if (line.includes(":")) {
         const paceStr = extractPace(line);
-        const paceField = paceStr ? `<label>Izp. vidējais temps <input class="log-actual-pace" placeholder="${paceStr}" /></label>` : "";
+      const paceField = `<label>Izp. vidējais temps <input class="log-actual-pace" placeholder="${paceStr || "min/km"}" /></label>`;
         const pulseStr = extractPulse(line);
         html += `<div class="log-section-row" data-log-section="${line.split(":")[0]}">
           <div class="log-target">${line}</div>
@@ -4499,7 +4894,7 @@ function openLogDialog(dateStr) {
 }
 
 function extractDuration(line) {
-  const m = line.match(/(\d+)'/);
+  const m = line.match(/(\d+)(?:['′]| min|min\b)/);
   return m ? m[1] : "";
 }
 
@@ -4516,18 +4911,6 @@ function parsePulseBounds(pulseStr) {
   const single = s.match(/^(\d+)$/);
   if (single) return { min: +single[1], max: +single[1] };
   return null;
-}
-function getPulseColor(athletePulse, bounds) {
-  if (athletePulse == null || !bounds) return "";
-  if (athletePulse >= bounds.min && athletePulse <= bounds.max) return "good";
-  if (athletePulse > bounds.max + 3) return "fast";
-  if (athletePulse < bounds.min - 3) return "slow";
-  return "warn";
-}
-function parseAthletePulse(str) {
-  if (!str) return null;
-  const m = str.trim().match(/^(\d+)/);
-  return m ? +m[1] : null;
 }
 
 function extractPace(line) {
@@ -4627,49 +5010,31 @@ function buildPaceBoundsMap(planDetails) {
     const idx = line.indexOf(":");
     if (idx === -1) return;
     const section = line.slice(0, idx).trim();
-    const paceStr = extractPace(line);
-    if (paceStr) {
-      const bounds = parsePaceBounds(paceStr);
-      if (bounds) map[section] = bounds;
+    if (isVarIntervalLine(line)) {
+      const varBounds = parseVarIntervalPaceBounds(line);
+      const firstKey = Object.keys(varBounds)[0];
+      if (firstKey) {
+        map[section] = varBounds[firstKey];
+      }
+      Object.assign(map, varBounds);
+    } else {
+      const paceStr = extractPace(line);
+      if (paceStr) {
+        const bounds = parsePaceBounds(paceStr);
+        if (bounds) map[section] = bounds;
+      }
     }
   });
   return map;
 }
-function buildPulseBoundsMap(planDetails) {
-  const map = {};
-  if (!planDetails) return map;
-  planDetails.split("\n").forEach((line) => {
-    const idx = line.indexOf(":");
-    if (idx === -1) return;
-    const section = line.slice(0, idx).trim();
-    const pulseStr = extractPulse(line);
-    if (pulseStr) {
-      const bounds = parsePulseBounds(pulseStr);
-      if (bounds) map[section] = bounds;
-    }
-  });
-  return map;
-}
-
 function attachPulseValidation() {
   document.querySelectorAll("[data-log-section]").forEach((sectionEl) => {
     const targetLine = sectionEl.querySelector(".log-target")?.textContent || "";
     const pulseStr = extractPulse(targetLine);
     if (!pulseStr) return;
-    const bounds = parsePulseBounds(pulseStr);
-    if (!bounds) return;
     const inp = sectionEl.querySelector(".log-actual-pulse");
     if (!inp) return;
     inp.placeholder = pulseStr;
-    function validate() {
-      const v = parseAthletePulse(inp.value);
-      inp.classList.remove("pulse-fast", "pulse-good", "pulse-slow", "pulse-warn");
-      if (!v) return;
-      const c = getPulseColor(v, bounds);
-      if (c) inp.classList.add("pulse-" + c);
-    }
-    inp.addEventListener("input", validate);
-    validate();
   });
 }
 
@@ -4738,7 +5103,6 @@ function openRaceDialog(raceId) {
     document.getElementById("raceDistance").value = r.distance || "";
     document.getElementById("raceTerrain").value = r.terrain || "";
     document.getElementById("raceTargetTime").value = r.target_time || "";
-    document.getElementById("raceTargetPace").value = r.target_pace || "";
     raceNotes.value = r.notes || "";
     if (deleteRaceBtn) deleteRaceBtn.hidden = false;
   } else {
@@ -4748,7 +5112,6 @@ function openRaceDialog(raceId) {
     document.getElementById("raceDistance").value = "";
     document.getElementById("raceTerrain").value = "";
     document.getElementById("raceTargetTime").value = "";
-    document.getElementById("raceTargetPace").value = "";
     raceNotes.value = "";
     if (deleteRaceBtn) deleteRaceBtn.hidden = true;
   }
@@ -4766,7 +5129,6 @@ saveRaceBtn.addEventListener("click", async () => {
     distance: document.getElementById("raceDistance").value.trim(),
     terrain: document.getElementById("raceTerrain").value,
     target_time: document.getElementById("raceTargetTime").value.trim(),
-    target_pace: document.getElementById("raceTargetPace").value.trim().replace(/\/km\s*$/i, ""),
     notes: raceNotes.value.trim(),
   };
   try {
@@ -4784,13 +5146,6 @@ saveRaceBtn.addEventListener("click", async () => {
   }
 });
 
-function autoCalcTargetPace() {
-  const dist = document.getElementById("raceDistance").value.trim();
-  const time = document.getElementById("raceTargetTime").value.trim();
-  document.getElementById("raceTargetPace").value = calcPace(time, dist);
-}
-document.getElementById("raceDistance").addEventListener("input", autoCalcTargetPace);
-document.getElementById("raceTargetTime").addEventListener("input", autoCalcTargetPace);
 
 if (deleteRaceBtn) {
   deleteRaceBtn.addEventListener("click", async () => {
@@ -4854,7 +5209,7 @@ function renderRaceTab(tab) {
       content.innerHTML = '<p class="muted">Nav sacensību.</p>';
       return;
     }
-    const isAthleteOwner = (activeRole === "athlete" || isManager) && currentUser.id === athleteId;
+    const isAthleteOwner = (activeRole === "athlete") && currentUser.id === athleteId;
     content.innerHTML = races.map((r) => {
       const hasResult = !!r.result_time;
       return `

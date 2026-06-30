@@ -58,8 +58,12 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const allowedEmails = ["sandis.linards.duda@skmitauer.app", "toms.komass@skmitauer.app"];
-    if (!allowedEmails.includes(user.email || "")) {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    if (profileError || profile?.role !== "coach") {
       return new Response(JSON.stringify({ error: "Nav tiesību veidot lietotājus" }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
