@@ -4743,6 +4743,7 @@ function openPlanLogDialog(planId) {
         </div>
       </div>`;
     }
+    }
   });
   html += `</div>`;
 
@@ -4851,6 +4852,7 @@ function openLogDialog(dateStr) {
         html += `<div class="log-section-row">
           <div class="log-target">${line}</div>
         </div>`;
+      }
       }
     });
     html += `</div>`;

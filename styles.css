@@ -52,13 +52,6 @@ button {
   padding: 20px;
 }
 
-.auth-logo {
-  text-align: center;
-}
-.auth-logo img {
-  height: 125px;
-  width: auto;
-}
 
 .auth-card {
   background: var(--panel);
