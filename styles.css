@@ -1471,7 +1471,6 @@ label {
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 4px;
-  margin-top: 4px;
 }
 
 .tod-badge.tod-morning {
@@ -1782,10 +1781,11 @@ label {
   margin-bottom: 12px;
   padding: 12px;
   position: relative;
+  overflow: hidden;
 }
 
 .session-card__header {
-  align-items: flex-start;
+  align-items: center;
   display: flex;
   justify-content: space-between;
   gap: 8px;
