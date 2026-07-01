@@ -1659,12 +1659,10 @@ function renderPlanCard(plan) {
 
     return `
       <article class="session-card is-draggable${notCompleted ? " not-completed" : ""}" data-plan-id="${plan.id}">
-        <div class="session-card__header">
-          <h3>${displayTitle(plan.title)}</h3>
-          ${todBadge}
-          <span class="plan-type-badge">${badgeForTitle(plan.title)}</span>
-          ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
-        </div>
+        <h3>${displayTitle(plan.title)}</h3>
+        ${todBadge}
+        <span class="plan-type-badge">${badgeForTitle(plan.title)}</span>
+        ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
         <p>${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}</p>
         ${logBlock}
         <div class="comment-label">Trenera komentārs</div>
@@ -1683,12 +1681,10 @@ function renderPlanCard(plan) {
 
   return `
     <article class="session-card${notCompleted ? " not-completed" : ""}" data-plan-id="${plan.id}">
-      <div class="session-card__header">
-        <h3>${displayTitle(plan.title)}</h3>
-        ${todBadge}
-        <span class="plan-type-badge">${badgeForTitle(plan.title)}</span>
-        ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
-      </div>
+      <h3>${displayTitle(plan.title)}</h3>
+      ${todBadge}
+      <span class="plan-type-badge">${badgeForTitle(plan.title)}</span>
+      ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
       <p>${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}</p>
       ${plan.coach_comment ? `<div class="comment-label">Trenera komentārs</div><textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" disabled>${plan.coach_comment}</textarea>` : ""}
       <label class="checkbox-row"><input type="checkbox" data-cb-plan="${plan.id}" ${notCompleted ? "checked" : ""} /> Treniņš nav izpildīts</label>
