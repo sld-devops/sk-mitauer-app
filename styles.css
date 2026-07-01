@@ -1788,6 +1788,7 @@ label {
 .session-card h3 {
   font-size: 0.98rem;
   margin-bottom: 8px;
+  padding-right: 28px;
 }
 
 .session-card p {
