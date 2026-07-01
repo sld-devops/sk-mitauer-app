@@ -1615,22 +1615,6 @@ function renderPlanCard(plan) {
   const planLog = logEntries.find(l => l.plan_id === plan.id);
   const planLogData = planLog?.log_data || [];
 
-  if (isCoach) {
-    return `
-      <article class="session-card is-draggable${notCompleted ? " not-completed" : ""}" data-plan-id="${plan.id}">
-        <h3>${displayTitle(plan.title)}</h3>
-        ${todBadge}
-        <span class="plan-type-badge">${badgeForTitle(plan.title)}</span>
-        ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
-        <p>${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}</p>
-        <div class="comment-label">Trenera komentārs</div>
-        <textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach">${plan.coach_comment || ""}</textarea>
-        ${notCompleted ? `<div class="not-completed-badge"><span class="not-completed-icon">!</span> Sportists atzīmēja kā neizpildītu</div>${plan.athlete_comment ? `<div class="comment-label">Sportista komentārs</div><div class="log-notes not-completed-comment">${plan.athlete_comment}</div>` : ""}` : ""}
-        <div class="card-actions"><button class="icon-button" data-edit-plan="${plan.id}" type="button">✏️</button><button class="delete-action" data-delete-plan="${plan.id}" type="button">×</button></div>
-      </article>
-    `;
-  }
-
   function renderInlineLog(data, paceBoundsMap) {
     return data.map(entry => {
       let line = `<div class="log-line">`;
@@ -1664,12 +1648,33 @@ function renderPlanCard(plan) {
     }).join("");
   }
 
-  const logActions = planLog ? `<div class="log-actions"><button class="edit-log-btn" data-log-plan="${plan.id}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${planLog.id}" type="button">×</button></div>` : "";
-
+  const paceBoundsMap = buildPaceBoundsMap(plan.details);
   const feelingBadge = planLog?.feeling ? feelingBadgeHtml(planLog.feeling) : "";
   const planLogNotes = planLog?.notes ? `<div class="comment-label">Sportista komentārs</div><div class="log-notes">${planLog.notes}</div>` : "";
 
-  const paceBoundsMap = buildPaceBoundsMap(plan.details);
+  if (isCoach) {
+    const logBlock = planLog
+      ? `<div class="log-card log-inline"><div class="log-header"><h3>Izpildīts</h3></div>${planLogData.length ? renderInlineLog(planLogData, paceBoundsMap) : ""}${feelingBadge}${planLogNotes}</div>`
+      : "";
+
+    return `
+      <article class="session-card is-draggable${notCompleted ? " not-completed" : ""}" data-plan-id="${plan.id}">
+        <h3>${displayTitle(plan.title)}</h3>
+        ${todBadge}
+        <span class="plan-type-badge">${badgeForTitle(plan.title)}</span>
+        ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
+        <p>${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}</p>
+        ${logBlock}
+        <div class="comment-label">Trenera komentārs</div>
+        <textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach">${plan.coach_comment || ""}</textarea>
+        ${notCompleted ? `<div class="not-completed-badge"><span class="not-completed-icon">!</span> Sportists atzīmēja kā neizpildītu</div>${plan.athlete_comment ? `<div class="comment-label">Sportista komentārs</div><div class="log-notes not-completed-comment">${plan.athlete_comment}</div>` : ""}` : ""}
+        <div class="card-actions"><button class="icon-button" data-edit-plan="${plan.id}" type="button">✏️</button><button class="delete-action" data-delete-plan="${plan.id}" type="button">×</button></div>
+      </article>
+    `;
+  }
+
+  const logActions = planLog ? `<div class="log-actions"><button class="edit-log-btn" data-log-plan="${plan.id}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${planLog.id}" type="button">×</button></div>` : "";
+
   const logBlock = planLog
     ? `<div class="log-card log-inline"><div class="log-header"><h3>Izpildīts</h3>${logActions}</div>${planLogData.length ? renderInlineLog(planLogData, paceBoundsMap) : ""}${feelingBadge}${planLogNotes}</div>`
     : `<button class="add-day-button log-plan-button" data-log-plan="${plan.id}" type="button">Ierakstīt izpildi</button>`;
