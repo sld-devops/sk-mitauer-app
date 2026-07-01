@@ -3405,6 +3405,7 @@ function render() {
   document.getElementById("adminPanel").hidden = activeRole !== "coach" || !hasAthletes;
   document.getElementById("openRaceBtn").hidden = activeRole === "coach" || !hasAthletes;
   document.getElementById("raceCalendarBtn").hidden = !hasAthletes;
+  document.getElementById("copyPrevWeekBtn").hidden = activeRole !== "coach";
 
   renderAthleteDropdown();
   renderTemplates();
@@ -3500,6 +3501,59 @@ weekPrev.addEventListener("click", async () => {
 weekNext.addEventListener("click", async () => {
   currentWeekStart = addDays(currentWeekStart, 7);
   await loadNonTemplateData();
+});
+
+document.getElementById("copyPrevWeekBtn")?.addEventListener("click", async () => {
+  const prevWeekStart = addDays(currentWeekStart, -7);
+  if (prevWeekStart < MIN_WEEK_START) {
+    alert("Nevar nokopēt — pagājušā nedēļa ir pirms sistēmas sākuma datuma.");
+    return;
+  }
+
+  const athleteId = getSelectedAthleteId();
+  if (!athleteId) return;
+
+  const prevWeekEnd = getWeekEnd(prevWeekStart);
+  const prevWeekStartStr = formatDateISO(prevWeekStart);
+  const prevWeekEndStr = formatDateISO(prevWeekEnd);
+
+  try {
+    showLoading();
+    const prevWeekPlans = await getPlans(athleteId, prevWeekStartStr, prevWeekEndStr);
+
+    if (!prevWeekPlans.length) {
+      alert("Pagājušajā nedēļā nav ieplānotu treniņu.");
+      return;
+    }
+
+    const confirmed = confirm(
+      `Vai tiešām nokopēt ${prevWeekPlans.length} treniņus no iepriekšējās nedēļas?\n\n` +
+      `Treniņi tiks pievienoti šīs nedēļas plānam.`
+    );
+
+    if (!confirmed) return;
+
+    for (const plan of prevWeekPlans) {
+      const newDate = formatDateISO(addDays(new Date(plan.date), 7));
+      await insertPlan({
+        athlete_id: plan.athlete_id,
+        date: newDate,
+        title: plan.title,
+        details: plan.details,
+        coach_comment: "",
+        athlete_comment: "",
+        created_by: currentUser.id,
+        time_of_day: plan.time_of_day,
+      });
+    }
+
+    await loadNonTemplateData();
+  } catch (e) {
+    console.error("Kļūda kopējot nedēļu:", e);
+    alert("Neizdevās nokopēt nedēļu.");
+  } finally {
+    hideLoading();
+  }
 });
 
 document.getElementById("exerciseLibraryBtn")?.addEventListener("click", () => {

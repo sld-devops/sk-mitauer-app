@@ -751,12 +751,26 @@ h4 {
   grid-column: 3;
   justify-self: end;
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.week-nav-row {
+  display: flex;
   gap: 6px;
 }
 
-.week-nav button {
-  font-size: 1.1rem;
-  min-width: 40px;
+.week-nav-row button {
+  font-size: 0.9rem;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.copy-week-btn {
+  font-size: 0.85rem;
+  padding: 6px 10px;
+  white-space: nowrap;
 }
 
 /* ---- Stats collapsible ---- */
