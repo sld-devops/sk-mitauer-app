@@ -24,6 +24,7 @@ body {
   font-family:
     "Inter Tight", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
+  zoom: 0.9;
 }
 
 button,
