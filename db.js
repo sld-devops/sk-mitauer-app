@@ -591,6 +591,14 @@ async function deleteRestriction(id) {
   if (error) throw error;
 }
 
+async function updateRestriction(id, updates) {
+  const { error } = await supabase
+    .from("restrictions")
+    .update(updates)
+    .eq("id", id);
+  if (error) throw error;
+}
+
 async function getDiaryEntries(athleteId) {
   const { data } = await supabase
     .from("diary_entries")

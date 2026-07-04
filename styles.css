@@ -2759,6 +2759,18 @@ textarea:disabled {
   border: none;
   flex-shrink: 0;
 }
+.edit-restriction-btn {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 2px 4px;
+  background: none;
+  border: none;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.edit-restriction-btn:hover {
+  color: var(--ink);
+}
 .restriction-form {
   margin-top: 12px;
   padding-top: 12px;
@@ -3276,4 +3288,215 @@ body.is-dragging .session-card.is-draggable {
   border-radius: 8px;
 }
 
+
+/* ---- Restriction Modal ---- */
+.restriction-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+.restriction-modal {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 580px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+.restriction-modal h3 {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+}
+.restriction-modal-close {
+  float: right;
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 4px;
+}
+.restriction-modal-close:hover {
+  color: var(--ink);
+}
+
+.mini-calendar {
+  margin-bottom: 12px;
+}
+.mini-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.mini-calendar-nav {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.mini-calendar-nav:hover {
+  background: var(--surface-hover);
+}
+.mini-calendar-month {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.mini-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.mini-calendar-dayname {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--muted);
+  padding: 2px 0;
+  font-weight: 600;
+}
+.mini-calendar-day {
+  text-align: center;
+  padding: 6px 2px;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid transparent;
+}
+.mini-calendar-day:hover {
+  background: var(--surface-hover);
+}
+.mini-calendar-day.empty {
+  cursor: default;
+  pointer-events: none;
+}
+.mini-calendar-day.today {
+  border-color: var(--accent);
+  font-weight: 700;
+}
+.mini-calendar-day.selected {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.mini-calendar-day.in-range {
+  background: rgba(201, 31, 47, 0.15);
+}
+.mini-calendar-day.range-start,
+.mini-calendar-day.range-end {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.selected-dates-list {
+  max-height: 80px;
+  overflow-y: auto;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 12px;
+  padding: 6px 8px;
+  background: var(--surface-alt);
+  border-radius: 4px;
+  line-height: 1.4;
+}
+.selected-dates-list:empty {
+  display: none;
+}
+
+.tod-radio-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.tod-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.tod-radio-label.tod-morning {
+  background: #fce7f3;
+  color: #9b1c47;
+  border-color: #f9a8d4;
+}
+.tod-radio-label.tod-afternoon {
+  background: #e0f2fe;
+  color: #075985;
+  border-color: #7dd3fc;
+}
+.tod-radio-label.tod-evening {
+  background: #e4e0f7;
+  color: #4c1d95;
+  border-color: #c4b5fd;
+}
+.tod-radio-label.tod-all {
+  background: var(--surface);
+  color: var(--ink);
+}
+.tod-radio-label:hover {
+  filter: brightness(0.95);
+}
+.tod-radio-label input[type="radio"] {
+  accent-color: var(--accent);
+}
+.tod-radio-label:has(input:checked) {
+  border-width: 2px;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+.restriction-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.restriction-modal-actions .primary-action {
+  padding: 8px 20px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+.restriction-modal-actions .primary-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.restriction-modal-actions .secondary-action {
+  padding: 8px 20px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.restriction-tod-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 6px;
+  background: rgba(201, 31, 47, 0.1);
+  color: var(--accent);
+  font-weight: 600;
+}
 

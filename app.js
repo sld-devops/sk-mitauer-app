@@ -80,6 +80,12 @@ let seenLabTestIds = new Set();
 let athleteHealthSet = new Set();
 let athleteNotCompletedSet = new Set();
 
+let restrictionModalOpen = false;
+let restrictionSelectedDates = new Set();
+let restrictionEditingId = null;
+let restrictionCalYear = new Date().getFullYear();
+let restrictionCalMonth = new Date().getMonth();
+
 async function refreshAthleteNotCompletedSet() {
   try {
     const ids = await getNotCompletedAthleteIds();
@@ -957,8 +963,8 @@ async function loadNonTemplateData() {
       });
       weeklySummary = await getWeeklySummary(athleteId, weekStartStr);
     } catch (e) {
-      console.error(e);
-    }
+    console.error(e);
+  }
   }
 
   if (viewMode === "month") {
@@ -1575,6 +1581,29 @@ function todLabel(tod) {
   return { morning: "Rīts", afternoon: "Pusdiena", evening: "Vakars" }[tod] || tod;
 }
 
+function isTimeSlotRestricted(dateStr, tod) {
+  const dayRestrictions = restrictions.filter(r =>
+    dateStr >= r.start_date && (!r.end_date || dateStr <= r.end_date)
+  );
+  if (dayRestrictions.length === 0) return false;
+  for (const r of dayRestrictions) {
+    if (!r.time_of_day) return true;
+    if (tod && r.time_of_day === tod) return true;
+  }
+  return false;
+}
+
+function isDayFullyRestricted(dateStr) {
+  return isTimeSlotRestricted(dateStr, "morning") &&
+         isTimeSlotRestricted(dateStr, "afternoon") &&
+         isTimeSlotRestricted(dateStr, "evening");
+}
+
+function getRestrictedTods(dateStr) {
+  const tods = ["morning", "afternoon", "evening"];
+  return tods.filter(tod => isTimeSlotRestricted(dateStr, tod));
+}
+
 function extractMainPart(details) {
   if (!details) return "";
   const lines = details.split("\n").map(l => l.trim()).filter(Boolean);
@@ -1905,9 +1934,11 @@ function renderCalendar() {
     const dayNote = dayNotes.find((n) => n.date === dateStr);
 
       const todayStr = formatDateISO(new Date());
-      const dayRestriction = restrictions.find(r => dateStr >= r.start_date && (!r.end_date || dateStr <= r.end_date));
-      const restrictedClass = dayRestriction ? " restricted-day" : "";
+      const fullyRestricted = isDayFullyRestricted(dateStr);
+      const restrictedTods = getRestrictedTods(dateStr);
+      const restrictedClass = fullyRestricted ? " restricted-day" : "";
       const dayHealth = healthEntries.find(e => dateStr >= e.start_date && (!e.end_date || dateStr <= e.end_date));
+      const dayRestrictionReason = restrictions.find(r => dateStr >= r.start_date && (!r.end_date || dateStr <= r.end_date))?.reason;
       const raceHtml = dayRaces.length
         ? `<div class="race-list">
             <div class="race-section-header">🏁 ${dateStr >= todayStr ? "Gaidāmās sacensības" : "Aizvadītās sacensības"}</div>
@@ -1940,15 +1971,15 @@ function renderCalendar() {
             <span class="day-date">${date.getDate()}.${date.getMonth() + 1}.</span>
           </div>
           ${raceHtml}
-          ${activeRole === "coach" && !dayRestriction ? `<div class="time-of-day-buttons"><button class="add-day-button" data-day="${dateStr}" data-tod="morning" type="button">🌄 Ieplānot no rīta</button><button class="add-day-button" data-day="${dateStr}" data-tod="afternoon" type="button">☀️ Ieplānot pusdienā</button><button class="add-day-button" data-day="${dateStr}" data-tod="evening" type="button">🌇 Ieplānot vakarā</button></div>` : ""}
+          ${activeRole === "coach" && !fullyRestricted ? `<div class="time-of-day-buttons">${["morning", "afternoon", "evening"].map(tod => restrictedTods.includes(tod) ? "" : `<button class="add-day-button" data-day="${dateStr}" data-tod="${tod}" type="button">${tod === "morning" ? "🌄 Ieplānot no rīta" : tod === "afternoon" ? "☀️ Ieplānot pusdienā" : "🌇 Ieplānot vakarā"}</button>`).join("")}</div>` : ""}
           ${dayPlans.length
             ? dayPlans.map(renderPlanCard).join("")
             : dayRaces.length
               ? activeRole === "coach"
                 ? `<textarea class="inline-comment" data-comment-day="${dateStr}">${dayNote?.coach_comment || ""}</textarea>`
                 : ""
-              : dayRestriction
-                ? `<div class="day-restriction-text">🚫 ${escapeHtml(dayRestriction.reason)}</div>`
+              : fullyRestricted
+                ? `<div class="day-restriction-text">🚫 ${escapeHtml(dayRestrictionReason)}</div>`
                 : activeRole === "coach"
                   ? `<div class="day-rest-text">${dayNote?.is_rest_day ? `🌴 Brīvdiena<textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Trenera komentārs...">${dayNote?.coach_comment || ""}</textarea>` : `<div class="rest-day-toggle-btn" data-rest-day="${dateStr}" role="button" tabindex="0">🌴 Ieplānot brīvdienu</div>`}</div>`
                   : dayNote?.is_rest_day
@@ -1957,10 +1988,10 @@ function renderCalendar() {
           }
           ${dayLog.filter(l => !l.plan_id).map(renderLogCard).join("")}
           ${dayHealth ? `<div class="day-health-text">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
-          ${(dayRestriction || dayHealth) && activeRole === "coach"
+          ${(fullyRestricted || dayHealth) && activeRole === "coach"
             ? `<div class="comment-label">Trenera komentārs</div><textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Komentārs...">${dayNote?.coach_comment || ""}</textarea>`
             : ""}
-          ${(dayRestriction || dayHealth) && activeRole !== "coach" && dayNote?.coach_comment
+          ${(fullyRestricted || dayHealth) && activeRole !== "coach" && dayNote?.coach_comment
             ? `<div class="day-coach-comment">${escapeHtml(dayNote.coach_comment)}</div>`
             : ""}
         </section>
@@ -2284,10 +2315,203 @@ function renderRecords() {
 }
 
 function renderRestrictions() {
+  renderRestrictionCards();
+}
+
+function openRestrictionModal(restrictionId) {
+  const modal = document.getElementById("restrictionModal");
+  if (!modal) return;
+  modal.hidden = false;
+  restrictionModalOpen = true;
+  restrictionEditingId = restrictionId || null;
+  restrictionSelectedDates = new Set();
+  restrictionCalYear = new Date().getFullYear();
+  restrictionCalMonth = new Date().getMonth();
+
+  const titleEl = document.getElementById("restrictionModalTitle");
+  if (titleEl) titleEl.textContent = restrictionId ? "Rediģēt ierobežojumu" : "Jauns ierobežojums";
+
+  if (restrictionId) {
+    const r = restrictions.find(x => x.id === restrictionId);
+    if (r) {
+      document.getElementById("newRestrictionReasonModal").value = r.reason || "";
+      const radios = document.querySelectorAll('input[name="restrictionTod"]');
+      radios.forEach(radio => {
+        radio.checked = (radio.value === (r.time_of_day || ""));
+      });
+      if (r.end_date) {
+        const start = new Date(r.start_date);
+        const end = new Date(r.end_date);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          restrictionSelectedDates.add(formatDateISO(d));
+        }
+      } else {
+        restrictionSelectedDates.add(r.start_date);
+      }
+      restrictionCalYear = new Date(r.start_date).getFullYear();
+      restrictionCalMonth = new Date(r.start_date).getMonth();
+    }
+  } else {
+    document.getElementById("newRestrictionReasonModal").value = "";
+    const radios = document.querySelectorAll('input[name="restrictionTod"]');
+    radios.forEach(r => r.checked = r.value === "");
+  }
+
+  renderMiniCalendar();
+  updateSelectedDatesList();
+  updateSaveButtonState();
+}
+
+function closeRestrictionModal() {
+  const modal = document.getElementById("restrictionModal");
+  if (!modal) return;
+  modal.hidden = true;
+  restrictionModalOpen = false;
+  restrictionSelectedDates = new Set();
+  restrictionEditingId = null;
+}
+
+function renderMiniCalendar() {
+  const container = document.getElementById("miniCalendar");
+  if (!container) return;
+
+  const monthNames = ["Janvāris", "Februāris", "Marts", "Aprīlis", "Maijs", "Jūnijs", "Jūlijs", "Augusts", "Septembris", "Oktobris", "Novembris", "Decembris"];
+  const dayNames = ["Pr", "Ot", "Tr", "Ce", "Pk", "Se", "Sv"];
+  const today = new Date();
+  const todayStr = formatDateISO(today);
+
+  const firstDay = new Date(restrictionCalYear, restrictionCalMonth, 1);
+  const lastDay = new Date(restrictionCalYear, restrictionCalMonth + 1, 0);
+  let startDow = firstDay.getDay();
+  if (startDow === 0) startDow = 7;
+  startDow--;
+
+  let html = `<div class="mini-calendar-header">
+    <button class="mini-calendar-nav" id="miniCalPrev" type="button">←</button>
+    <span class="mini-calendar-month">${monthNames[restrictionCalMonth]} ${restrictionCalYear}</span>
+    <button class="mini-calendar-nav" id="miniCalNext" type="button">→</button>
+  </div>`;
+
+  html += '<div class="mini-calendar-grid">';
+  for (const dn of dayNames) {
+    html += `<div class="mini-calendar-dayname">${dn}</div>`;
+  }
+
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const date = new Date(restrictionCalYear, restrictionCalMonth, d);
+    const dateStr = formatDateISO(date);
+    let cls = "mini-calendar-day";
+    if (dateStr === todayStr) cls += " today";
+    if (restrictionSelectedDates.has(dateStr)) cls += " selected";
+
+    html += `<div class="${cls}" data-date="${dateStr}">${d}</div>`;
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+
+  document.getElementById("miniCalPrev")?.addEventListener("click", () => {
+    restrictionCalMonth--;
+    if (restrictionCalMonth < 0) { restrictionCalMonth = 11; restrictionCalYear--; }
+    renderMiniCalendar();
+  });
+  document.getElementById("miniCalNext")?.addEventListener("click", () => {
+    restrictionCalMonth++;
+    if (restrictionCalMonth > 11) { restrictionCalMonth = 0; restrictionCalYear++; }
+    renderMiniCalendar();
+  });
+
+  container.querySelectorAll(".mini-calendar-day:not(.empty)").forEach(cell => {
+    cell.addEventListener("click", (e) => {
+      e.preventDefault();
+      const dateStr = cell.dataset.date;
+      if (restrictionSelectedDates.has(dateStr)) {
+        restrictionSelectedDates.delete(dateStr);
+      } else {
+        restrictionSelectedDates.add(dateStr);
+      }
+      renderMiniCalendar();
+      updateSelectedDatesList();
+      updateSaveButtonState();
+    });
+  });
+}
+
+function updateSelectedDatesList() {
+  const el = document.getElementById("selectedDatesList");
+  if (!el) return;
+  const sorted = [...restrictionSelectedDates].sort();
+  if (sorted.length === 0) {
+    el.textContent = "";
+    return;
+  }
+  if (sorted.length <= 5) {
+    el.textContent = sorted.map(d => formatDateLV(d)).join(", ");
+  } else {
+    el.textContent = `${formatDateLV(sorted[0])} — ${formatDateLV(sorted[sorted.length - 1])} (${sorted.length} dienas)`;
+  }
+}
+
+function updateSaveButtonState() {
+  const btn = document.getElementById("saveRestrictionModal");
+  if (btn) {
+    btn.disabled = restrictionSelectedDates.size === 0;
+  }
+}
+
+async function saveRestrictionModal() {
+  const reason = document.getElementById("newRestrictionReasonModal")?.value.trim();
+  if (!reason) { alert("Lūdzu, uzrakstiet iemeslu!"); return; }
+  if (restrictionSelectedDates.size === 0) { alert("Lūdzu, izvēlieties vismaz vienu datumu!"); return; }
+
+  const todRadio = document.querySelector('input[name="restrictionTod"]:checked');
+  const tod = todRadio?.value || null;
+  const athleteId = getSelectedAthleteId();
+
+  const sorted = [...restrictionSelectedDates].sort();
+  const ranges = [];
+  if (sorted.length > 0) {
+    let rangeStart = sorted[0];
+    let rangeEnd = sorted[0];
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = new Date(sorted[i - 1]);
+      const curr = new Date(sorted[i]);
+      const diff = (curr - prev) / (1000 * 60 * 60 * 24);
+      if (diff === 1) {
+        rangeEnd = sorted[i];
+      } else {
+        ranges.push({ start: rangeStart, end: rangeEnd === rangeStart ? null : rangeEnd });
+        rangeStart = sorted[i];
+        rangeEnd = sorted[i];
+      }
+    }
+    ranges.push({ start: rangeStart, end: rangeEnd === rangeStart ? null : rangeEnd });
+  }
+
+  try {
+    if (restrictionEditingId) {
+      await deleteRestriction(restrictionEditingId);
+    }
+    for (const range of ranges) {
+      await insertRestriction({
+        athlete_id: athleteId,
+        start_date: range.start,
+        end_date: range.end,
+        time_of_day: tod || null,
+        reason
+      });
+    }
+    closeRestrictionModal();
+    await loadNonTemplateData();
+  } catch (e) {
+    alert("Neizdevās saglabāt: " + (e.message || e));
+  }
+}
+
+function renderRestrictionCards() {
   const body = document.getElementById("restrictionsBody");
   if (!body) return;
   const canEdit = currentUser.id === getSelectedAthleteId() && activeRole !== "coach";
-  const athleteId = getSelectedAthleteId();
 
   const todayStr = formatDateISO(new Date());
   const activeRestrictions = restrictions.filter(r =>
@@ -2310,11 +2534,12 @@ function renderRestrictions() {
         const period = r.end_date
           ? `${formatDateLV(r.start_date)} — ${formatDateLV(r.end_date)}`
           : formatDateLV(r.start_date);
+        const todBadge = r.time_of_day ? `<span class="restriction-tod-badge">${todLabel(r.time_of_day)}</span>` : "";
         return `
           <div class="restriction-card">
             <div class="restriction-card-header">
-              <span class="restriction-dates">${period}</span>
-              ${canEdit ? `<button class="delete-restriction-btn" data-restriction="${r.id}" type="button">×</button>` : ""}
+              <span class="restriction-dates">${period}${todBadge}</span>
+              ${canEdit ? `<button class="edit-restriction-btn" data-edit-restriction="${r.id}" type="button" title="Rediģēt">✏️</button><button class="delete-restriction-btn" data-restriction="${r.id}" type="button">×</button>` : ""}
             </div>
             <div class="restriction-card-reason">${escapeHtml(r.reason)}</div>
           </div>
@@ -2324,12 +2549,7 @@ function renderRestrictions() {
 
   const form = canEdit ? `
     <div class="restriction-form">
-      <div class="field-grid">
-        <label>No datuma <input id="newRestrictionStart" type="date" class="restriction-input" /></label>
-        <label>Līdz datumam <input id="newRestrictionEnd" type="date" class="restriction-input" /></label>
-      </div>
-      <label>Iemesls <textarea id="newRestrictionReason" class="restriction-input" rows="2"></textarea></label>
-      <button id="addRestrictionBtn" class="primary-action" type="button">Pievienot</button>
+      <button id="openRestrictionModalBtn" class="primary-action" type="button" style="width:100%">+ Pievienot ierobežojumu</button>
     </div>
   ` : "";
 
@@ -2338,21 +2558,15 @@ function renderRestrictions() {
     ${form}
   `;
 
-  document.getElementById("addRestrictionBtn")?.addEventListener("click", async () => {
-    const start = document.getElementById("newRestrictionStart")?.value;
-    const end = document.getElementById("newRestrictionEnd")?.value || null;
-    const reason = document.getElementById("newRestrictionReason")?.value.trim();
-    if (!start) { alert("Lūdzu, izvēlieties datumu!"); return; }
-    if (!reason) { alert("Lūdzu, uzrakstiet iemeslu!"); return; }
-    try {
-      await insertRestriction({ athlete_id: athleteId, start_date: start, end_date: end, reason });
-      document.getElementById("newRestrictionStart").value = "";
-      document.getElementById("newRestrictionEnd").value = "";
-      document.getElementById("newRestrictionReason").value = "";
-      await loadNonTemplateData();
-    } catch (e) {
-      alert("Neizdevās saglabāt: " + (e.message || e));
-    }
+  document.getElementById("openRestrictionModalBtn")?.addEventListener("click", () => {
+    openRestrictionModal();
+  });
+
+  document.querySelectorAll(".edit-restriction-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openRestrictionModal(btn.dataset.editRestriction);
+    });
   });
 
   document.querySelectorAll(".delete-restriction-btn").forEach(btn => {
@@ -3254,8 +3468,9 @@ function renderMonthView() {
       const dayNote = monthDayNotes.find((n) => n.date === dateStr);
 
       const isRestDay = !!dayNote?.is_rest_day;
-      const dayRestriction = restrictions.find(r => dateStr >= r.start_date && (!r.end_date || dateStr <= r.end_date));
+      const fullyRestricted = isDayFullyRestricted(dateStr);
       const dayHealth = healthEntries.find(e => dateStr >= e.start_date && (!e.end_date || dateStr <= e.end_date));
+      const dayRestrictionReason = restrictions.find(r => dateStr >= r.start_date && (!r.end_date || dateStr <= r.end_date))?.reason;
 
       const plansHtml = dayPlans.map((p) => `
         <div class="month-plan${dayRaces.length ? " month-plan-race" : ""}${p.completed === false ? " not-completed" : ""}">
@@ -3274,12 +3489,12 @@ function renderMonthView() {
       `).join("");
 
       cells.push(`
-        <div class="month-day-cell ${isOtherMonth ? "other-month" : ""}${isToday ? " today" : ""}${dayRestriction ? " restricted-day" : ""}" data-date="${dateStr}">
+        <div class="month-day-cell ${isOtherMonth ? "other-month" : ""}${isToday ? " today" : ""}${fullyRestricted ? " restricted-day" : ""}" data-date="${dateStr}">
           <div class="month-day-num">
             ${d.getDate()}.
             ${dayPlans.map(p => `<span class="month-type-badge">${badgeForTitle(p.title)}</span>`).join("")}
           </div>
-          ${dayRestriction ? `<div class="month-restriction-text" role="button" tabindex="0">🚫 ${escapeHtml(dayRestriction.reason)}</div>` : ""}
+          ${fullyRestricted ? `<div class="month-restriction-text" role="button" tabindex="0">🚫 ${escapeHtml(dayRestrictionReason)}</div>` : ""}
           ${dayHealth ? `<div class="month-health-text" role="button" tabindex="0">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
           ${isRestDay && !dayPlans.length && !dayRaces.length ? `<div class="day-rest-text">🌴 Brīvdiena</div>` : ""}
           ${racesHtml}
@@ -3335,8 +3550,9 @@ function renderMonthViewInline() {
       const dayNote = monthDayNotes.find((n) => n.date === dateStr);
 
       const isRestDay = !!dayNote?.is_rest_day;
-      const dayRestriction = restrictions.find(r => dateStr >= r.start_date && (!r.end_date || dateStr <= r.end_date));
+      const fullyRestricted = isDayFullyRestricted(dateStr);
       const dayHealth = healthEntries.find(e => dateStr >= e.start_date && (!e.end_date || dateStr <= e.end_date));
+      const dayRestrictionReason = restrictions.find(r => dateStr >= r.start_date && (!r.end_date || dateStr <= r.end_date))?.reason;
 
       const plansHtml = dayPlans.map((p) => `
         <div class="month-plan${dayRaces.length ? " month-plan-race" : ""}${p.completed === false ? " not-completed" : ""}">
@@ -3355,12 +3571,12 @@ function renderMonthViewInline() {
       `).join("");
 
       cells.push(`
-        <div class="month-day-cell ${isOtherMonth ? "other-month" : ""}${isToday ? " today" : ""}${dayRestriction ? " restricted-day" : ""}" data-date="${dateStr}">
+        <div class="month-day-cell ${isOtherMonth ? "other-month" : ""}${isToday ? " today" : ""}${fullyRestricted ? " restricted-day" : ""}" data-date="${dateStr}">
           <div class="month-day-num">
             ${d.getDate()}.
             ${dayPlans.map(p => `<span class="month-type-badge">${badgeForTitle(p.title)}</span>`).join("")}
           </div>
-          ${dayRestriction ? `<div class="month-restriction-text" role="button" tabindex="0">🚫 ${escapeHtml(dayRestriction.reason)}</div>` : ""}
+          ${fullyRestricted ? `<div class="month-restriction-text" role="button" tabindex="0">🚫 ${escapeHtml(dayRestrictionReason)}</div>` : ""}
           ${dayHealth ? `<div class="month-health-text" role="button" tabindex="0">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
           ${isRestDay && !dayPlans.length && !dayRaces.length ? `<div class="day-rest-text">🌴 Brīvdiena</div>` : ""}
           ${racesHtml}
@@ -4163,9 +4379,8 @@ calendarGrid.addEventListener("click", async (event) => {
 
   if (dayButton && activeRole === "coach") {
     const day = dayButton.dataset.day;
-    const hasRestriction = restrictions.some(r => day >= r.start_date && (!r.end_date || day <= r.end_date));
-    if (hasRestriction) return;
     const tod = dayButton.dataset.tod || "";
+    if (isTimeSlotRestricted(day, tod || null)) return;
     const training = selectedSource === "custom" ? getGeneratedTraining() : getSelectedTraining();
     if (training) {
       await insertTrainingToDay(day, training, tod);
@@ -5448,6 +5663,19 @@ deleteRecordBtn.addEventListener("click", async () => {
     render();
   } catch (e) {
     console.error(e);
+  }
+});
+
+document.getElementById("closeRestrictionModal")?.addEventListener("click", closeRestrictionModal);
+document.getElementById("cancelRestrictionModal")?.addEventListener("click", closeRestrictionModal);
+document.getElementById("saveRestrictionModal")?.addEventListener("click", saveRestrictionModal);
+document.getElementById("restrictionModal")?.addEventListener("click", (e) => {
+  if (e.target.id === "restrictionModal") closeRestrictionModal();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && restrictionModalOpen) {
+    closeRestrictionModal();
   }
 });
 

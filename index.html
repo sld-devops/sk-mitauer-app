@@ -923,6 +923,26 @@
       </form>
     </dialog>
 
+    <div id="restrictionModal" class="restriction-modal-overlay" hidden>
+      <div class="restriction-modal">
+        <button class="restriction-modal-close" id="closeRestrictionModal" type="button">×</button>
+        <h3 id="restrictionModalTitle">Jauns ierobežojums</h3>
+        <div class="mini-calendar" id="miniCalendar"></div>
+        <div class="selected-dates-list" id="selectedDatesList"></div>
+        <div class="tod-radio-group">
+          <label class="tod-radio-label tod-all"><input type="radio" name="restrictionTod" value="" checked> Visa diena</label>
+          <label class="tod-radio-label tod-morning"><input type="radio" name="restrictionTod" value="morning"> 🌄 Rīts</label>
+          <label class="tod-radio-label tod-afternoon"><input type="radio" name="restrictionTod" value="afternoon"> ☀️ Pusdiena</label>
+          <label class="tod-radio-label tod-evening"><input type="radio" name="restrictionTod" value="evening"> 🌇 Vakars</label>
+        </div>
+        <label>Iemesls <textarea id="newRestrictionReasonModal" class="restriction-input" rows="2"></textarea></label>
+        <div class="restriction-modal-actions">
+          <button class="secondary-action" id="cancelRestrictionModal" type="button">Atcelt</button>
+          <button class="primary-action" id="saveRestrictionModal" type="button" disabled>Saglabāt</button>
+        </div>
+      </div>
+    </div>
+
     <div id="loadingOverlay" class="loading-overlay" hidden><div class="loading-spinner"></div></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
