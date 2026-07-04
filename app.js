@@ -853,7 +853,9 @@ async function refreshWeekStatuses(athleteIds) {
     athleteIds = athletes.filter(a => a.role !== "coach").map(a => a.id);
   }
   if (!athleteIds.length) return;
-  const startStr = formatDateISO(currentWeekStart);
+  const nextWeekMonday = new Date(getMonday(new Date()));
+  nextWeekMonday.setDate(nextWeekMonday.getDate() + 7);
+  const startStr = formatDateISO(nextWeekMonday);
   weekStatuses = await getWeekStatuses(athleteIds, startStr);
   const selectedId = getSelectedAthleteId();
   if (selectedId) renderAthleteDropdown();
@@ -3275,12 +3277,10 @@ function renderMonthView() {
         <div class="month-day-cell ${isOtherMonth ? "other-month" : ""}${isToday ? " today" : ""}${dayRestriction ? " restricted-day" : ""}" data-date="${dateStr}">
           <div class="month-day-num">
             ${d.getDate()}.
-            ${dayRestriction ? '<span class="month-dot restriction" title="Ierobežojums">🚫</span>' : ""}
-            ${dayHealth ? '<span class="month-dot health" title="' + escapeHtml(dayHealth.description) + '">⚕</span>' : ""}
             ${dayPlans.map(p => `<span class="month-type-badge">${badgeForTitle(p.title)}</span>`).join("")}
           </div>
-          ${dayRestriction ? `<div class="month-restriction-text">🚫 ${escapeHtml(dayRestriction.reason)}</div>` : ""}
-          ${dayHealth ? `<div class="month-health-text">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
+          ${dayRestriction ? `<div class="month-restriction-text" role="button" tabindex="0">🚫 ${escapeHtml(dayRestriction.reason)}</div>` : ""}
+          ${dayHealth ? `<div class="month-health-text" role="button" tabindex="0">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
           ${isRestDay && !dayPlans.length && !dayRaces.length ? `<div class="day-rest-text">🌴 Brīvdiena</div>` : ""}
           ${racesHtml}
           ${plansHtml}
@@ -3358,12 +3358,10 @@ function renderMonthViewInline() {
         <div class="month-day-cell ${isOtherMonth ? "other-month" : ""}${isToday ? " today" : ""}${dayRestriction ? " restricted-day" : ""}" data-date="${dateStr}">
           <div class="month-day-num">
             ${d.getDate()}.
-            ${dayRestriction ? '<span class="month-dot restriction" title="Ierobežojums">🚫</span>' : ""}
-            ${dayHealth ? '<span class="month-dot health" title="' + escapeHtml(dayHealth.description) + '">⚕</span>' : ""}
             ${dayPlans.map(p => `<span class="month-type-badge">${badgeForTitle(p.title)}</span>`).join("")}
           </div>
-          ${dayRestriction ? `<div class="month-restriction-text">🚫 ${escapeHtml(dayRestriction.reason)}</div>` : ""}
-          ${dayHealth ? `<div class="month-health-text">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
+          ${dayRestriction ? `<div class="month-restriction-text" role="button" tabindex="0">🚫 ${escapeHtml(dayRestriction.reason)}</div>` : ""}
+          ${dayHealth ? `<div class="month-health-text" role="button" tabindex="0">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
           ${isRestDay && !dayPlans.length && !dayRaces.length ? `<div class="day-rest-text">🌴 Brīvdiena</div>` : ""}
           ${racesHtml}
           ${plansHtml}
@@ -4232,6 +4230,12 @@ calendarGrid.addEventListener("click", async (event) => {
     }
   }
 
+});
+
+// --- Month view expandable restriction/health text ---
+document.addEventListener("click", (e) => {
+  const el = e.target.closest(".month-restriction-text, .month-health-text");
+  if (el) el.classList.toggle("expanded");
 });
 
 // --- Drag & Drop (Pointer Events) ---
