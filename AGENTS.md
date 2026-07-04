@@ -25,6 +25,7 @@ That is the only command. There is no package.json, no npm, no test runner, no l
 - No package manager or dependency file — the repo is intentionally bare.
 - Comments in code are in English; UI strings are in Latvian.
 - Editing convention: maintain the flat-file style. No component extraction, no module bundler.
+- Always be concise. Use plain language only. Skip code snippets unless explicitly requested. Ask specific questions when clarification is needed.
 
 ## Key constraints from README
 
