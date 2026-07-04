@@ -1707,7 +1707,7 @@ function renderPlanCard(plan) {
   const logActions = planLog ? `<div class="log-actions"><button class="edit-log-btn" data-log-plan="${plan.id}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${planLog.id}" type="button">×</button></div>` : "";
 
   const logBlock = planLog
-    ? `<div class="log-card log-inline"><div class="log-header"><h3>Izpildīts</h3>${logActions}</div>${planLogData.length ? renderInlineLog(planLogData, paceBoundsMap) : ""}${feelingBadge}${planLogNotes}</div>`
+    ? `<div class="log-card log-inline"><div class="log-header"><h3>Izpildīts</h3></div>${planLogData.length ? renderInlineLog(planLogData, paceBoundsMap) : ""}${feelingBadge}${planLogNotes}</div>`
     : `<button class="add-day-button log-plan-button" data-log-plan="${plan.id}" type="button">Ierakstīt izpildi</button>`;
 
   return `
@@ -1721,6 +1721,7 @@ function renderPlanCard(plan) {
       <label class="checkbox-row"><input type="checkbox" data-cb-plan="${plan.id}" ${notCompleted ? "checked" : ""} /> Treniņš nav izpildīts</label>
       ${notCompleted ? `<div class="comment-label">Sportista komentārs</div><textarea class="inline-comment not-completed-comment" data-comment-plan="${plan.id}" data-comment-type="athlete">${plan.athlete_comment || ""}</textarea>` : ""}
       ${logBlock}
+      ${planLog ? `<div class="card-actions">${logActions}</div>` : ""}
     </article>
   `;
 }
@@ -1766,7 +1767,7 @@ function renderLogCard(log) {
   const logNotes = log?.notes ? `<div class="comment-label">Sportista komentārs</div><div class="log-notes">${log.notes}</div>` : "";
   const athleteIsOwner = (activeRole === "athlete") && currentUser.id === getSelectedAthleteId();
   const logActions = athleteIsOwner ? `<div class="log-actions"><button class="edit-log-btn" data-log-day="${log.date}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${log.id}" type="button">×</button></div>` : "";
-  return `<div class="session-card log-card"><div class="log-header"><h3>Izpildīts</h3>${logActions}</div>${items}${feelingBadge}${logNotes}</div>`;
+  return `<div class="session-card log-card"><div class="log-header"><h3>Izpildīts</h3></div>${items}${feelingBadge}${logNotes}${athleteIsOwner ? `<div class="card-actions">${logActions}</div>` : ""}</div>`;
 }
 
 function renderStats() {
