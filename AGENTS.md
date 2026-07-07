@@ -28,6 +28,14 @@ That is the only command. There is no package.json, no npm, no test runner, no l
 - Always be concise. Use plain language only. Skip code snippets unless explicitly requested. Ask specific questions when clarification is needed.
 - **Always respond in Latvian.**
 
+## Communication style
+
+- **Do not ask complex technical questions** with multiple options (e.g., "Should we use X or Y? Which do you prefer?")
+- **Speak in simple language** — explain only the result, not technical syntax terms
+- **Trust your judgment** — when user says "I trust you", just do it without asking
+- Keep explanations short and focused on what changed visually/functionally
+- **Always respond in Latvian.**
+
 ## Key constraints from README
 
 > "Coach selects an athlete. Coach chooses a saved training preparation or creates a new training from form fields. Coach clicks a day to place the selected training for that athlete. Coach can add a coach comment. Athlete can add an athlete comment."
