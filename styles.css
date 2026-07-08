@@ -878,25 +878,31 @@ h4 {
   line-height: 1.4;
 }
 
-.builder-preview-row {
-  display: grid;
-  grid-template-columns: auto 300px;
-  gap: 20px;
-  align-items: start;
+.builder-form {
+  width: 100%;
 }
 
 .builder-sections-row {
   display: grid;
-  grid-template-columns: auto auto auto;
+  grid-template-columns: auto auto auto 300px;
   justify-content: start;
-  gap: 12px;
+  gap: 16px;
   align-items: start;
+}
+
+#warmupSection,
+.main-content-column,
+#cooldownSection {
+  border: 2px dashed #677e99;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
 }
 
 #warmupSection,
 #cooldownSection {
   min-width: 160px;
-  max-width: 220px;
+  max-width: 280px;
 }
 
 .main-content-column {
@@ -904,45 +910,51 @@ h4 {
 }
 
 .builder-sections-row .field-grid {
-  gap: 4px;
-}
-
-.builder-sections-row input {
-  max-width: 120px;
-  width: 100%;
-}
-
-.custom-builder-compact {
-  display: grid;
   gap: 12px;
 }
 
-.custom-builder-compact > label:first-child {
-  max-width: 480px;
+.builder-sections-row input {
+  max-width: 150px;
+  width: 100%;
+}
+#customName, #editCustomName, #epCustomName {
+  max-width: none;
+}
+
+.icon-picker {
+  display: inline-flex;
+  gap: 3px;
+  vertical-align: middle;
+}
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 26px;
+  text-align: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+.icon-btn:hover {
+  background: var(--surface);
+}
+.icon-btn.selected {
+  background: #e8f0fe;
+  border-color: var(--accent);
 }
 
 .preview-compact {
   background: var(--surface);
   border-radius: 8px;
   padding: 12px;
-  position: sticky;
-  top: 16px;
 }
 
 .preview-compact .generated-preview {
   margin-bottom: 0;
-}
-
-.custom-builder-compact .field-grid {
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 8px;
-}
-
-.custom-builder-compact .section-label {
-  margin: 8px 0 4px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--muted);
 }
 
 #saveTemplateOnlyBtn {
@@ -1323,12 +1335,38 @@ label {
 
 .field-grid {
   display: grid;
-  gap: 10px;
-  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  grid-template-columns: auto auto;
 }
 
 .field-grid-3 {
-  grid-template-columns: 1fr 1fr 1fr;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto auto auto;
+}
+
+.field-grid-4 {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto auto auto auto;
+}
+
+.field-grid > label,
+.field-grid-3 > label,
+.field-grid-4 > label {
+  position: relative;
+}
+
+.field-grid > label:not(:last-child)::after,
+.field-grid-3 > label:not(:last-child)::after,
+.field-grid-4 > label:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--line);
 }
 
 .profile-section .field-grid + .field-grid {
@@ -1743,6 +1781,10 @@ label {
   padding: 8px;
 }
 
+.task-card textarea.inline-comment {
+  margin-top: 8px;
+}
+
 .log-card h3 {
   font-size: 0.98rem;
   margin: 0;
@@ -2000,6 +2042,19 @@ label {
 
 .primary-action:active {
   transform: translateY(0);
+}
+.training-bar-body .primary-action {
+  height: 38px;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+#updateTemplateBtn {
+  background: #677e99;
+  border-color: #677e99;
+}
+#updateTemplateBtn:hover {
+  background: #566a82;
+  box-shadow: 0 4px 12px rgba(103, 126, 153, 0.25);
 }
 
 .session-card {
@@ -2833,10 +2888,6 @@ textarea:disabled {
     overflow-y: auto;
   }
 
-  .builder-preview-row {
-    grid-template-columns: 1fr;
-  }
-
   .builder-sections-row {
     grid-template-columns: 1fr;
   }
@@ -3420,14 +3471,6 @@ textarea:disabled {
     padding: 12px;
   }
 
-  .field-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .field-grid-3 {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .template-dropdown-section {
     flex-direction: column;
     align-items: stretch;
@@ -3439,19 +3482,7 @@ textarea:disabled {
     min-width: 100%;
   }
 
-  .builder-preview-row {
-    grid-template-columns: 1fr;
-  }
-
   .builder-sections-row {
-    grid-template-columns: 1fr;
-  }
-
-  .custom-builder-compact > label:first-child {
-    max-width: 100%;
-  }
-
-  .custom-builder-compact .field-grid {
     grid-template-columns: 1fr;
   }
 }

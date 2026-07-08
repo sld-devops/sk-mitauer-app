@@ -219,105 +219,120 @@
                     <div class="dropdown-list template-dropdown-list"></div>
                   </div>
                 </div>
-                <div class="builder-preview-row">
-                  <div class="custom-builder-compact" id="customBuilder">
-                    <label>Treniņa tips
-                      <select id="customType">
-                        <option value="" selected disabled>Izvēlies...</option>
-                        <option value="Atjaunojošais/lēnais skrējiens">Atjaunojošais/lēnais skrējiens</option>
-                        <option value="Garais skrējiens">Garais skrējiens</option>
-                        <option value="Intervāli (vienāda garuma/ilguma)">Intervāli (vienāda garuma/ilguma)</option>
-                        <option value="Intervāli (dažāda garuma/ilguma)">Intervāli (dažāda garuma/ilguma)</option>
-                        <option value="Tempa skrējiens">Tempa skrējiens</option>
-                        <option value="Cita veida skrējiens">Cita veida skrējiens</option>
-                        <option value="VFS">VFS</option>
-                        <option value="SFS">SFS</option>
-                        <option value="Velo">Velo</option>
-                      </select>
-                    </label>
-                    <div class="builder-sections-row">
-                      <div id="warmupSection">
-                        <p class="section-label">Iesildīšanās</p>
-                        <label class="checkbox-row" id="warmupToggleRow" hidden>
-                          <input id="includeWarmup" type="checkbox" />
-                          <span>Iesildīšanās</span>
-                        </label>
-                        <div class="field-grid" id="warmupFields">
-                          <label>Ilgums/garums <input id="warmupDuration" type="text" /></label>
-                          <label>Pulss <input id="warmupPulse" type="text" /></label>
-                        </div>
-                        <div id="drillsRow">
-                          <label class="checkbox-row">
-                            <input id="includeDrills" type="checkbox" />
-                            <span>Drills</span>
-                          </label>
-                        </div>
+                <label style="max-width: 480px; margin-bottom: 12px;">Izveidot jaunu treniņu
+                  <select id="customType">
+                    <option value="" selected disabled>Izvēlies treniņa tipu</option>
+                    <option value="Atjaunojošais/lēnais skrējiens">Atjaunojošais/lēnais skrējiens</option>
+                    <option value="Garais skrējiens">Garais skrējiens</option>
+                    <option value="Intervāli (vienāda garuma/ilguma)">Intervāli (vienāda garuma/ilguma)</option>
+                    <option value="Intervāli (dažāda garuma/ilguma)">Intervāli (dažāda garuma/ilguma)</option>
+                    <option value="Tempa skrējiens">Tempa skrējiens</option>
+                    <option value="Cita veida skrējiens">Cita veida skrējiens</option>
+                    <option value="VFS">VFS</option>
+                    <option value="SFS">SFS</option>
+                    <option value="Velo">Velo</option>
+                  </select>
+                  <span class="icon-picker" id="customIconPicker" hidden>
+                    <button type="button" class="icon-btn" data-icon="🐢" title="Lēnais">🐢</button>
+                    <button type="button" class="icon-btn" data-icon="⌛" title="Garais">⌛</button>
+                    <button type="button" class="icon-btn" data-icon="⚡" title="Intervāli">⚡</button>
+                    <button type="button" class="icon-btn" data-icon="📈" title="Tempa">📈</button>
+                    <button type="button" class="icon-btn" data-icon="💪" title="VFS/SFS">💪</button>
+                    <button type="button" class="icon-btn" data-icon="🚴" title="Velo">🚴</button>
+                  </span>
+                </label>
+                <div class="builder-form">
+                  <div class="builder-sections-row">
+                    <div id="warmupSection">
+                      <p class="section-label">Iesildīšanās</p>
+                      <label class="checkbox-row" id="warmupToggleRow" hidden>
+                        <input id="includeWarmup" type="checkbox" />
+                        <span>Iesildīšanās</span>
+                      </label>
+                      <div class="field-grid" id="warmupFields">
+                        <label>Ilgums/garums <input id="warmupDuration" type="text" /></label>
+                        <label>Pulss <input id="warmupPulse" type="text" /></label>
                       </div>
-                      <div class="main-content-column">
-                        <div id="intervalFields">
-                          <p class="section-label">Pamatdaļa</p>
-                          <div class="field-grid">
-                            <label>Ilgums/garums <input id="intervalLength" type="text" /></label>
-                            <label>Reizes <input id="repeatCount" type="text" /></label>
-                          </div>
-                          <div class="field-grid">
-                            <label>Temps <input id="intervalPace" type="text" /></label>
-                            <label>Atpūta <input id="restDuration" type="text" /></label>
-                          </div>
-                        </div>
-                        <div id="varIntervalFields" hidden>
-                          <p class="section-label">Pamatdaļa</p>
-                          <div id="varSegmentList"></div>
-                          <button id="varAddSegment" class="secondary-action" type="button" style="width:100%;margin-bottom:6px">+ Pievienot segmentu</button>
-                          <div class="field-grid">
-                            <label>Apļi <input id="varLaps" type="text" /></label>
-                            <label>Atpūta starp blokiem <input id="varRestBetweenLaps" type="text" /></label>
-                          </div>
-                        </div>
-                        <div id="mainFields" hidden>
-                          <p class="section-label" id="mainSectionLabel">Pamatdaļa</p>
-                          <div class="field-grid">
-                            <label id="mainDurationLabel">Ilgums/garums <input id="mainDuration" type="text" /></label>
-                            <label id="mainPulseLabel">Pulss <input id="mainPulse" type="text" /></label>
-                            <label id="mainPaceLabel">Temps <input id="tempoPace" type="text" /></label>
-                          </div>
-                          <label class="checkbox-row" id="koptreniņšRow" hidden>
-                            <input id="includeKoptreniņš" type="checkbox" />
-                            <span>Koptreniņš</span>
-                          </label>
-                        </div>
-                        <label id="freeTextRow" hidden>
-                          Pamatdaļas apraksts
-                          <textarea id="customFreeText" rows="3"></textarea>
+                      <label id="warmupAdditionalRow" hidden>
+                        Papildus uzdevums
+                        <input id="warmupAdditional" type="text" />
+                      </label>
+                      <div id="drillsRow">
+                        <label class="checkbox-row">
+                          <input id="includeDrills" type="checkbox" />
+                          <span>Drills</span>
                         </label>
-                        <label id="customNameRow" hidden>
-                          Nosaukums kalendārā
-                          <input id="customName" type="text" placeholder="Fartleks, Progresīvais, u.c." />
-                        </label>
-                      </div>
-                        <div id="cooldownSection">
-                        <p class="section-label">Atsildīšanās</p>
-                        <label class="checkbox-row" id="cooldownToggleRow" hidden>
-                          <input id="includeCooldown" type="checkbox" />
-                          <span>Atsildīšanās</span>
-                        </label>
-                        <div class="field-grid" id="cooldownFields">
-                          <label>Ilgums/garums <input id="cooldownDuration" type="text" /></label>
-                          <label>Pulss <input id="cooldownPulse" type="text" /></label>
-                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div class="preview-compact">
-                    <p class="preview-label">Treniņa priekšskatījums</p>
-                    <div class="generated-preview" id="customPreview"></div>
-                    <label class="checkbox-row" id="templateForAthleteRow">
-                      <input id="templateForAthlete" type="checkbox" />
-                      <span>Tikai šim sportistam</span>
-                    </label>
+                    <div class="main-content-column">
+                      <div id="intervalFields">
+                        <p class="section-label">Pamatdaļa</p>
+                        <div class="field-grid-4">
+                          <label>Ilgums/garums <input id="intervalLength" type="text" /></label>
+                          <label>Reizes <input id="repeatCount" type="text" /></label>
+                          <label>Temps <input id="intervalPace" type="text" /></label>
+                          <label>Atpūta <input id="restDuration" type="text" /></label>
+                        </div>
+                      </div>
+                      <div id="varIntervalFields" hidden>
+                        <p class="section-label">Pamatdaļa</p>
+                        <div id="varSegmentList"></div>
+                        <button id="varAddSegment" class="secondary-action" type="button" style="width:100%;margin-bottom:6px">+ Pievienot segmentu</button>
+                        <div class="field-grid">
+                          <label>Apļi <input id="varLaps" type="text" /></label>
+                          <label>Atpūta starp blokiem <input id="varRestBetweenLaps" type="text" /></label>
+                        </div>
+                      </div>
+                      <div id="mainFields" hidden>
+                        <p class="section-label" id="mainSectionLabel">Pamatdaļa</p>
+                        <div class="field-grid-3">
+                          <label id="mainDurationLabel">Ilgums/garums <input id="mainDuration" type="text" /></label>
+                          <label id="mainPulseLabel">Pulss <input id="mainPulse" type="text" /></label>
+                          <label id="mainPaceLabel">Temps <input id="tempoPace" type="text" /></label>
+                        </div>
+                        <label class="checkbox-row" id="koptreniņšRow" hidden>
+                          <input id="includeKoptreniņš" type="checkbox" />
+                          <span>Koptreniņš</span>
+                        </label>
+                      </div>
+                      <label id="freeTextRow" hidden>
+                        Pamatdaļas uzdevums
+                        <textarea id="customFreeText" rows="3"></textarea>
+                      </label>
+                      <label id="customNameRow" hidden>
+                        Nosaukums
+                        <input id="customName" type="text" placeholder="Fartleks, Progresīvais, u.c." />
+                      </label>
+                    </div>
+                    <div id="cooldownSection">
+                      <p class="section-label">Atsildīšanās</p>
+                      <label class="checkbox-row" id="cooldownToggleRow" hidden>
+                        <input id="includeCooldown" type="checkbox" />
+                        <span>Atsildīšanās</span>
+                      </label>
+                      <div class="field-grid" id="cooldownFields">
+                        <label>Ilgums/garums <input id="cooldownDuration" type="text" /></label>
+                        <label>Pulss <input id="cooldownPulse" type="text" /></label>
+                      </div>
+                      <label id="cooldownAdditionalRow" hidden>
+                        Papildus uzdevums
+                        <input id="cooldownAdditional" type="text" />
+                      </label>
+                    </div>
+                    <div class="preview-compact">
+                      <p class="preview-label">Treniņa priekšskatījums</p>
+                      <div class="generated-preview" id="customPreview"></div>
+                      <label class="checkbox-row" id="templateForAthleteRow">
+                        <input id="templateForAthlete" type="checkbox" />
+                        <span>Tikai šim sportistam</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
-                <button id="saveTemplateOnlyBtn" class="primary-action" type="button">Saglabāt sagatavēs</button>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <button id="saveTemplateOnlyBtn" class="primary-action" type="button">Saglabāt sagatavēs</button>
+                  <button id="updateTemplateBtn" class="primary-action" type="button" hidden>Saglabāt izmaiņas sagatavē</button>
+                </div>
                 </form>
               </div>
             </div>
@@ -400,115 +415,7 @@
       </form>
     </dialog>
 
-    <dialog class="session-dialog edit-dialog" id="editTemplateDialog">
-      <form method="dialog">
-        <div class="dialog-header">
-          <h2>Rediģēt sagatavi</h2>
-          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
-        </div>
 
-        <label>Nosaukums <input id="editTrainingName" /></label>
-
-        <label>
-          Treniņa tips
-            <select id="editTrainingType" disabled>
-              <option value="Atjaunojošais/lēnais skrējiens">Atjaunojošais/lēnais skrējiens</option>
-              <option value="Garais skrējiens">Garais skrējiens</option>
-              <option value="Intervāli (vienāda garuma/ilguma)">Intervāli (vienāda garuma/ilguma)</option>
-              <option value="Intervāli (dažāda garuma/ilguma)">Intervāli (dažāda garuma/ilguma)</option>
-              <option value="Tempa skrējiens">Tempa skrējiens</option>
-              <option value="Cita veida skrējiens">Cita veida skrējiens</option>
-              <option value="VFS">VFS</option>
-              <option value="SFS">SFS</option>
-              <option value="Velo">Velo</option>
-          </select>
-        </label>
-
-        <div id="editWarmupSection">
-          <p class="section-label">Iesildīšanās</p>
-          <label class="checkbox-row" id="editWarmupToggleRow" hidden>
-            <input id="editIncludeWarmup" type="checkbox" checked />
-            <span>Iesildīšanās</span>
-          </label>
-          <div class="field-grid" id="editWarmupFields">
-            <label>Ilgums/garums <input id="editWarmupDuration" type="text" value="15 min" /></label>
-            <label>Pulss <input id="editWarmupPulse" type="text" value="130-145" /></label>
-          </div>
-        </div>
-
-        <div id="editDrillsRow">
-          <label class="checkbox-row">
-            <input id="editIncludeDrills" type="checkbox" checked />
-            <span>Drills</span>
-          </label>
-        </div>
-
-        <div id="editIntervalFields">
-          <p class="section-label">Pamatdaļa</p>
-          <div class="field-grid">
-            <label>Ilgums/garums <input id="editIntervalLength" type="text" value="600 m" /></label>
-            <label>Reizes <input id="editRepeatCount" type="text" value="6" /></label>
-          </div>
-          <div class="field-grid">
-            <label>Temps <input id="editIntervalPace" type="text" value="3:45/km" /></label>
-            <label>Atpūta <input id="editRestDuration" type="text" value="2 min" /></label>
-          </div>
-        </div>
-
-        <div id="editVarIntervalFields" hidden>
-          <p class="section-label">Pamatdaļa</p>
-          <div id="editVarSegmentList"></div>
-          <button id="editVarAddSegment" class="secondary-action" type="button" style="width:100%;margin-bottom:6px">+ Pievienot segmentu</button>
-          <div class="field-grid">
-            <label>Apļi <input id="editVarLaps" type="text" /></label>
-            <label>Atpūta starp blokiem <input id="editVarRestBetweenLaps" type="text" /></label>
-          </div>
-        </div>
-
-        <div id="editMainFields" hidden>
-          <p class="section-label" id="editMainSectionLabel">Pamatdaļa</p>
-          <div class="field-grid">
-            <label id="editMainDurationLabel">Ilgums/garums <input id="editMainDuration" type="text" value="45 min" /></label>
-            <label id="editMainPulseLabel">Pulss <input id="editMainPulse" type="text" value="145-155" /></label>
-            <label id="editMainPaceLabel">Temps <input id="editTempoPace" type="text" /></label>
-          </div>
-        </div>
-
-        <label class="checkbox-row" id="editKoptreniņšRow" hidden>
-          <input id="editIncludeKoptreniņš" type="checkbox" />
-          <span>Koptreniņš</span>
-        </label>
-
-        <label id="editFreeTextRow" hidden>
-          Pamatdaļas apraksts
-          <textarea id="editFreeText" rows="3"></textarea>
-        </label>
-
-        <label id="editCustomNameRow" hidden>
-          Nosaukums kalendārā
-          <input id="editCustomName" type="text" placeholder="Fartleks, Progresīvais, u.c." />
-        </label>
-
-        <div id="editCooldownSection">
-          <p class="section-label">Atsildīšanās</p>
-          <label class="checkbox-row" id="editCooldownToggleRow" hidden>
-            <input id="editIncludeCooldown" type="checkbox" checked />
-            <span>Atsildīšanās</span>
-          </label>
-          <div class="field-grid" id="editCooldownFields">
-            <label>Ilgums/garums <input id="editCooldownDuration" type="text" value="15 min" /></label>
-            <label>Pulss <input id="editCooldownPulse" type="text" value="120-135" /></label>
-          </div>
-        </div>
-
-        <div class="generated-preview" id="editTrainingPreview"></div>
-
-        <div class="dialog-actions split-actions">
-          <button value="cancel" type="submit">Atcelt</button>
-          <button class="primary-action" id="saveEditTemplateBtn" value="default" type="button">Saglabāt izmaiņas</button>
-        </div>
-      </form>
-    </dialog>
 
     <dialog class="session-dialog edit-dialog" id="editPlanDialog">
       <form method="dialog">
@@ -530,6 +437,14 @@
             <option value="SFS">SFS</option>
             <option value="Velo">Velo</option>
           </select>
+          <span class="icon-picker" id="epIconPicker" hidden>
+            <button type="button" class="icon-btn" data-icon="🐢" title="Lēnais">🐢</button>
+            <button type="button" class="icon-btn" data-icon="⌛" title="Garais">⌛</button>
+            <button type="button" class="icon-btn" data-icon="⚡" title="Intervāli">⚡</button>
+            <button type="button" class="icon-btn" data-icon="📈" title="Tempa">📈</button>
+            <button type="button" class="icon-btn" data-icon="💪" title="VFS/SFS">💪</button>
+            <button type="button" class="icon-btn" data-icon="🚴" title="Velo">🚴</button>
+          </span>
         </label>
 
         <div id="epWarmupSection">
@@ -542,6 +457,10 @@
             <label>Ilgums/garums <input id="epWarmupDuration" type="text" value="15 min" /></label>
             <label>Pulss <input id="epWarmupPulse" type="text" value="130-145" /></label>
           </div>
+          <label id="epWarmupAdditionalRow" hidden>
+            Papildus uzdevums
+            <input id="epWarmupAdditional" type="text" />
+          </label>
         </div>
 
         <div id="epDrillsRow">
@@ -588,12 +507,12 @@
         </label>
 
         <label id="epFreeTextRow" hidden>
-          Pamatdaļas apraksts
+          Pamatdaļas uzdevums
           <textarea id="epFreeText" rows="3"></textarea>
         </label>
 
         <label id="epCustomNameRow" hidden>
-          Nosaukums kalendārā
+          Nosaukums
           <input id="epCustomName" type="text" placeholder="Fartleks, Progresīvais, u.c." />
         </label>
 
@@ -607,6 +526,10 @@
             <label>Ilgums/garums <input id="epCooldownDuration" type="text" value="15 min" /></label>
             <label>Pulss <input id="epCooldownPulse" type="text" value="120-135" /></label>
           </div>
+          <label id="epCooldownAdditionalRow" hidden>
+            Papildus uzdevums
+            <input id="epCooldownAdditional" type="text" />
+          </label>
         </div>
 
         <p class="preview-label">Treniņa priekšskatījums</p>

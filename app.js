@@ -281,13 +281,11 @@ const cooldownDuration = document.getElementById("cooldownDuration");
 const cooldownPulse = document.getElementById("cooldownPulse");
 const cooldownFields = document.getElementById("cooldownFields");
 const cooldownToggleRow = document.getElementById("cooldownToggleRow");
-const customBuilder = document.getElementById("customBuilder");
 const customFreeText = document.getElementById("customFreeText");
 const customPreview = document.getElementById("customPreview");
 const customType = document.getElementById("customType");
 const drillsRow = document.getElementById("drillsRow");
 const editPlanDialog = document.getElementById("editPlanDialog");
-const editTemplateDialog = document.getElementById("editTemplateDialog");
 const freeTextRow = document.getElementById("freeTextRow");
 const includeCooldown = document.getElementById("includeCooldown");
 const includeDrills = document.getElementById("includeDrills");
@@ -298,6 +296,7 @@ const intervalPace = document.getElementById("intervalPace");
 const mainDuration = document.getElementById("mainDuration");
 const mainFields = document.getElementById("mainFields");
 const mainPulse = document.getElementById("mainPulse");
+const tempoPace = document.getElementById("tempoPace");
 const profileCard = document.getElementById("profileCard");
 const urlEditState = { garmin: false, strava: false, spreadsheet: false };
 profileCard.addEventListener("click", (e) => {
@@ -322,6 +321,8 @@ const trainingBar = document.getElementById("trainingBar");
 const warmupDuration = document.getElementById("warmupDuration");
 const warmupFields = document.getElementById("warmupFields");
 const warmupPulse = document.getElementById("warmupPulse");
+const warmupAdditional = document.getElementById("warmupAdditional");
+const cooldownAdditional = document.getElementById("cooldownAdditional");
 const warmupToggleRow = document.getElementById("warmupToggleRow");
 const weekLabel = document.getElementById("weekLabel");
 const weekPrev = document.getElementById("weekPrev");
@@ -391,14 +392,16 @@ function parseTimeToSec(timeStr) {
   return 0;
 }
 
-function formatPart(label, duration, pulse, pace) {
+function formatPart(label, duration, pulse, pace, additional) {
   const dur = duration.trim();
   if (!dur) return "";
   const pulseStr = pulse.trim();
   const paceStr = pace ? pace.trim() : "";
+  const additionalStr = additional ? additional.trim() : "";
   let result = `${label}: ${dur}`;
   if (pulseStr) result += `; ${pulseStr}`;
   if (paceStr) result += `; ${paceStr}`;
+  if (additionalStr) result += `; ${additionalStr}`;
   return result;
 }
 
@@ -410,15 +413,16 @@ function getGeneratedTraining() {
   const type = customType.value;
 
   if (type === OTHER_RUN_TYPE) {
-    const warmup = formatPart("Iesildīšanās", warmupDuration.value, warmupPulse.value);
+    const warmup = formatPart("Iesildīšanās", warmupDuration.value, warmupPulse.value, null, warmupAdditional.value);
     const drills = getDrillsPart();
-    const cooldown = formatPart("Atsildīšanās", cooldownDuration.value, cooldownPulse.value);
+    const cooldown = formatPart("Atsildīšanās", cooldownDuration.value, cooldownPulse.value, null, cooldownAdditional.value);
     const lines = [warmup, drills].filter(Boolean);
     const mainText = customFreeText.value.trim();
     if (mainText) lines.push(`Pamatdaļa: ${mainText}`);
     if (cooldown) lines.push(cooldown);
     const title = customName.value.trim() || OTHER_RUN_TYPE;
-    return { title, details: lines.join("\n") };
+    const customIcon = getSelectedIcon("customIconPicker");
+    return { title, details: lines.join("\n"), custom_icon: customIcon };
   }
 
   const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
@@ -426,12 +430,12 @@ function getGeneratedTraining() {
   const isVelo = type === "Velo";
 
   const warmup = isEasyOrLong
-    ? (includeWarmup.checked ? formatPart("Iesildīšanās", warmupDuration.value, warmupPulse.value) : "")
-    : (isSimple || isVelo) ? "" : formatPart("Iesildīšanās", warmupDuration.value, warmupPulse.value);
+    ? (includeWarmup.checked ? formatPart("Iesildīšanās", warmupDuration.value, warmupPulse.value, null, warmupAdditional.value) : "")
+    : (isSimple || isVelo) ? "" : formatPart("Iesildīšanās", warmupDuration.value, warmupPulse.value, null, warmupAdditional.value);
   const drills = (isEasyOrLong || isSimple || isVelo) ? "" : getDrillsPart();
   const cooldown = isEasyOrLong
-    ? (includeCooldown.checked ? formatPart("Atsildīšanās", cooldownDuration.value, cooldownPulse.value) : "")
-    : (isSimple || isVelo) ? "" : formatPart("Atsildīšanās", cooldownDuration.value, cooldownPulse.value);
+    ? (includeCooldown.checked ? formatPart("Atsildīšanās", cooldownDuration.value, cooldownPulse.value, null, cooldownAdditional.value) : "")
+    : (isSimple || isVelo) ? "" : formatPart("Atsildīšanās", cooldownDuration.value, cooldownPulse.value, null, cooldownAdditional.value);
   const lines = [warmup, drills].filter(Boolean);
 
   if (type === VAR_INTERVAL_TYPE) {
@@ -453,7 +457,7 @@ function getGeneratedTraining() {
     if (isSimple) {
       main = mainDuration.value.trim() ? `${mainLabel}: ${mainDuration.value.trim()}` : "";
     } else if (isVelo) {
-      main = formatPart(mainLabel, mainDuration.value, mainPulse.value, tempoPace.value);
+      main = formatPart(mainLabel, mainDuration.value, mainPulse.value);
     } else {
       main = formatPart(mainLabel, mainDuration.value, mainPulse.value, tempoPace.value);
     }
@@ -467,90 +471,6 @@ function getGeneratedTraining() {
   return { title, details: lines.join("\n") };
 }
 
-function getEditTraining() {
-  const type = document.getElementById("editTrainingType").value;
-
-  if (type === OTHER_RUN_TYPE) {
-    const warmup = formatPart("Iesildīšanās",
-      document.getElementById("editWarmupDuration"), document.getElementById("editWarmupPulse"));
-    const drills = document.getElementById("editIncludeDrills").checked ? "Drill" : "";
-    const cooldown = formatPart("Atsildīšanās",
-      document.getElementById("editCooldownDuration"), document.getElementById("editCooldownPulse"));
-    const lines = [warmup, drills].filter(Boolean);
-    const mainText = document.getElementById("editFreeText").value.trim();
-    if (mainText) lines.push(`Pamatdaļa: ${mainText}`);
-    if (cooldown) lines.push(cooldown);
-    const title = document.getElementById("editCustomName").value.trim() || OTHER_RUN_TYPE;
-    return { title, details: lines.join("\n") };
-  }
-
-  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
-  const isSimple = type === "VFS" || type === "SFS";
-  const isVelo = type === "Velo";
-
-  const includeWarmup = document.getElementById("editIncludeWarmup");
-  const includeCooldown = document.getElementById("editIncludeCooldown");
-  const warmupPulse = document.getElementById("editWarmupPulse");
-  const cooldownPulse = document.getElementById("editCooldownPulse");
-  const warmupDuration = document.getElementById("editWarmupDuration");
-  const cooldownDuration = document.getElementById("editCooldownDuration");
-
-  function formatPart(label, duration, pulse, pace) {
-    const dur = duration.value.trim();
-    if (!dur) return "";
-    const pulseStr = pulse.value.trim();
-    const paceStr = pace ? pace.value.trim() : "";
-    let result = `${label}: ${dur}`;
-    if (pulseStr) result += `; ${pulseStr}`;
-    if (paceStr) result += `; ${paceStr}`;
-    return result;
-  }
-
-  const warmup = isEasyOrLong
-    ? (includeWarmup.checked ? formatPart("Iesildīšanās", warmupDuration, warmupPulse) : "")
-    : (isSimple || isVelo) ? "" : formatPart("Iesildīšanās", warmupDuration, warmupPulse);
-  const drills = (isEasyOrLong || isSimple || isVelo) ? "" : (document.getElementById("editIncludeDrills").checked ? "Drill" : "");
-  const cooldown = isEasyOrLong
-    ? (includeCooldown.checked ? formatPart("Atsildīšanās", cooldownDuration, cooldownPulse) : "")
-    : (isSimple || isVelo) ? "" : formatPart("Atsildīšanās", cooldownDuration, cooldownPulse);
-  const lines = [warmup, drills].filter(Boolean);
-
-  if (type === VAR_INTERVAL_TYPE) {
-    const main = buildVarIntervalMain(
-      document.getElementById("editVarSegmentList"),
-      document.getElementById("editVarLaps"),
-      document.getElementById("editVarRestBetweenLaps")
-    );
-    if (main) lines.push(main);
-  } else if (isIntervalType(type)) {
-    const count = document.getElementById("editRepeatCount").value.trim();
-    const len = document.getElementById("editIntervalLength").value.trim();
-    const pace = document.getElementById("editIntervalPace").value.trim();
-    const rest = document.getElementById("editRestDuration").value.trim();
-    let main = "Pamatdaļa: ";
-    if (count && len) main += `${count}x${len}`;
-    if (pace) main += ` (${pace.trim()})`;
-    if (rest) main += `; caur ${rest}`;
-    lines.push(main);
-  } else {
-    const mainLabel = isVelo ? "Velo" : "Pamatdaļa";
-    const mainDuration = document.getElementById("editMainDuration");
-    const mainPulse = document.getElementById("editMainPulse");
-    const mainPace = document.getElementById("editTempoPace");
-    const main = isSimple
-      ? (mainDuration.value.trim() ? `${mainLabel}: ${mainDuration.value.trim()}` : "")
-      : isVelo ? formatPart(mainLabel, mainDuration, mainPulse, mainPace)
-      : formatPart(mainLabel, mainDuration, mainPulse, mainPace);
-    if (main) lines.push(main);
-  }
-
-  if (cooldown) lines.push(cooldown);
-
-  const koptreniņš = isSimple && document.getElementById("editIncludeKoptreniņš")?.checked;
-  const title = koptreniņš ? `${type} Koptreniņš` : type;
-  return { title, details: lines.join("\n") };
-}
-
 function getEditPlanTraining() {
   const type = document.getElementById("epType").value;
 
@@ -558,26 +478,29 @@ function getEditPlanTraining() {
     const getVal = id => document.getElementById(id).value.trim();
     const getBool = id => document.getElementById(id).checked;
 
-    function epFormatPart(label, durId, pulseId, paceId) {
+    function epFormatPart(label, durId, pulseId, paceId, additionalId) {
       const dur = getVal(durId);
       if (!dur) return "";
       const pulseStr = getVal(pulseId);
       const paceStr = paceId ? getVal(paceId) : "";
+      const additionalStr = additionalId ? getVal(additionalId) : "";
       let result = `${label}: ${dur}`;
       if (pulseStr) result += `; ${pulseStr}`;
       if (paceStr) result += `; ${paceStr}`;
+      if (additionalStr) result += `; ${additionalStr}`;
       return result;
     }
 
-    const warmup = epFormatPart("Iesildīšanās", "epWarmupDuration", "epWarmupPulse");
+    const warmup = epFormatPart("Iesildīšanās", "epWarmupDuration", "epWarmupPulse", null, "epWarmupAdditional");
     const drills = getBool("epIncludeDrills") ? "Drill" : "";
-    const cooldown = epFormatPart("Atsildīšanās", "epCooldownDuration", "epCooldownPulse");
+    const cooldown = epFormatPart("Atsildīšanās", "epCooldownDuration", "epCooldownPulse", null, "epCooldownAdditional");
     const lines = [warmup, drills].filter(Boolean);
     const mainText = getVal("epFreeText");
     if (mainText) lines.push(`Pamatdaļa: ${mainText}`);
     if (cooldown) lines.push(cooldown);
     const title = getVal("epCustomName") || OTHER_RUN_TYPE;
-    return { title, details: lines.join("\n") };
+    const customIcon = getSelectedIcon("epIconPicker");
+    return { title, details: lines.join("\n"), custom_icon: customIcon };
   }
 
   const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
@@ -587,24 +510,26 @@ function getEditPlanTraining() {
   const getVal = id => document.getElementById(id).value.trim();
   const getBool = id => document.getElementById(id).checked;
 
-  function epFormatPart(label, durId, pulseId, paceId) {
+  function epFormatPart(label, durId, pulseId, paceId, additionalId) {
     const dur = getVal(durId);
     if (!dur) return "";
     const pulseStr = getVal(pulseId);
     const paceStr = paceId ? getVal(paceId) : "";
+    const additionalStr = additionalId ? getVal(additionalId) : "";
     let result = `${label}: ${dur}`;
     if (pulseStr) result += `; ${pulseStr}`;
     if (paceStr) result += `; ${paceStr}`;
+    if (additionalStr) result += `; ${additionalStr}`;
     return result;
   }
 
   const warmup = isEasyOrLong
-    ? (getBool("epIncludeWarmup") ? epFormatPart("Iesildīšanās", "epWarmupDuration", "epWarmupPulse") : "")
-    : (isSimple || isVelo) ? "" : epFormatPart("Iesildīšanās", "epWarmupDuration", "epWarmupPulse");
+    ? (getBool("epIncludeWarmup") ? epFormatPart("Iesildīšanās", "epWarmupDuration", "epWarmupPulse", null, "epWarmupAdditional") : "")
+    : (isSimple || isVelo) ? "" : epFormatPart("Iesildīšanās", "epWarmupDuration", "epWarmupPulse", null, "epWarmupAdditional");
   const drills = (isEasyOrLong || isSimple || isVelo) ? "" : (getBool("epIncludeDrills") ? "Drill" : "");
   const cooldown = isEasyOrLong
-    ? (getBool("epIncludeCooldown") ? epFormatPart("Atsildīšanās", "epCooldownDuration", "epCooldownPulse") : "")
-    : (isSimple || isVelo) ? "" : epFormatPart("Atsildīšanās", "epCooldownDuration", "epCooldownPulse");
+    ? (getBool("epIncludeCooldown") ? epFormatPart("Atsildīšanās", "epCooldownDuration", "epCooldownPulse", null, "epCooldownAdditional") : "")
+    : (isSimple || isVelo) ? "" : epFormatPart("Atsildīšanās", "epCooldownDuration", "epCooldownPulse", null, "epCooldownAdditional");
   const lines = [warmup, drills].filter(Boolean);
 
   if (type === VAR_INTERVAL_TYPE) {
@@ -630,7 +555,7 @@ function getEditPlanTraining() {
     if (isSimple) {
       main = getVal("epMainDuration") ? `${mainLabel}: ${getVal("epMainDuration")}` : "";
     } else if (isVelo) {
-      main = epFormatPart(mainLabel, "epMainDuration", "epMainPulse", "epTempoPace");
+      main = epFormatPart(mainLabel, "epMainDuration", "epMainPulse");
     } else {
       main = epFormatPart(mainLabel, "epMainDuration", "epMainPulse", "epTempoPace");
     }
@@ -1172,12 +1097,21 @@ function renderCustomBuilder() {
     document.getElementById("cooldownSection").hidden = true;
     warmupFields.hidden = true;
     cooldownFields.hidden = true;
-    const tpr = document.getElementById("tempoPaceRow");
-    if (tpr) tpr.hidden = true;
+    document.getElementById("warmupAdditionalRow").hidden = true;
+    document.getElementById("cooldownAdditionalRow").hidden = true;
     const ktr = document.getElementById("koptreniņšRow");
     if (ktr) ktr.hidden = true;
+    document.getElementById("customIconPicker").hidden = true;
+    setSelectedIcon("customIconPicker", "");
+    document.querySelector(".preview-compact").hidden = true;
+    document.querySelector(".main-content-column").hidden = true;
+    document.getElementById("saveTemplateOnlyBtn").hidden = true;
+    document.getElementById("updateTemplateBtn").hidden = true;
     return;
   }
+  document.querySelector(".preview-compact").hidden = false;
+  document.querySelector(".main-content-column").hidden = false;
+  document.getElementById("saveTemplateOnlyBtn").hidden = false;
   const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
   const isSimple = type === "VFS" || type === "SFS";
   const isVelo = type === "Velo";
@@ -1190,6 +1124,8 @@ function renderCustomBuilder() {
   varIntervalFields.hidden = !isVarInterval;
   mainFields.hidden = isInterval || isOtherRun;
   freeTextRow.hidden = !isOtherRun;
+  document.getElementById("customIconPicker").hidden = !isOtherRun;
+  if (!isOtherRun) setSelectedIcon("customIconPicker", "");
   drillsRow.hidden = isEasyOrLong || isSimple || isVelo;
 
   const koptreniņšRow = document.getElementById("koptreniņšRow");
@@ -1212,24 +1148,37 @@ function renderCustomBuilder() {
     document.getElementById("cooldownSection").hidden = false;
     warmupFields.hidden = !includeWarmup.checked;
     cooldownFields.hidden = !includeCooldown.checked;
+    document.getElementById("warmupAdditionalRow").hidden = !includeWarmup.checked;
+    document.getElementById("cooldownAdditionalRow").hidden = !includeCooldown.checked;
   } else if (isSimple || isVelo) {
     document.getElementById("warmupSection").hidden = true;
     document.getElementById("cooldownSection").hidden = true;
     warmupFields.hidden = true;
     cooldownFields.hidden = true;
+    document.getElementById("warmupAdditionalRow").hidden = true;
+    document.getElementById("cooldownAdditionalRow").hidden = true;
   } else {
     document.getElementById("warmupSection").hidden = false;
     document.getElementById("cooldownSection").hidden = false;
     warmupFields.hidden = false;
     cooldownFields.hidden = false;
+    document.getElementById("warmupAdditionalRow").hidden = false;
+    document.getElementById("cooldownAdditionalRow").hidden = false;
   }
 
   const mainPulseLabel = document.getElementById("mainPulseLabel");
+  const mainPaceLabel = document.getElementById("mainPaceLabel");
 
   if (isSimple) {
     if (mainPulseLabel) mainPulseLabel.hidden = true;
   } else {
     if (mainPulseLabel) mainPulseLabel.hidden = false;
+  }
+
+  if (isSimple || isVelo) {
+    if (mainPaceLabel) mainPaceLabel.hidden = true;
+  } else {
+    if (mainPaceLabel) mainPaceLabel.hidden = false;
   }
 
   const mainSectionLabel = document.getElementById("mainSectionLabel");
@@ -1238,78 +1187,6 @@ function renderCustomBuilder() {
   } else if (mainSectionLabel) {
     mainSectionLabel.textContent = "Pamatdaļa";
   }
-}
-
-function renderEditCustomBuilder() {
-  const type = document.getElementById("editTrainingType").value;
-  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
-  const isSimple = type === "VFS" || type === "SFS";
-  const isVelo = type === "Velo";
-  const isOtherRun = type === OTHER_RUN_TYPE;
-  const isSameInterval = type === SAME_INTERVAL_TYPE || type === "Intervāli";
-  const isVarInterval = type === VAR_INTERVAL_TYPE;
-  const isInterval = isSameInterval || isVarInterval;
-
-  document.getElementById("editIntervalFields").hidden = !isSameInterval;
-  document.getElementById("editVarIntervalFields").hidden = !isVarInterval;
-  document.getElementById("editMainFields").hidden = isInterval || isOtherRun;
-  document.getElementById("editFreeTextRow").hidden = !isOtherRun;
-  document.getElementById("editDrillsRow").hidden = isEasyOrLong || isSimple || isVelo;
-
-  const editKoptreniņšRow = document.getElementById("editKoptreniņšRow");
-  if (editKoptreniņšRow) editKoptreniņšRow.hidden = !isSimple;
-
-  if (isVarInterval) {
-    if (!document.getElementById("editVarSegmentList").children.length) addVarSegmentRow(document.getElementById("editVarSegmentList"));
-    syncVarLapsState(document.getElementById("editVarSegmentList"), document.getElementById("editVarLaps"));
-  } else {
-    clearVarSegments(document.getElementById("editVarSegmentList"));
-  }
-
-  document.getElementById("editCustomNameRow").hidden = !isOtherRun;
-
-  document.getElementById("editWarmupToggleRow").hidden = !isEasyOrLong;
-  document.getElementById("editCooldownToggleRow").hidden = !isEasyOrLong;
-
-  if (isEasyOrLong) {
-    document.getElementById("editWarmupSection").hidden = false;
-    document.getElementById("editCooldownSection").hidden = false;
-    document.getElementById("editWarmupFields").hidden = !document.getElementById("editIncludeWarmup").checked;
-    document.getElementById("editCooldownFields").hidden = !document.getElementById("editIncludeCooldown").checked;
-  } else if (isSimple || isVelo) {
-    document.getElementById("editWarmupSection").hidden = true;
-    document.getElementById("editCooldownSection").hidden = true;
-    document.getElementById("editWarmupFields").hidden = true;
-    document.getElementById("editCooldownFields").hidden = true;
-  } else {
-    document.getElementById("editWarmupSection").hidden = false;
-    document.getElementById("editCooldownSection").hidden = false;
-    document.getElementById("editWarmupFields").hidden = false;
-    document.getElementById("editCooldownFields").hidden = false;
-  }
-
-  const mainPulseLabel = document.getElementById("editMainPulseLabel");
-
-  if (isSimple) {
-    if (mainPulseLabel) mainPulseLabel.hidden = true;
-  } else {
-    if (mainPulseLabel) mainPulseLabel.hidden = false;
-  }
-
-  const mainSectionLabel = document.getElementById("editMainSectionLabel");
-  if (isVelo && mainSectionLabel) {
-    mainSectionLabel.textContent = "Velo";
-  } else if (mainSectionLabel) {
-    mainSectionLabel.textContent = "Pamatdaļa";
-  }
-
-  renderEditTrainingPreview();
-}
-
-function renderEditTrainingPreview() {
-  const training = getEditTraining();
-  const preview = document.getElementById("editTrainingPreview");
-  preview.innerHTML = `<strong>${displayTitle(training.title)}</strong><span>${formatDetailsForCard(training.details).replace(/\n/g, "<br>")}</span>`;
 }
 
 function renderEditPlanBuilder() {
@@ -1326,6 +1203,8 @@ function renderEditPlanBuilder() {
   document.getElementById("epVarIntervalFields").hidden = !isVarInterval;
   document.getElementById("epMainFields").hidden = isInterval || isOtherRun;
   document.getElementById("epFreeTextRow").hidden = !isOtherRun;
+  document.getElementById("epIconPicker").hidden = !isOtherRun;
+  if (!isOtherRun) setSelectedIcon("epIconPicker", "");
   document.getElementById("epDrillsRow").hidden = isEasyOrLong || isSimple || isVelo;
 
   const epKoptreniņšRow = document.getElementById("epKoptreniņšRow");
@@ -1348,16 +1227,22 @@ function renderEditPlanBuilder() {
     document.getElementById("epCooldownSection").hidden = false;
     document.getElementById("epWarmupFields").hidden = !document.getElementById("epIncludeWarmup").checked;
     document.getElementById("epCooldownFields").hidden = !document.getElementById("epIncludeCooldown").checked;
+    document.getElementById("epWarmupAdditionalRow").hidden = !document.getElementById("epIncludeWarmup").checked;
+    document.getElementById("epCooldownAdditionalRow").hidden = !document.getElementById("epIncludeCooldown").checked;
   } else if (isSimple || isVelo) {
     document.getElementById("epWarmupSection").hidden = true;
     document.getElementById("epCooldownSection").hidden = true;
     document.getElementById("epWarmupFields").hidden = true;
     document.getElementById("epCooldownFields").hidden = true;
+    document.getElementById("epWarmupAdditionalRow").hidden = true;
+    document.getElementById("epCooldownAdditionalRow").hidden = true;
   } else {
     document.getElementById("epWarmupSection").hidden = false;
     document.getElementById("epCooldownSection").hidden = false;
     document.getElementById("epWarmupFields").hidden = false;
     document.getElementById("epCooldownFields").hidden = false;
+    document.getElementById("epWarmupAdditionalRow").hidden = false;
+    document.getElementById("epCooldownAdditionalRow").hidden = false;
   }
 
   const mainPulseLabel = document.getElementById("epMainPulseLabel");
@@ -1405,6 +1290,8 @@ function parsePlanToForm(plan) {
   document.getElementById("epMainPulse").value = "145-155";
   document.getElementById("epTempoPace").value = "4:15/km";
   document.getElementById("epFreeText").value = "";
+  document.getElementById("epWarmupAdditional").value = "";
+  document.getElementById("epCooldownAdditional").value = "";
   document.getElementById("epIncludeWarmup").checked = false;
   document.getElementById("epIncludeCooldown").checked = false;
   document.getElementById("epIncludeDrills").checked = false;
@@ -1415,17 +1302,19 @@ function parsePlanToForm(plan) {
   for (const line of lines) {
     if (line.startsWith("Iesildīšanās:")) {
       document.getElementById("epIncludeWarmup").checked = true;
-      const m = line.match(/: (.+?)(?:; (.+?)(?:sr)?)?$/);
+      const m = line.match(/: (.+?)(?:; (.+?)(?:; (.+))?)?$/);
       if (m) {
         if (m[1]) document.getElementById("epWarmupDuration").value = m[1];
         if (m[2]) document.getElementById("epWarmupPulse").value = m[2];
+        if (m[3]) document.getElementById("epWarmupAdditional").value = m[3];
       }
     } else if (line.startsWith("Atsildīšanās:")) {
       document.getElementById("epIncludeCooldown").checked = true;
-      const m = line.match(/: (.+?)(?:; (.+?)(?:sr)?)?$/);
+      const m = line.match(/: (.+?)(?:; (.+?)(?:; (.+))?)?$/);
       if (m) {
         if (m[1]) document.getElementById("epCooldownDuration").value = m[1];
         if (m[2]) document.getElementById("epCooldownPulse").value = m[2];
+        if (m[3]) document.getElementById("epCooldownAdditional").value = m[3];
       }
     } else if (line === "Drill") {
       document.getElementById("epIncludeDrills").checked = true;
@@ -1475,9 +1364,10 @@ function parsePlanToForm(plan) {
     }
   }
   renderEditPlanBuilder();
+  setSelectedIcon("epIconPicker", plan.custom_icon || "");
 }
 
-function parseTrainingToForm(template) {
+function loadTemplateToForm(template) {
   const name = template.name || "";
   const details = template.details || "";
 
@@ -1490,15 +1380,34 @@ function parseTrainingToForm(template) {
     if (el) el.checked = val;
   }
 
-  document.getElementById("editTrainingName").value = name;
-
   const knownTypes = ["Atjaunojošais/lēnais skrējiens", "Garais skrējiens", "Intervāli", SAME_INTERVAL_TYPE, VAR_INTERVAL_TYPE, "Tempa skrējiens", OTHER_RUN_TYPE, "VFS", "SFS", "Velo", "Cits"];
   const isKnownType = knownTypes.includes(name);
   let type = name;
   if (!isKnownType) type = OTHER_RUN_TYPE;
   if (name === "Intervālu treniņš") type = "Intervāli";
-  setVal("editTrainingType", type);
-  setVal("editCustomName", isKnownType ? "" : name);
+  setVal("customType", type);
+  setVal("customName", isKnownType ? "" : name);
+
+  // Reset form defaults
+  clearVarSegments(varSegmentList);
+  setChecked("includeWarmup", true);
+  setChecked("includeCooldown", true);
+  setChecked("includeDrills", false);
+  setChecked("includeKoptreniņš", false);
+  setVal("warmupDuration", "");
+  setVal("warmupPulse", "");
+  setVal("warmupAdditional", "");
+  setVal("cooldownDuration", "");
+  setVal("cooldownPulse", "");
+  setVal("cooldownAdditional", "");
+  setVal("mainDuration", "");
+  setVal("mainPulse", "");
+  setVal("tempoPace", "");
+  setVal("intervalLength", "");
+  setVal("repeatCount", "");
+  setVal("intervalPace", "");
+  setVal("restDuration", "");
+  setVal("customFreeText", "");
 
   const lines = details.split("\n").map(l => l.trim()).filter(Boolean);
 
@@ -1508,26 +1417,9 @@ function parseTrainingToForm(template) {
     return { label: line.slice(0, colonIdx).trim(), rest: line.slice(colonIdx + 1).trim() };
   }
 
-  // Default values
-  setChecked("editIncludeWarmup", true);
-  setChecked("editIncludeCooldown", true);
-  setChecked("editIncludeDrills", true);
-  setVal("editWarmupDuration", "15 min");
-  setVal("editWarmupPulse", "130-145");
-  setVal("editCooldownDuration", "15 min");
-  setVal("editCooldownPulse", "120-135");
-  setVal("editMainDuration", "45 min");
-  setVal("editMainPulse", "145-155");
-  setVal("editIntervalLength", "600 m");
-  setVal("editRepeatCount", "6");
-  setVal("editIntervalPace", "3:45/km");
-  setVal("editRestDuration", "2 min");
-  setVal("editFreeText", "");
-
   let hasDrills = false;
   let hasWarmup = false;
   let hasCooldown = false;
-  let hasIntervals = false;
 
   for (const line of lines) {
     const parsed = parseLine(line);
@@ -1536,58 +1428,51 @@ function parseTrainingToForm(template) {
 
     if (label === "Iesildīšanās") {
       hasWarmup = true;
-      const durMatch = rest.match(/^(\d+)(?:['′]| min)/);
-      if (durMatch) setVal("editWarmupDuration", durMatch[1] + " min");
-      const pulseMatch = rest.match(/(\d+-\d+)(?:sr)?/);
-      if (pulseMatch) setVal("editWarmupPulse", pulseMatch[1]);
+      const parts = rest.split(";").map(s => s.trim());
+      setVal("warmupDuration", parts[0] || "");
+      if (parts[1]) setVal("warmupPulse", parts[1]);
+      if (parts[2]) setVal("warmupAdditional", parts[2]);
     } else if (label === "Atsildīšanās") {
       hasCooldown = true;
-      const durMatch = rest.match(/^(\d+)(?:['′]| min)/);
-      if (durMatch) setVal("editCooldownDuration", durMatch[1] + " min");
-      const pulseMatch = rest.match(/(\d+-\d+)(?:sr)?/);
-      if (pulseMatch) setVal("editCooldownPulse", pulseMatch[1]);
+      const parts = rest.split(";").map(s => s.trim());
+      setVal("cooldownDuration", parts[0] || "");
+      if (parts[1]) setVal("cooldownPulse", parts[1]);
+      if (parts[2]) setVal("cooldownAdditional", parts[2]);
     } else if (line === "Drill") {
       hasDrills = true;
     } else if (label === "Pamatdaļa" || label === "Velo") {
       if (type === VAR_INTERVAL_TYPE && isVarIntervalLine(line)) {
-        hasIntervals = true;
-        parseVarIntervalMain(
-          line,
-          document.getElementById("editVarSegmentList"),
-          document.getElementById("editVarLaps"),
-          document.getElementById("editVarRestBetweenLaps")
-        );
+        parseVarIntervalMain(line, varSegmentList, varLaps, varRestBetweenLaps);
       } else if (type === OTHER_RUN_TYPE) {
-        setVal("editFreeText", rest);
+        setVal("customFreeText", rest);
       } else {
         const intervalMatch = rest.match(/(\d+)x(\S+)/);
         if (intervalMatch) {
-          hasIntervals = true;
-          setVal("editRepeatCount", intervalMatch[1]);
-          setVal("editIntervalLength", intervalMatch[2]);
+          setVal("repeatCount", intervalMatch[1]);
+          setVal("intervalLength", intervalMatch[2]);
           const paceMatch = rest.match(/\(([^)]+)\)/);
-          if (paceMatch) setVal("editIntervalPace", paceMatch[1].trim());
-          const restMatch = rest.match(/caur\s+(\S+)/);
-          if (restMatch) {
-            setVal("editRestDuration", restMatch[1]);
-          }
+          if (paceMatch) setVal("intervalPace", paceMatch[1].trim());
+          const restMatch = rest.match(/caur\s+(.+)$/);
+          if (restMatch) setVal("restDuration", restMatch[1]);
         } else {
-          const durMatch = rest.match(/^(\d+)(?:['′]| min)/);
-          if (durMatch) setVal("editMainDuration", durMatch[1] + " min");
-          const pulseMatch = rest.match(/(\d+-\d+)(?:sr)?/);
-          if (pulseMatch) setVal("editMainPulse", pulseMatch[1]);
+          const durMatch = rest.match(/^(\d+)\s*(?:['′]|min)/);
+          if (durMatch) setVal("mainDuration", durMatch[1] + " min");
+          const pulseMatch = rest.match(/(\d+-\d+)/);
+          if (pulseMatch) setVal("mainPulse", pulseMatch[1]);
+          const paceMatch = rest.match(/;\s*(\d+:\d+\/\w+)$/);
+          if (paceMatch) setVal("tempoPace", paceMatch[1]);
         }
       }
     }
   }
 
-  setChecked("editIncludeDrills", hasDrills);
-  if (type !== "Atjaunojošais/lēnais skrējiens" && type !== "Garais skrējiens") {
-    setChecked("editIncludeWarmup", hasWarmup);
-    setChecked("editIncludeCooldown", hasCooldown);
-  }
+  setChecked("includeDrills", hasDrills);
+  setChecked("includeWarmup", hasWarmup);
+  setChecked("includeCooldown", hasCooldown);
+  if (name.includes("Koptreniņš")) setChecked("includeKoptreniņš", true);
 
-  renderEditCustomBuilder();
+  renderCustomBuilder();
+  renderCustomPreview();
 }
 
 function todLabel(tod) {
@@ -1653,6 +1538,26 @@ function badgeForTitle(title) {
   return "🎲";
 }
 
+function getSelectedIcon(pickerId) {
+  const sel = document.querySelector(`#${pickerId} .icon-btn.selected`);
+  return sel ? sel.dataset.icon : "";
+}
+
+function setSelectedIcon(pickerId, icon) {
+  document.querySelectorAll(`#${pickerId} .icon-btn`).forEach(btn => {
+    btn.classList.toggle("selected", btn.dataset.icon === icon);
+  });
+}
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".icon-btn");
+  if (!btn) return;
+  const picker = btn.closest(".icon-picker");
+  if (!picker) return;
+  picker.querySelectorAll(".icon-btn").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+});
+
 function renderPlanCard(plan) {
   const isCoach = activeRole === "coach";
   const coachDisabled = !isCoach ? "disabled" : "";
@@ -1708,12 +1613,10 @@ function renderPlanCard(plan) {
       <article class="session-card is-draggable${notCompleted ? " not-completed" : ""}" data-plan-id="${plan.id}">
         <h3>${displayTitle(plan.title)}</h3>
         ${todBadge}
-        <span class="plan-type-badge">${badgeForTitle(plan.title)}</span>
+        <span class="plan-type-badge">${plan.custom_icon || badgeForTitle(plan.title)}</span>
         ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
-        ${hasPamatdala ? `<div class="task-card">${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}</div>` : ""}
+        ${hasPamatdala ? `<div class="task-card">${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}<textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" placeholder="Trenera komentārs...">${plan.coach_comment || ""}</textarea></div>` : `<textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" placeholder="Trenera komentārs...">${plan.coach_comment || ""}</textarea>`}
         ${logBlock}
-        <div class="comment-label">Trenera komentārs</div>
-        <textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach">${plan.coach_comment || ""}</textarea>
         ${notCompleted ? `<div class="not-completed-badge"><span class="not-completed-icon">!</span> Sportists atzīmēja kā neizpildītu</div>${plan.athlete_comment ? `<div class="log-notes not-completed-comment">${plan.athlete_comment}</div>` : ""}` : ""}
         <div class="card-actions"><button class="icon-button" data-edit-plan="${plan.id}" type="button">✏️</button><button class="delete-action" data-delete-plan="${plan.id}" type="button">×</button></div>
       </article>
@@ -1730,10 +1633,9 @@ function renderPlanCard(plan) {
     <article class="session-card${notCompleted ? " not-completed" : ""}" data-plan-id="${plan.id}">
       <h3>${displayTitle(plan.title)}</h3>
       ${todBadge}
-      <span class="plan-type-badge">${badgeForTitle(plan.title)}</span>
+      <span class="plan-type-badge">${plan.custom_icon || badgeForTitle(plan.title)}</span>
       ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
-      ${hasPamatdala ? `<div class="task-card">${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}</div>` : ""}
-      ${plan.coach_comment ? `<div class="comment-label">Trenera komentārs</div><textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" disabled>${plan.coach_comment}</textarea>` : ""}
+      ${hasPamatdala ? `<div class="task-card">${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}${plan.coach_comment ? `<div class="log-notes">${escapeHtml(plan.coach_comment)}</div>` : ""}</div>` : plan.coach_comment ? `<div class="log-notes">${escapeHtml(plan.coach_comment)}</div>` : ""}
       ${!planLog ? `<label class="checkbox-row"><input type="checkbox" data-cb-plan="${plan.id}" ${notCompleted ? "checked" : ""} /> Treniņš nav izpildīts</label>` : ""}
       ${notCompleted ? `<div class="comment-label">Sportista komentārs</div><textarea class="inline-comment not-completed-comment" data-comment-plan="${plan.id}" data-comment-type="athlete">${plan.athlete_comment || ""}</textarea>` : ""}
       ${logBlock}
@@ -3509,7 +3411,7 @@ function renderMonthView() {
         <div class="month-day-cell ${isOtherMonth ? "other-month" : ""}${isToday ? " today" : ""}${fullyRestricted ? " restricted-day" : ""}" data-date="${dateStr}">
           <div class="month-day-num">
             ${d.getDate()}.
-            ${dayPlans.map(p => `<span class="month-type-badge">${badgeForTitle(p.title)}</span>`).join("")}
+            ${dayPlans.map(p => `<span class="month-type-badge">${p.custom_icon || badgeForTitle(p.title)}</span>`).join("")}
           </div>
           ${fullyRestricted ? `<div class="month-restriction-text" role="button" tabindex="0">🚫 ${escapeHtml(dayRestrictionReason)}</div>` : ""}
           ${dayHealth ? `<div class="month-health-text" role="button" tabindex="0">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
@@ -3591,7 +3493,7 @@ function renderMonthViewInline() {
         <div class="month-day-cell ${isOtherMonth ? "other-month" : ""}${isToday ? " today" : ""}${fullyRestricted ? " restricted-day" : ""}" data-date="${dateStr}">
           <div class="month-day-num">
             ${d.getDate()}.
-            ${dayPlans.map(p => `<span class="month-type-badge">${badgeForTitle(p.title)}</span>`).join("")}
+            ${dayPlans.map(p => `<span class="month-type-badge">${p.custom_icon || badgeForTitle(p.title)}</span>`).join("")}
           </div>
           ${fullyRestricted ? `<div class="month-restriction-text" role="button" tabindex="0">🚫 ${escapeHtml(dayRestrictionReason)}</div>` : ""}
           ${dayHealth ? `<div class="month-health-text" role="button" tabindex="0">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
@@ -3643,6 +3545,7 @@ function render() {
   renderAthleteDropdown();
   renderTemplates();
   renderSourcePicker();
+  document.getElementById("updateTemplateBtn").hidden = !selectedTemplateId;
   renderViewTabs();
   if (hasAthletes) {
     renderStats();
@@ -4347,6 +4250,8 @@ document.querySelectorAll(".template-dropdown-list").forEach(list => {
     dropdown.querySelectorAll(".template-dropdown-item").forEach(i => i.classList.remove("selected"));
     item.classList.add("selected");
 
+    const t = templates.find(t => t.id === templateId);
+    if (t) loadTemplateToForm(t);
     render();
   });
 });
@@ -4357,18 +4262,6 @@ document.addEventListener("click", () => {
 
 // Edit/Delete template buttons (delegated)
 document.addEventListener("click", async (event) => {
-  const editBtn = event.target.closest("[data-edit-template]");
-  if (editBtn) {
-    event.stopPropagation();
-    const id = editBtn.dataset.editTemplate;
-    const t = templates.find((t) => t.id === id);
-    if (t) {
-      editTemplateDialog.dataset.editId = id;
-      parseTrainingToForm(t);
-      editTemplateDialog.showModal();
-    }
-    return;
-  }
   const deleteBtn = event.target.closest("[data-delete-template]");
   if (deleteBtn) {
     event.stopPropagation();
@@ -4385,6 +4278,24 @@ document.addEventListener("click", async (event) => {
     }
     return;
   }
+
+  const updateBtn = event.target.closest("#updateTemplateBtn");
+  if (updateBtn && selectedTemplateId) {
+    const training = getGeneratedTraining();
+    const name = document.getElementById("customName").value.trim() || training.title;
+    const details = training.details;
+    if (!name) return;
+    try {
+      const updated = await updateTemplate(selectedTemplateId, { name, details });
+      const idx = templates.findIndex((t) => t.id === selectedTemplateId);
+      if (idx !== -1) templates[idx] = updated;
+      selectedTemplateId = updated.id;
+      render();
+    } catch (e) {
+      console.error(e);
+    }
+    return;
+  }
 });
 
 varSegmentList.addEventListener("input", () => {
@@ -4394,10 +4305,6 @@ varSegmentList.addEventListener("input", () => {
 document.getElementById("varAddSegment")?.addEventListener("click", () => {
   addVarSegmentRow(varSegmentList);
   renderCustomPreview();
-});
-document.getElementById("editVarAddSegment")?.addEventListener("click", () => {
-  addVarSegmentRow(document.getElementById("editVarSegmentList"));
-  renderEditTrainingPreview();
 });
 document.getElementById("epVarAddSegment")?.addEventListener("click", () => {
   addVarSegmentRow(document.getElementById("epVarSegmentList"));
@@ -4412,27 +4319,6 @@ customType.addEventListener("change", () => {
   const t = customType.value;
   includeDrills.checked = t === SAME_INTERVAL_TYPE || t === "Intervāli" || t === VAR_INTERVAL_TYPE || t === "Tempa skrējiens" || t === OTHER_RUN_TYPE;
 });
-
-["editTrainingType", "editWarmupDuration", "editWarmupPulse", "editIncludeWarmup", "editIncludeCooldown", "editIncludeDrills", "editRepeatCount", "editIntervalLength", "editIntervalPace", "editRestDuration", "editMainDuration", "editMainPulse", "editCooldownDuration", "editCooldownPulse", "editIncludeKoptreniņš", "editVarLaps", "editVarRestBetweenLaps", "editCustomName", "editFreeText"].forEach((id) => {
-  const el = document.getElementById(id);
-  if (el) {
-    el.addEventListener("input", renderEditCustomBuilder);
-    el.addEventListener("change", renderEditCustomBuilder);
-  }
-});
-document.getElementById("editTrainingType")?.addEventListener("change", () => {
-  const t = document.getElementById("editTrainingType").value;
-  document.getElementById("editIncludeDrills").checked = t === SAME_INTERVAL_TYPE || t === "Intervāli" || t === VAR_INTERVAL_TYPE || t === "Tempa skrējiens" || t === OTHER_RUN_TYPE;
-});
-document.getElementById("editVarSegmentList")?.addEventListener("input", () => {
-  renderEditTrainingPreview();
-  syncVarLapsState(document.getElementById("editVarSegmentList"), document.getElementById("editVarLaps"));
-});
-document.getElementById("editFreeText")?.addEventListener("input", renderEditTrainingPreview);
-document.getElementById("editFreeText")?.addEventListener("change", renderEditTrainingPreview);
-document.getElementById("editCustomName")?.addEventListener("input", renderEditTrainingPreview);
-document.getElementById("editCustomName")?.addEventListener("change", renderEditTrainingPreview);
-document.getElementById("editTrainingName")?.addEventListener("input", renderEditTrainingPreview);
 
 calendarGrid.addEventListener("click", async (event) => {
   const dayButton = event.target.closest("[data-day]");
@@ -4701,32 +4587,15 @@ document.getElementById("saveTemplateOnlyBtn")?.addEventListener("click", async 
   }
 });
 
-document.getElementById("saveEditTemplateBtn")?.addEventListener("click", async () => {
-  const id = editTemplateDialog.dataset.editId;
-  if (!id) return;
-  const training = getEditTraining();
-  const nameInput = document.getElementById("editTrainingName").value.trim();
-  const name = nameInput || training.title;
-  const details = training.details;
-  if (!name) return;
-  try {
-    const updated = await updateTemplate(id, { name, details });
-    const idx = templates.findIndex((t) => t.id === id);
-    if (idx !== -1) templates[idx] = updated;
-    editTemplateDialog.close();
-    render();
-  } catch (e) {
-    console.error(e);
-  }
-});
-
 document.getElementById("saveEditPlanBtn")?.addEventListener("click", async () => {
   const id = editPlanDialog.dataset.editId;
   if (!id) return;
   const training = getEditPlanTraining();
   if (!training.title) return;
   try {
-    const updated = await updatePlan(id, { title: training.title, details: training.details });
+    const updates = { title: training.title, details: training.details };
+    if (training.custom_icon) updates.custom_icon = training.custom_icon;
+    const updated = await updatePlan(id, updates);
     const idx = plans.findIndex(p => p.id === id);
     if (idx !== -1) plans[idx] = updated;
     editPlanDialog.close();
@@ -4798,6 +4667,7 @@ async function insertTrainingToDay(dateStr, training, tod = "") {
       athlete_comment: "",
       created_by: currentUser.id,
       time_of_day: tod || null,
+      custom_icon: training.custom_icon || null,
     });
     const restNote = dayNotes.find(n => n.date === dateStr && n.is_rest_day);
     if (restNote) {
