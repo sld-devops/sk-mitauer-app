@@ -219,7 +219,7 @@
                     <div class="dropdown-list template-dropdown-list"></div>
                   </div>
                 </div>
-                <label style="max-width: 480px; margin-bottom: 12px;">Izveidot jaunu treniņu
+                <label class="type-select-label">Izveidot jaunu treniņu
                   <select id="customType">
                     <option value="" selected disabled>Izvēlies treniņa tipu</option>
                     <option value="Atjaunojošais/lēnais skrējiens">Atjaunojošais/lēnais skrējiens</option>
@@ -352,8 +352,12 @@
           <div id="weekView">
             <div class="toolbar">
               <div>
-                <p class="eyebrow">Nedēļas plāns</p>
                 <h2 id="weekLabel"></h2>
+                <div class="week-block-type-select" id="weekBlockTypeSelect">
+                  <label class="wbt-option wbt-load"><input type="radio" name="weekBlockType" value="load"> Slodzes</label>
+                  <label class="wbt-option wbt-competition"><input type="radio" name="weekBlockType" value="competition"> Sacensību</label>
+                  <label class="wbt-option wbt-rest"><input type="radio" name="weekBlockType" value="rest"> Atpūtas</label>
+                </div>
               </div>
               <div id="activeAthleteName"></div>
               <div class="week-nav">
@@ -371,7 +375,6 @@
           <div id="monthView" hidden>
             <div class="toolbar">
               <div>
-                <p class="eyebrow">Mēneša plāns</p>
                 <h2 id="monthViewTitleInline"></h2>
               </div>
               <div class="week-nav">
@@ -679,24 +682,6 @@
         <div class="dialog-actions">
           <button value="cancel" type="submit">Atcelt</button>
           <button class="primary-action" id="savePasswordBtn" type="button">Saglabāt</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog class="session-dialog month-dialog" id="monthViewDialog">
-      <form method="dialog">
-        <div class="dialog-header">
-          <h2 id="monthViewTitle">Mēneša plāns</h2>
-          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
-        </div>
-        <div class="month-nav">
-          <button id="monthPrev" class="secondary-action" type="button">←</button>
-          <span id="monthLabel"></span>
-          <button id="monthNext" class="secondary-action" type="button">→</button>
-        </div>
-        <div id="monthGrid"></div>
-        <div class="dialog-actions">
-          <button value="cancel" type="submit">Aizvērt</button>
         </div>
       </form>
     </dialog>

@@ -783,4 +783,21 @@ async function getAthleteHealthCounts() {
   return data || [];
 }
 
+async function getWeekBlockTypes(athleteId) {
+  const { data } = await supabase
+    .from("week_block_types")
+    .select("*")
+    .eq("athlete_id", athleteId);
+  return data || [];
+}
+
+async function upsertWeekBlockType(data) {
+  const { error } = await supabase
+    .from("week_block_types")
+    .upsert(data, { onConflict: "athlete_id,week_start" })
+    .select()
+    .single();
+  if (error) throw error;
+}
+
 
