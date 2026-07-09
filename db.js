@@ -79,6 +79,15 @@ async function getPlans(athleteId, weekStart, weekEnd) {
   return data || [];
 }
 
+async function getAllPlans(athleteId) {
+  const { data } = await supabase
+    .from("plans")
+    .select("*")
+    .eq("athlete_id", athleteId)
+    .order("date", { ascending: false });
+  return data || [];
+}
+
 async function insertPlan(plan) {
   const { data, error } = await supabase
     .from("plans")
@@ -235,6 +244,15 @@ async function getLogEntries(athleteId, weekStart, weekEnd) {
     .gte("date", weekStart)
     .lte("date", weekEnd)
     .order("date");
+  return data || [];
+}
+
+async function getAllLogEntries(athleteId) {
+  const { data } = await supabase
+    .from("log_entries")
+    .select("*")
+    .eq("athlete_id", athleteId)
+    .order("date", { ascending: false });
   return data || [];
 }
 
@@ -528,14 +546,23 @@ async function getWeekStatuses(athleteIds, weekStartStr) {
   const weekEndStr = isoLocal(endDate);
 
   const [plansRes, dayNotesRes, racesRes] = await Promise.all([
-    supabase.from("plans").select("athlete_id, date").in("athlete_id", athleteIds).gte("date", weekStartStr).lte("date", weekEndStr),
+    supabase
+      .from("plans")
+      .select("athlete_id, date, original_date")
+      .in("athlete_id", athleteIds)
+      .or(`and(date.gte.${weekStartStr},date.lte.${weekEndStr}),and(original_date.gte.${weekStartStr},original_date.lte.${weekEndStr})`),
     supabase.from("day_notes").select("athlete_id, date").in("athlete_id", athleteIds).gte("date", weekStartStr).lte("date", weekEndStr).eq("is_rest_day", true),
     supabase.from("races").select("athlete_id, date").in("athlete_id", athleteIds).gte("date", weekStartStr).lte("date", weekEndStr),
   ]);
 
   const covered = {};
   athleteIds.forEach(id => { covered[id] = new Set(); });
-  (plansRes.data || []).forEach(p => { if (covered[p.athlete_id]) covered[p.athlete_id].add(p.date); });
+  (plansRes.data || []).forEach(p => {
+    if (covered[p.athlete_id]) {
+      covered[p.athlete_id].add(p.date);
+      if (p.original_date) covered[p.athlete_id].add(p.original_date);
+    }
+  });
   (dayNotesRes.data || []).forEach(d => { if (covered[d.athlete_id]) covered[d.athlete_id].add(d.date); });
   (racesRes.data || []).forEach(r => { if (covered[r.athlete_id]) covered[r.athlete_id].add(r.date); });
 
