@@ -114,6 +114,17 @@
             <div class="panel-body" id="thresholdsBody"></div>
           </section>
 
+          <section class="panel collapsible collapsed" id="paceHrPanel">
+            <div class="panel-header">
+              <div class="panel-header-text">
+                <h2>Temps pret sirdritmu</h2>
+                <span class="panel-subtitle">Temps kādā sportists visbiežāk skrien noteiktā sirdsritmā</span>
+              </div>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt temps pret sirdritmu">▶</button>
+            </div>
+            <div class="panel-body" id="paceHrBody"></div>
+          </section>
+
           <section class="panel collapsible collapsed" id="intervalHistoryPanel">
             <div class="panel-header">
               <div class="panel-header-text">
@@ -340,9 +351,10 @@
                     </div>
                   </div>
                 </div>
-                <div style="display:flex;gap:8px;align-items:center;">
-                  <button id="saveTemplateOnlyBtn" class="primary-action" type="button">Saglabāt sagatavēs</button>
+                <div class="template-actions">
+                  <button id="saveTemplateOnlyBtn" class="primary-action" type="button">Saglabāt jaunu sagatavi</button>
                   <button id="updateTemplateBtn" class="primary-action" type="button" hidden>Saglabāt izmaiņas sagatavē</button>
+                  <button id="deleteTemplateBtn" class="delete-template-btn" type="button" hidden data-delete-template>Dzēst sagatavi</button>
                 </div>
                 </form>
               </div>
@@ -613,9 +625,6 @@
           <button data-race-tab="past" type="button">Notikušās</button>
         </div>
         <div id="raceCalendarContent"></div>
-        <div class="dialog-actions">
-          <button value="cancel" type="submit">Aizvērt</button>
-        </div>
       </form>
     </dialog>
 
@@ -685,13 +694,12 @@
         </label>
         <label>Apstiprināt jauno paroli
           <span class="pw-wrapper">
-            <input id="confirmPassword" type="password" autocomplete="new-password" placeholder="atkārto paroli" />
+            <input id="confirmPassword" type="password" autocomplete="new-password" />
             <button id="toggleConfirmPw" class="pw-toggle" type="button" aria-label="Rādīt/slēpt paroli">👁️</button>
           </span>
         </label>
         <div id="passwordError" class="auth-error" hidden></div>
-        <div class="dialog-actions">
-          <button value="cancel" type="submit">Atcelt</button>
+        <div class="dialog-actions" style="justify-content:flex-start">
           <button class="primary-action" id="savePasswordBtn" type="button">Saglabāt</button>
         </div>
       </form>

@@ -54,7 +54,7 @@ async function getAthletes() {
   if (!user) return [];
   const { data } = await supabase
     .from("profiles")
-    .select("id, full_name, group_name, role, hr_zones, thresholds, garmin_url, strava_url, spreadsheet_url")
+    .select("id, full_name, group_name, role, hr_zones, thresholds, pace_hr_map, garmin_url, strava_url, spreadsheet_url")
     .neq("role", "coach")
     .order("full_name");
   return data || [];
@@ -797,10 +797,21 @@ async function getNotCompletedAthleteIds() {
   const { data } = await supabase
     .from("plans")
     .select("athlete_id")
-    .eq("completed", false);
+    .eq("completed", false)
+    .eq("coach_acknowledged", false);
   if (!data) return [];
   const ids = [...new Set(data.map(d => d.athlete_id))];
   return ids;
+}
+
+async function acknowledgeNotCompletedPlans(athleteId) {
+  const { error } = await supabase
+    .from("plans")
+    .update({ coach_acknowledged: true })
+    .eq("athlete_id", athleteId)
+    .eq("completed", false)
+    .eq("coach_acknowledged", false);
+  if (error) throw error;
 }
 
 async function getAthleteHealthCounts() {
