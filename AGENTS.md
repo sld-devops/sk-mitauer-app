@@ -1,6 +1,6 @@
 # SK Mitauer Training Planner — Agent instructions
 
-**What this is:** Vanilla HTML/CSS/JS prototype for `app.skmitauer.com`. No build step, no tests, no backend.
+**What this is:** Vanilla HTML/CSS/JS prototype for `tksportisti.netlify.app`. No build step, no tests, no backend.
 
 ## Commands
 

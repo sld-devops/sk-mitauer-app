@@ -1,6 +1,6 @@
 # SK Mitauer Training Planner
 
-Small prototype for `app.skmitauer.com`.
+Small prototype for `tksportisti.netlify.app`.
 
 ## Current focus
 
@@ -30,4 +30,4 @@ xdg-open index.html
 - Saving a new training into preparations is available in the popup.
 - Add real dates instead of only weekdays.
 - Save data in browser local storage.
-- Later: add Supabase login and database for `app.skmitauer.com`.
+- Later: add Supabase login and database for `tksportisti.netlify.app`.

@@ -80,6 +80,7 @@ let seenHealthIds = new Set();
 let seenSelfTestIds = new Set();
 let seenPolarTestIds = new Set();
 let seenLabTestIds = new Set();
+let seenIzvertetsIds = new Set();
 let athleteHealthSet = new Set();
 let athleteNotCompletedSet = new Set();
 
@@ -248,6 +249,28 @@ function markAllLabTestsSeen(athleteId, tests) {
   saveSeenLabTestIds();
 }
 
+function loadSeenIzvertetsIds() {
+  try {
+    const stored = localStorage.getItem("seenIzvertetsIds");
+    if (stored) seenIzvertetsIds = new Set(JSON.parse(stored));
+  } catch (e) {
+    seenIzvertetsIds = new Set();
+  }
+}
+
+function saveSeenIzvertetsIds() {
+  localStorage.setItem("seenIzvertetsIds", JSON.stringify([...seenIzvertetsIds]));
+}
+
+function isIzvertetsSeen(athleteId, testId) {
+  return seenIzvertetsIds.has(`${athleteId}:${testId}`);
+}
+
+function markAllIzvertetsSeen(athleteId, tests) {
+  tests.forEach(t => seenIzvertetsIds.add(`${athleteId}:${t.id}`));
+  saveSeenIzvertetsIds();
+}
+
 function loadSeenRaceIds() {
   try {
     const stored = localStorage.getItem("seenRaceIds");
@@ -276,6 +299,7 @@ loadSeenHealthIds();
 loadSeenSelfTestIds();
 loadSeenPolarTestIds();
 loadSeenLabTestIds();
+loadSeenIzvertetsIds();
 loadSeenRaceIds();
 if (panelCollapsed) document.querySelector(".layout")?.classList.add("panel-collapsed");
 
@@ -886,10 +910,9 @@ async function loadNonTemplateData() {
   allPlans = allPlansRes;
   allLogEntries = allLogEntriesRes;
 
-  await Promise.all([
-    safeGet(refreshAthleteHealthSet(), undefined),
-    safeGet(refreshAthleteNotCompletedSet(), undefined),
-  ]);
+  await safeGet(refreshAthleteHealthSet(), undefined);
+  await safeGet(acknowledgeNotCompletedPlans(athleteId), undefined);
+  await safeGet(refreshAthleteNotCompletedSet(), undefined);
 
   if (logEntries.length && (!weeklySummary || (!weeklySummary.run_km && !weeklySummary.run_min && !weeklySummary.vfs_sfs_min && !weeklySummary.velo_min))) {
     const autoRunKm = logEntries.reduce((s, e) => s + (e.distance_km || 0), 0);
@@ -1134,6 +1157,7 @@ function renderCustomBuilder() {
     document.querySelector(".main-content-column").hidden = true;
     document.getElementById("saveTemplateOnlyBtn").hidden = true;
     document.getElementById("updateTemplateBtn").hidden = true;
+    document.getElementById("deleteTemplateBtn").hidden = true;
     return;
   }
   document.querySelector(".preview-compact").hidden = false;
@@ -1644,7 +1668,7 @@ function renderPlanCard(plan) {
 
   const paceBoundsMap = buildPaceBoundsMap(plan.details);
   const plannedIntervalCount = getPlannedIntervalCount(plan.details);
-  const feelingBadge = planLog?.feeling ? feelingBadgeHtml(planLog.feeling) : "";
+  const feelingBadge = planLog?.feeling || planLog?.feeling_tags ? feelingBadgeHtml(planLog.feeling, planLog.feeling_tags) : "";
   const planLogNotes = planLog?.notes ? `<div class="log-notes">${planLog.notes}</div>` : "";
 
   if (isCoach) {
@@ -1689,7 +1713,7 @@ function renderPlanCard(plan) {
 
 function renderLogCard(log) {
   const data = log.log_data || [];
-  if (!data.length && !log?.feeling && !log?.notes) return "";
+  if (!data.length && !log?.feeling && !log?.feeling_tags && !log?.notes) return "";
   const plan = log.plan_id ? plans.find(p => p.id === log.plan_id) : null;
   const paceBoundsMap = buildPaceBoundsMap(plan?.details);
   const plannedIntervalCount = getPlannedIntervalCount(plan?.details);
@@ -1738,7 +1762,7 @@ function renderLogCard(log) {
       return line;
     }).join("")
     : "";
-  const feelingBadge = log?.feeling ? feelingBadgeHtml(log.feeling) : "";
+  const feelingBadge = log?.feeling || log?.feeling_tags ? feelingBadgeHtml(log.feeling, log.feeling_tags) : "";
   const logNotes = log?.notes ? `<div class="log-notes">${log.notes}</div>` : "";
   const athleteIsOwner = (activeRole === "athlete") && currentUser.id === getSelectedAthleteId();
   const logActions = athleteIsOwner ? `<div class="log-actions"><button class="edit-log-btn" data-log-day="${log.date}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${log.id}" type="button">×</button></div>` : "";
@@ -1913,6 +1937,7 @@ function renderCalendar() {
       const fullyRestricted = isDayFullyRestricted(dateStr);
       const restrictedTods = getRestrictedTods(dateStr);
       const restrictedClass = fullyRestricted ? " restricted-day" : "";
+      const todayClass = dateStr === todayStr ? " today" : "";
       const dayHealth = healthEntries.find(e => dateStr >= e.start_date && (!e.end_date || dateStr <= e.end_date));
       const dayRestrictionReason = restrictions.find(r => dateStr >= r.start_date && (!r.end_date || dateStr <= r.end_date))?.reason;
       const raceHtml = dayRaces.length
@@ -1939,7 +1964,7 @@ function renderCalendar() {
         : "";
 
       return `
-        <section class="day-column${restrictedClass}">
+        <section class="day-column${restrictedClass}${todayClass}">
           <div class="day-name">
             <div class="day-name-row">
               <span>${dayName}</span>
@@ -1957,7 +1982,10 @@ function renderCalendar() {
               : fullyRestricted
                 ? `<div class="day-restriction-text">🚫 ${escapeHtml(dayRestrictionReason)}</div>`
                 : activeRole === "coach"
-                  ? `<div class="day-rest-text">${dayNote?.is_rest_day ? `🌴 Brīvdiena<textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Trenera komentārs...">${dayNote?.coach_comment || ""}</textarea>` : `<div class="rest-day-toggle-btn" data-rest-day="${dateStr}" role="button" tabindex="0">🌴 Ieplānot brīvdienu</div>`}</div>`
+                  ? `${dayNote?.is_rest_day
+                    ? `<div class="day-rest-text">🌴 Brīvdiena<textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Trenera komentārs...">${dayNote?.coach_comment || ""}</textarea></div>`
+                    : `<button class="add-day-button rest-day-toggle-btn" data-rest-day="${dateStr}" type="button">🌴 Ieplānot brīvdienu</button>`
+                  }`
                   : dayNote?.is_rest_day
                     ? `<div class="day-rest-text">🌴 Brīvdiena${dayNote?.coach_comment ? "<br>" + escapeHtml(dayNote.coach_comment) : ""}</div><textarea class="rest-day-athlete-comment" data-rest-athlete-comment="${dateStr}" placeholder="Tavs komentārs..." rows="1">${dayNote?.athlete_comment || ""}</textarea>`
                     : `<div class="empty-day">Pašlaik plāns vēl nav sastādīts</div>`
@@ -2005,10 +2033,10 @@ function renderWeeklySummary() {
   const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
 
   const s = weeklySummary || {};
-  const runKm = s.run_km ?? "";
-  const runMin = s.run_min ?? "";
-  const vfsSfs = s.vfs_sfs_min ?? "";
-  const velo = s.velo_min ?? "";
+  const runKm = s.run_km || "";
+  const runMin = s.run_min || "";
+  const vfsSfs = s.vfs_sfs_min || "";
+  const velo = s.velo_min || "";
   const coachComment = s.coach_comment ?? "";
   const athleteComment = s.athlete_comment ?? "";
 
@@ -2016,7 +2044,7 @@ function renderWeeklySummary() {
     <div class="ws-header">Nedēļas kopsavilkums</div>
     <div class="ws-fields">
       <label>Kilometrāža <input id="wsRunKm" type="number" step="0.1" value="${runKm}" ${isAthleteView ? "" : "disabled"} /></label>
-      <label>Laiks (h) <input id="wsRunMin" class="ws-time" type="text" value="${runMin}" ${isAthleteView ? "" : "disabled"} placeholder="piem. 10h45m" /></label>
+      <label>Kopējais laiks visos treniņos (h) <input id="wsRunMin" class="ws-time" type="text" value="${runMin}" ${isAthleteView ? "" : "disabled"} placeholder="piem. 10h45m" /></label>
       <label>VFS/SFS (h) <input id="wsVfsSfs" class="ws-time" type="text" value="${vfsSfs}" ${isAthleteView ? "" : "disabled"} placeholder="piem. 1h30m" /></label>
       <label>Velo (h) <input id="wsVelo" class="ws-time" type="text" value="${velo}" ${isAthleteView ? "" : "disabled"} placeholder="piem. 0h45m" /></label>
     </div>
@@ -2187,6 +2215,40 @@ function renderThresholds() {
   if (canEdit) {
     document.querySelectorAll("#thresholdsBody input").forEach(el => {
       el.addEventListener("change", saveThresholds);
+    });
+  }
+}
+
+function renderPaceHrMap() {
+  const athleteId = getSelectedAthleteId();
+  const profile = isCoach()
+    ? athletes.find((a) => a.id === athleteId) || currentProfile
+    : currentProfile;
+  const paceHrMap = profile.pace_hr_map || {};
+  const canEdit = !isCoach();
+  const disabled = canEdit ? "" : "disabled";
+
+  const hrValues = ["125", "135", "145", "155", "165"];
+  const zoneRowsHtml = hrValues
+    .map((hr) => {
+      const entry = paceHrMap[hr] || {};
+      return `
+        <div class="zone-row">
+          <span class="zone-num">${hr}</span>
+          <input class="zone-no" value="${entry.no || ""}" placeholder="no" ${disabled} />
+          <input class="zone-lidz" value="${entry.lidz || ""}" placeholder="līdz" ${disabled} />
+        </div>
+      `;
+    })
+    .join("");
+
+  document.getElementById("paceHrBody").innerHTML = `
+    <div class="profile-section" id="paceHrFields">${zoneRowsHtml}</div>
+  `;
+
+  if (canEdit) {
+    document.querySelectorAll("#paceHrFields .zone-no, #paceHrFields .zone-lidz").forEach(el => {
+      el.addEventListener("change", savePaceHrMap);
     });
   }
 }
@@ -3031,6 +3093,7 @@ function renderLabTests() {
   const athleteId = getSelectedAthleteId();
   if (!athleteId) return;
   const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
+  const isCoachView = activeRole === "coach";
 
   let html = "";
 
@@ -3043,11 +3106,20 @@ function renderLabTests() {
   } else {
     html += `<div class="labtest-list">`;
     labTests.forEach(t => {
+      const izvertetsBadge = t.izvertets && isAthleteView
+        ? `<span class="labtest-izvertets-badge">Izvērtēts</span>`
+        : "";
+      const coachCheckbox = isCoachView
+        ? `<label class="labtest-izvertets-cb" title="Izvērtēts">
+            <input type="checkbox" data-labtest-id="${t.id}" ${t.izvertets ? "checked" : ""} />
+          </label>`
+        : "";
       html += `<div class="labtest-row" data-labtest-id="${t.id}">
         <span class="labtest-date">${formatDateLV(t.date)}</span>
         <span class="labtest-type-badge ${LABTEST_TYPE_CLASS[t.type] || ""}">${LABTEST_TYPE_LABEL[t.type] || t.type}</span>
-        <span class="labtest-name">${escapeHtml(t.name)}</span>
+        <span class="labtest-name">${escapeHtml(t.name)}${izvertetsBadge}</span>
         <span class="labtest-actions">
+          ${coachCheckbox}
           <a class="labtest-download-btn" href="#" data-labtest-id="${t.id}" title="Lejupielādēt">⬇</a>
           ${isAthleteView ? `<button class="labtest-delete-btn" data-labtest-id="${t.id}" title="Dzēst">✕</button>` : ""}
         </span>
@@ -3100,19 +3172,35 @@ function renderLabTests() {
     });
   });
 
+  body.querySelectorAll(".labtest-izvertets-cb input").forEach(cb => {
+    cb.addEventListener("change", async () => {
+      const testId = cb.dataset.labtestId;
+      const checked = cb.checked;
+      try {
+        await supabase.from("lab_tests").update({ izvertets: checked }).eq("id", testId);
+        const t = labTests.find(lt => lt.id === testId);
+        if (t) t.izvertets = checked;
+      } catch (e) {
+        cb.checked = !checked;
+        alert("Neizdevās atjaunināt: " + (e.message || e));
+      }
+    });
+  });
+
   const panel = document.getElementById("labTestsPanel");
   if (panel) {
     const toggle = panel.querySelector(".collapse-toggle");
-    if (activeRole === "coach") {
+    if (isCoachView) {
       const unseen = labTests.filter(t => !isLabTestSeen(athleteId, t.id)).length;
       panel.classList.toggle("has-entries", unseen > 0);
       if (toggle) {
         toggle.dataset.count = unseen > 9 ? "9+" : String(unseen);
       }
     } else {
-      panel.classList.toggle("has-entries", false);
+      const unseenIzv = labTests.filter(t => t.izvertets && !isIzvertetsSeen(athleteId, t.id)).length;
+      panel.classList.toggle("has-entries", unseenIzv > 0);
       if (toggle) {
-        toggle.dataset.count = "0";
+        toggle.dataset.count = unseenIzv > 9 ? "9+" : String(unseenIzv);
       }
     }
   }
@@ -3496,11 +3584,13 @@ function render() {
   document.getElementById("copyPrevWeekBtn").hidden = activeRole !== "coach";
   const isCurrentWeek = formatDateISO(currentWeekStart) === formatDateISO(getMonday(new Date()));
   trainingBar.hidden = activeRole !== "coach" || !hasAthletes;
+  document.getElementById("weekBlockTypeSelect").hidden = activeRole !== "coach";
 
   renderAthleteDropdown();
   renderTemplates();
   renderSourcePicker();
   document.getElementById("updateTemplateBtn").hidden = !selectedTemplateId;
+  document.getElementById("deleteTemplateBtn").hidden = !selectedTemplateId;
   renderViewTabs();
   if (hasAthletes) {
     renderStats();
@@ -3515,6 +3605,7 @@ function render() {
     renderProfile();
     renderHrZones();
     renderThresholds();
+    renderPaceHrMap();
     renderIntervalHistory();
     renderRecords();
     renderRestrictions();
@@ -3531,6 +3622,7 @@ function render() {
     profileCard.innerHTML = "";
     document.getElementById("hrZonesBody").innerHTML = "";
     document.getElementById("thresholdsBody").innerHTML = "";
+    document.getElementById("paceHrBody").innerHTML = "";
     document.getElementById("intervalHistoryBody").innerHTML = "";
     document.getElementById("recordsBody").innerHTML = "";
     document.getElementById("diaryBody").innerHTML = "";
@@ -3541,6 +3633,7 @@ function render() {
   }
   document.getElementById("hrZonesPanel").hidden = !hasAthletes;
   document.getElementById("thresholdsPanel").hidden = !hasAthletes;
+  document.getElementById("paceHrPanel").hidden = !hasAthletes;
   document.getElementById("intervalHistoryPanel").hidden = !hasAthletes;
   document.getElementById("recordsPanel").hidden = !hasAthletes;
   document.getElementById("diaryPanel").hidden = !hasAthletes;
@@ -3552,7 +3645,7 @@ function render() {
 
 athleteSelect.addEventListener("change", async () => {
   const gen = ++loadGen;
-  selectedTemplateId = templates[0]?.id || null;
+  selectedTemplateId = null;
   await loadAllData();
   await loadProfileData();
   if (gen !== loadGen) return;
@@ -3799,10 +3892,16 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
     }
 
     if (panel.id === "labTestsPanel" && wasCollapsed && !panel.classList.contains("collapsed")) {
+      const athleteId = getSelectedAthleteId();
       if (activeRole === "coach") {
-        const athleteId = getSelectedAthleteId();
         if (athleteId && labTests.length) {
           markAllLabTestsSeen(athleteId, labTests);
+          panel.classList.toggle("has-entries", false);
+          btn.dataset.count = "0";
+        }
+      } else {
+        if (athleteId && labTests.length) {
+          markAllIzvertetsSeen(athleteId, labTests);
           panel.classList.toggle("has-entries", false);
           btn.dataset.count = "0";
         }
@@ -4220,12 +4319,13 @@ document.addEventListener("click", async (event) => {
   const deleteBtn = event.target.closest("[data-delete-template]");
   if (deleteBtn) {
     event.stopPropagation();
-    const id = deleteBtn.dataset.deleteTemplate;
+    const id = selectedTemplateId;
+    if (!id) return;
     if (confirm("Dzēst šo sagatavi?")) {
       try {
         await deleteTemplate(id);
         templates = templates.filter((t) => t.id !== id);
-        if (selectedTemplateId === id) selectedTemplateId = templates[0]?.id || null;
+        if (selectedTemplateId === id) selectedTemplateId = null;
         render();
       } catch (e) {
         alert("Neizdevās dzēst sagatavi: " + (e.message || e));
@@ -4513,8 +4613,10 @@ calendarGrid.addEventListener("change", async (event) => {
   if (!cb) return;
   const planId = cb.dataset.cbPlan;
   const completed = !cb.checked;
+  const updates = { completed };
+  if (!completed) updates.coach_acknowledged = false;
   try {
-    await updatePlan(planId, { completed });
+    await updatePlan(planId, updates);
     const plan = plans.find(p => p.id === planId);
     if (plan) plan.completed = completed;
     await refreshAthleteNotCompletedSet();
@@ -4721,15 +4823,54 @@ async function saveThresholds() {
   }
 }
 
-function feelingBadgeHtml(feeling) {
+async function savePaceHrMap() {
+  const profile = getViewedProfile();
+  const paceHrMap = {};
+  document.querySelectorAll("#paceHrFields .zone-row").forEach((row) => {
+    const hr = row.querySelector(".zone-num")?.textContent?.trim() || "";
+    const no = row.querySelector(".zone-no")?.value?.trim() || "";
+    const lidz = row.querySelector(".zone-lidz")?.value?.trim() || "";
+    if (hr && (no || lidz)) {
+      paceHrMap[hr] = { no, lidz };
+    }
+  });
+  try {
+    await updateProfile(profile.id, { pace_hr_map: paceHrMap });
+    if (profile.id === currentUser.id) {
+      currentProfile = await getProfile(currentUser.id);
+    }
+    const idx = athletes.findIndex((a) => a.id === profile.id);
+    if (idx !== -1) athletes[idx].pace_hr_map = paceHrMap;
+    render();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function feelingBadgeHtml(feeling, feelingTags) {
   const colors = {
-    "Knapi izvilku.": { bg: "#fef2f2", color: "#dc2626" },
-    "Varēja labāk...": { bg: "#faf5ff", color: "#9333ea" },
-    "Esmu apmierināts!": { bg: "#eff6ff", color: "#2563eb" },
-    "Jaudīgi!": { bg: "#f0fdf4", color: "#16a34a" },
+    "Tempu nespēju noturēt, nebija iekšās šoreiz": { bg: "#fef2f2", color: "#dc2626" },
+    "Brīžiem temps kritās, ar piepūli noturēju": { bg: "#fef3c7", color: "#92400e" },
+    "Izpildīju, bet ne pārliecinoši": { bg: "#eff6ff", color: "#2563eb" },
+    "Spēks un solis jaudīgs, psiholoģiski pārliecinoši!": { bg: "#f0fdf4", color: "#16a34a" },
+    "Kājas pasmagas, motivācija zema, jau pusē bija viss :[": { bg: "#fef2f2", color: "#dc2626" },
+    "Normāli, nevaru sūdzēties.": { bg: "#dbeafe", color: "#1e40af" },
+    "Diezgan labi - kā gaidīts.": { bg: "#eff6ff", color: "#2563eb" },
+    "Viena no veiksmīgākajām dienām pedējā laikā": { bg: "#f0fdf4", color: "#16a34a" },
+    "Jutos pārliecināts un kājas jutās svaigas": { bg: "#d1fae5", color: "#065f46" },
+    "Jutu progresu un spēka pieaugumu, esmu priecīgs.": { bg: "#f0fdf4", color: "#15803d" },
   };
-  const c = colors[feeling] || { bg: "var(--surface-alt)", color: "var(--muted)" };
-  return `<div class="feeling-badge" style="background:${c.bg};color:${c.color};border-color:${c.color}">${feeling}</div>`;
+  const all = [];
+  if (feeling) all.push(feeling);
+  if (feelingTags) {
+    const tags = typeof feelingTags === "string" ? feelingTags.split(",") : feelingTags;
+    tags.forEach((t) => { if (t && !all.includes(t.trim())) all.push(t.trim()); });
+  }
+  if (!all.length) return "";
+  return all.map((v) => {
+    const c = colors[v] || { bg: "var(--surface-alt)", color: "var(--muted)" };
+    return `<div class="feeling-tag-badge" style="background:${c.bg};color:${c.color};border-color:${c.color}">${v}</div>`;
+  }).join("");
 }
 
 function parseTimeToMinutes(str) {
@@ -4752,31 +4893,91 @@ function getActivityType(title) {
   return "run";
 }
 
-const RATING_HTML = `
-  <div class="rating-group">
-    <div class="rating-label">Pašsajūtas novērtējums</div>
-    <label class="rating-option" data-color="red">
-      <input type="radio" name="trainingRating" value="Knapi izvilku." />
-      <span class="radio-circle"></span>
-      <span>Knapi izvilku.</span>
-    </label>
-    <label class="rating-option" data-color="purple">
-      <input type="radio" name="trainingRating" value="Varēja labāk..." />
-      <span class="radio-circle"></span>
-      <span>Varēja labāk...</span>
-    </label>
-    <label class="rating-option" data-color="blue">
-      <input type="radio" name="trainingRating" value="Esmu apmierināts!" />
-      <span class="radio-circle"></span>
-      <span>Esmu apmierināts!</span>
-    </label>
-    <label class="rating-option" data-color="green">
-      <input type="radio" name="trainingRating" value="Jaudīgi!" />
-      <span class="radio-circle"></span>
-      <span>Jaudīgi!</span>
-    </label>
-  </div>
-`;
+function getRatingGroup(planTitle, customIcon) {
+  if (customIcon === "🐢") return "easy";
+  if (customIcon === "🚴") return "bike";
+  if (customIcon === "💪") return "gym";
+  if (customIcon === "⚡") return "intervals";
+  if (customIcon === "📈") return "tempo";
+  if (customIcon === "⌛") return "long";
+  const t = (planTitle || "").toLowerCase();
+  if (t.includes("vfs") || t.includes("sfs")) return "gym";
+  if (t === "velo" || t.includes("velo")) return "bike";
+  if (t.includes("intervāl")) return "intervals";
+  if (t.includes("temp")) return "tempo";
+  if (t.includes("garais")) return "long";
+  if (t.includes("atjaunojoš") || t.includes("lēn")) return "easy";
+  return "other";
+}
+
+function getRatingHtml(planTitle, customIcon) {
+  const group = getRatingGroup(planTitle, customIcon);
+  const typeOpts = {
+    intervals: [
+      { label: "Tempu nespēju noturēt, nebija iekšās šoreiz", bg: "#fef2f2", border: "#dc2626", color: "#dc2626" },
+      { label: "Brīžiem temps kritās, ar piepūli noturēju", bg: "#fff7ed", border: "#ea580c", color: "#ea580c" },
+      { label: "Izpildīju, bet ne pārliecinoši", bg: "#eff6ff", border: "#2563eb", color: "#2563eb" },
+      { label: "Spēks un solis jaudīgs, psiholoģiski pārliecinoši!", bg: "#f0fdf4", border: "#16a34a", color: "#16a34a" },
+    ],
+    tempo: [
+      { label: "Tempu nespēju noturēt, nebija iekšās šoreiz", bg: "#fef2f2", border: "#dc2626", color: "#dc2626" },
+      { label: "Brīžiem temps kritās, ar piepūli noturēju", bg: "#fff7ed", border: "#ea580c", color: "#ea580c" },
+      { label: "Izpildīju, bet ne pārliecinoši", bg: "#eff6ff", border: "#2563eb", color: "#2563eb" },
+      { label: "Spēks un solis jaudīgs, psiholoģiski pārliecinoši!", bg: "#f0fdf4", border: "#16a34a", color: "#16a34a" },
+    ],
+    long: [
+      { label: "Kājas pasmagas, motivācija zema, jau pusē bija viss :[", bg: "#fef2f2", border: "#dc2626", color: "#dc2626" },
+      { label: "Normāli, nevaru sūdzēties.", bg: "#f8fafc", border: "#64748b", color: "#64748b" },
+      { label: "Diezgan labi - kā gaidīts.", bg: "#eff6ff", border: "#2563eb", color: "#2563eb" },
+      { label: "Viena no veiksmīgākajām dienām pedējā laikā", bg: "#ecfdf5", border: "#0d9488", color: "#0d9488" },
+      { label: "Jutos pārliecināts un kājas jutās svaigas", bg: "#f0fdf4", border: "#16a34a", color: "#16a34a" },
+      { label: "Jutu progresu un spēka pieaugumu, esmu priecīgs.", bg: "#f0fdf4", border: "#15803d", color: "#15803d" },
+    ],
+    easy: [
+      { label: "Kājas pasmagas, motivācija zema, jau pusē bija viss :[", bg: "#fef2f2", border: "#dc2626", color: "#dc2626" },
+      { label: "Normāli, nevaru sūdzēties.", bg: "#f8fafc", border: "#64748b", color: "#64748b" },
+      { label: "Diezgan labi - kā gaidīts.", bg: "#eff6ff", border: "#2563eb", color: "#2563eb" },
+      { label: "Viena no veiksmīgākajām dienām pedējā laikā", bg: "#ecfdf5", border: "#0d9488", color: "#0d9488" },
+      { label: "Jutos pārliecināts un kājas jutās svaigas", bg: "#f0fdf4", border: "#16a34a", color: "#16a34a" },
+      { label: "Jutu progresu un spēka pieaugumu, esmu priecīgs.", bg: "#f0fdf4", border: "#15803d", color: "#15803d" },
+    ],
+    gym: [
+      { label: "Kājas pasmagas, motivācija zema, jau pusē bija viss :[", bg: "#fef2f2", border: "#dc2626", color: "#dc2626" },
+      { label: "Normāli, nevaru sūdzēties.", bg: "#f8fafc", border: "#64748b", color: "#64748b" },
+      { label: "Diezgan labi - kā gaidīts.", bg: "#eff6ff", border: "#2563eb", color: "#2563eb" },
+      { label: "Viena no veiksmīgākajām dienām pedējā laikā", bg: "#ecfdf5", border: "#0d9488", color: "#0d9488" },
+      { label: "Jutos pārliecināts un kājas jutās svaigas", bg: "#f0fdf4", border: "#16a34a", color: "#16a34a" },
+      { label: "Jutu progresu un spēka pieaugumu, esmu priecīgs.", bg: "#f0fdf4", border: "#15803d", color: "#15803d" },
+    ],
+    bike: [
+      { label: "Kājas pasmagas, motivācija zema, jau pusē bija viss :[", bg: "#fef2f2", border: "#dc2626", color: "#dc2626" },
+      { label: "Normāli, nevaru sūdzēties.", bg: "#f8fafc", border: "#64748b", color: "#64748b" },
+      { label: "Diezgan labi - kā gaidīts.", bg: "#eff6ff", border: "#2563eb", color: "#2563eb" },
+      { label: "Viena no veiksmīgākajām dienām pedējā laikā", bg: "#ecfdf5", border: "#0d9488", color: "#0d9488" },
+      { label: "Jutos pārliecināts un kājas jutās svaigas", bg: "#f0fdf4", border: "#16a34a", color: "#16a34a" },
+      { label: "Jutu progresu un spēka pieaugumu, esmu priecīgs.", bg: "#f0fdf4", border: "#15803d", color: "#15803d" },
+    ],
+    other: [
+      { label: "Kājas pasmagas, motivācija zema, jau pusē bija viss :[", bg: "#fef2f2", border: "#dc2626", color: "#dc2626" },
+      { label: "Normāli, nevaru sūdzēties.", bg: "#f8fafc", border: "#64748b", color: "#64748b" },
+      { label: "Diezgan labi - kā gaidīts.", bg: "#eff6ff", border: "#2563eb", color: "#2563eb" },
+      { label: "Viena no veiksmīgākajām dienām pedējā laikā", bg: "#ecfdf5", border: "#0d9488", color: "#0d9488" },
+      { label: "Jutos pārliecināts un kājas jutās svaigas", bg: "#f0fdf4", border: "#16a34a", color: "#16a34a" },
+      { label: "Jutu progresu un spēka pieaugumu, esmu priecīgs.", bg: "#f0fdf4", border: "#15803d", color: "#15803d" },
+    ],
+  };
+  const items = typeOpts[group] || typeOpts.other;
+  let html = `<div class="feeling-tags-group">
+    <div class="feeling-tags-label">Pašsajūtas novērtējums</div>`;
+  items.forEach((o) => {
+    html += `<label class="feeling-option" style="--fbg:${o.bg};--fborder:${o.border};--fcolor:${o.color}">
+      <input type="radio" name="trainingRating" value="${escapeHtml(o.label)}" />
+      <span>${escapeHtml(o.label)}</span>
+    </label>`;
+  });
+  html += `</div>`;
+  return html;
+}
 
 // Log entry dialog
 const logDialog = document.getElementById("logDialog");
@@ -4790,6 +4991,7 @@ saveLogBtn.addEventListener("click", async () => {
   if (!logDialogDate) return;
   const feelingEl = document.querySelector('input[name="trainingRating"]:checked');
   const feeling = feelingEl ? feelingEl.value : null;
+  const feelingTags = null;
   const notes = document.getElementById("logAthleteComment")?.value.trim() || "";
 
   const durationMin = 0;
@@ -4827,6 +5029,7 @@ saveLogBtn.addEventListener("click", async () => {
         activity_type: activityType,
         log_data: entries,
         feeling,
+        feeling_tags: feelingTags,
         notes,
         duration_min: durationMin,
         distance_km: runningKm,
@@ -4850,6 +5053,7 @@ saveLogBtn.addEventListener("click", async () => {
         activity_type: activityType,
         log_data: entries,
         feeling,
+        feeling_tags: feelingTags,
         notes,
         duration_min: durationMin,
         distance_km: runningKm,
@@ -5021,7 +5225,7 @@ function openPlanLogDialog(planId) {
   });
   html += `</div>`;
 
-  html += RATING_HTML;
+  html += getRatingHtml(plan.title, plan.custom_icon);
   html += `<div class="comment-label">Sportista komentārs</div><textarea class="inline-comment" id="logAthleteComment" rows="2" placeholder="Ieraksti komentāru..."></textarea>`;
   logFormContent.innerHTML = html;
   logDialogAddExtraButtons();
@@ -5133,7 +5337,7 @@ function openLogDialog(dateStr) {
     html += `</div>`;
   });
 
-  html += RATING_HTML;
+  html += getRatingHtml(dayPlans[0].title, dayPlans[0].custom_icon);
   html += `<div class="comment-label">Sportista komentārs</div><textarea class="inline-comment" id="logAthleteComment" rows="2" placeholder="Ieraksti komentāru..."></textarea>`;
   logFormContent.innerHTML = html;
   logDialogAddExtraButtons();
@@ -5737,7 +5941,7 @@ function renderIntervalHistoryCard(session) {
   const mainLine = extractMainPart(plan.details);
   const paceBoundsMap = buildPaceBoundsMap(plan.details);
   const planLogData = log?.log_data || [];
-  const feelingBadge = log?.feeling ? feelingBadgeHtml(log.feeling) : "";
+  const feelingBadge = log?.feeling || log?.feeling_tags ? feelingBadgeHtml(log.feeling, log.feeling_tags) : "";
   const logNotes = log?.notes
     ? `<div class="log-notes">${escapeHtml(log.notes)}</div>`
     : "";
