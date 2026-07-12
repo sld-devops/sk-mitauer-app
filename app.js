@@ -5,7 +5,7 @@ const days = [
 
 let selectedTemplateId = null;
 let activeRole = "athlete";
-let calendarMode = "desktop";
+let calendarMode = localStorage.getItem("calendarMode") || (window.matchMedia("(max-width: 1040px)").matches ? "mobile" : "desktop");
 
 // check for existing session on load
 (async () => {
@@ -2042,15 +2042,15 @@ function renderWeeklySummary() {
 
   ws.innerHTML = `
     <div class="ws-header">Nedēļas kopsavilkums</div>
+    <div class="ws-comments">
+      <label>Trenera komentārs <textarea id="wsCoachComment" rows="3" ${activeRole === "coach" ? "" : "disabled"}>${coachComment}</textarea></label>
+      <label>Sportista komentārs <textarea id="wsAthleteComment" rows="3" ${isAthleteView ? "" : "disabled"}>${athleteComment}</textarea></label>
+    </div>
     <div class="ws-fields">
       <label>Kilometrāža <input id="wsRunKm" type="number" step="0.1" value="${runKm}" ${isAthleteView ? "" : "disabled"} /></label>
       <label>Kopējais laiks visos treniņos (h) <input id="wsRunMin" class="ws-time" type="text" value="${runMin}" ${isAthleteView ? "" : "disabled"} placeholder="piem. 10h45m" /></label>
       <label>VFS/SFS (h) <input id="wsVfsSfs" class="ws-time" type="text" value="${vfsSfs}" ${isAthleteView ? "" : "disabled"} placeholder="piem. 1h30m" /></label>
       <label>Velo (h) <input id="wsVelo" class="ws-time" type="text" value="${velo}" ${isAthleteView ? "" : "disabled"} placeholder="piem. 0h45m" /></label>
-    </div>
-    <div class="ws-comments">
-      <label>Trenera komentārs <textarea id="wsCoachComment" rows="3" ${activeRole === "coach" ? "" : "disabled"}>${coachComment}</textarea></label>
-      <label>Sportista komentārs <textarea id="wsAthleteComment" rows="3" ${isAthleteView ? "" : "disabled"}>${athleteComment}</textarea></label>
     </div>
   `;
 
@@ -3515,6 +3515,7 @@ function renderMonthViewInline() {
           <strong>${p.completed === false ? '<span class="not-completed-icon">!</span> ' : ""}${displayTitle(p.title)}</strong>
           <span>${extractMainPart(p.details)}</span>
         </div>
+        ${p.completed === false && p.athlete_comment ? `<div class="month-comment-text" role="button" tabindex="0">💬 ${escapeHtml(p.athlete_comment)}</div>` : ""}
       `).join("");
 
       const racesHtml = dayRaces.map((r) => `
@@ -3769,9 +3770,12 @@ document.getElementById("exerciseLibraryBtn")?.addEventListener("click", () => {
 
 document.getElementById("calendarModeToggle").addEventListener("click", () => {
   calendarMode = calendarMode === "desktop" ? "mobile" : "desktop";
+  localStorage.setItem("calendarMode", calendarMode);
   document.getElementById("calendarModeToggle").textContent = calendarMode === "mobile" ? "🖥️ Datora izskats" : "📱 Mobilais izskats";
   renderCalendar();
 });
+
+document.getElementById("calendarModeToggle").textContent = calendarMode === "mobile" ? "🖥️ Datora izskats" : "📱 Mobilais izskats";
 
 document.querySelectorAll("[data-view]").forEach((btn) => {
   btn.addEventListener("click", async () => {
@@ -3822,6 +3826,20 @@ document.getElementById("monthNextInline")?.addEventListener("click", async () =
     const monthEnd = getMonthEnd(currentMonthDate);
     const ms = formatDateISO(monthStart);
     const me = formatDateISO(monthEnd);
+    try { monthPlans = await getPlans(athleteId, ms, me); } catch (e) { monthPlans = []; }
+    try { monthRaces = await getRacesForWeek(athleteId, ms, me); } catch (e) { monthRaces = []; }
+    try { monthLogEntries = await getLogEntries(athleteId, ms, me); } catch (e) { monthLogEntries = []; }
+    try { monthDayNotes = await getDayNotes(athleteId, ms, me); } catch (e) { monthDayNotes = []; }
+  }
+  renderMonthViewInline();
+});
+
+document.getElementById("monthCurrent")?.addEventListener("click", async () => {
+  currentMonthDate = new Date();
+  const athleteId = getSelectedAthleteId();
+  if (athleteId) {
+    const ms = formatDateISO(getMonthStart(currentMonthDate));
+    const me = formatDateISO(getMonthEnd(currentMonthDate));
     try { monthPlans = await getPlans(athleteId, ms, me); } catch (e) { monthPlans = []; }
     try { monthRaces = await getRacesForWeek(athleteId, ms, me); } catch (e) { monthRaces = []; }
     try { monthLogEntries = await getLogEntries(athleteId, ms, me); } catch (e) { monthLogEntries = []; }
@@ -3907,6 +3925,15 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
         }
       }
     }
+  });
+});
+
+// --- Panel header click (whole area toggles, not just arrow) ---
+document.querySelectorAll(".panel .panel-header, .stats-collapsible .panel-header").forEach((header) => {
+  header.addEventListener("click", (e) => {
+    if (e.target.closest(".collapse-toggle")) return;
+    const btn = header.querySelector(".collapse-toggle");
+    if (btn) btn.click();
   });
 });
 
@@ -4459,7 +4486,7 @@ calendarGrid.addEventListener("click", async (event) => {
 
 // --- Month view expandable restriction/health text ---
 document.addEventListener("click", (e) => {
-  const el = e.target.closest(".month-restriction-text, .month-health-text");
+  const el = e.target.closest(".month-restriction-text, .month-health-text, .month-comment-text");
   if (el) el.classList.toggle("expanded");
 });
 
@@ -5923,9 +5950,12 @@ function extractIntervalDistances(details) {
 }
 
 function findSessionsForDistance(athletePlans, targetMeters) {
+  const today = formatDateISO(new Date());
   const found = [];
   for (const plan of athletePlans) {
     if (found.length >= 3) break;
+    if (plan.date > today) continue;
+    if (!allLogEntries.some(l => l.plan_id === plan.id)) continue;
     const dists = extractIntervalDistances(plan.details);
     if (dists.includes(targetMeters)) {
       const log = allLogEntries.find(l => l.plan_id === plan.id);
