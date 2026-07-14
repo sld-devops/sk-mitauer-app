@@ -64,10 +64,6 @@ const INTERVAL_DISTANCES = [200, 300, 400, 800, 1000];
 let intervalHistoryActiveDist = 200;
 let weekBlockTypes = [];
 let diaryEntries = [];
-let selfTests = [];
-let editingSelfTestId = null;
-let polarTests = [];
-let editingPolarTestId = null;
 let healthEntries = [];
 let editingHealthId = null;
 let labTests = [];
@@ -77,8 +73,6 @@ let athleteNextWeeksPlans = {};
 let readDiaryEntryIds = new Set();
 let seenRecordIds = new Set();
 let seenHealthIds = new Set();
-let seenSelfTestIds = new Set();
-let seenPolarTestIds = new Set();
 let seenLabTestIds = new Set();
 let seenIzvertetsIds = new Set();
 let athleteHealthSet = new Set();
@@ -183,50 +177,6 @@ function markAllHealthSeen(entries) {
   saveSeenHealthIds();
 }
 
-function loadSeenSelfTestIds() {
-  try {
-    const stored = localStorage.getItem("seenSelfTestIds");
-    if (stored) seenSelfTestIds = new Set(JSON.parse(stored));
-  } catch (e) {
-    seenSelfTestIds = new Set();
-  }
-}
-
-function saveSeenSelfTestIds() {
-  localStorage.setItem("seenSelfTestIds", JSON.stringify([...seenSelfTestIds]));
-}
-
-function isSelfTestSeen(athleteId, testId) {
-  return seenSelfTestIds.has(`${athleteId}:${testId}`);
-}
-
-function markAllSelfTestsSeen(athleteId, tests) {
-  tests.forEach(t => seenSelfTestIds.add(`${athleteId}:${t.id}`));
-  saveSeenSelfTestIds();
-}
-
-function loadSeenPolarTestIds() {
-  try {
-    const stored = localStorage.getItem("seenPolarTestIds");
-    if (stored) seenPolarTestIds = new Set(JSON.parse(stored));
-  } catch (e) {
-    seenPolarTestIds = new Set();
-  }
-}
-
-function saveSeenPolarTestIds() {
-  localStorage.setItem("seenPolarTestIds", JSON.stringify([...seenPolarTestIds]));
-}
-
-function isPolarTestSeen(athleteId, testId) {
-  return seenPolarTestIds.has(`${athleteId}:${testId}`);
-}
-
-function markAllPolarTestsSeen(athleteId, tests) {
-  tests.forEach(t => seenPolarTestIds.add(`${athleteId}:${t.id}`));
-  saveSeenPolarTestIds();
-}
-
 function loadSeenLabTestIds() {
   try {
     const stored = localStorage.getItem("seenLabTestIds");
@@ -296,8 +246,6 @@ function markAllRacesSeen(athleteId, races) {
 loadReadDiaryIds();
 loadSeenRecordIds();
 loadSeenHealthIds();
-loadSeenSelfTestIds();
-loadSeenPolarTestIds();
 loadSeenLabTestIds();
 loadSeenIzvertetsIds();
 loadSeenRaceIds();
@@ -2336,17 +2284,17 @@ function renderRecords() {
 
   const panel = document.getElementById("recordsPanel");
   if (panel) {
-    const toggle = panel.querySelector(".collapse-toggle");
+    const header = panel.querySelector(".panel-header");
     if (activeRole === "coach") {
       const unseen = records.filter(r => !isRecordSeen(athleteId, r.id)).length;
       panel.classList.toggle("has-entries", unseen > 0);
-      if (toggle) {
-        toggle.dataset.count = unseen > 9 ? "9+" : String(unseen);
+      if (header) {
+        header.dataset.count = unseen > 9 ? "9+" : String(unseen);
       }
     } else {
       panel.classList.toggle("has-entries", false);
-      if (toggle) {
-        toggle.dataset.count = "0";
+      if (header) {
+        header.dataset.count = "0";
       }
     }
   }
@@ -2433,6 +2381,10 @@ function renderMiniCalendar() {
   html += '<div class="mini-calendar-grid">';
   for (const dn of dayNames) {
     html += `<div class="mini-calendar-dayname">${dn}</div>`;
+  }
+
+  for (let i = 0; i < startDow; i++) {
+    html += '<div class="mini-calendar-day empty"></div>';
   }
 
   for (let d = 1; d <= lastDay.getDate(); d++) {
@@ -2560,10 +2512,10 @@ function renderRestrictionCards() {
 
   const panel = document.getElementById("restrictionsPanel");
   if (panel) {
-    const toggle = panel.querySelector(".collapse-toggle");
+    const header = panel.querySelector(".panel-header");
     panel.classList.toggle("has-restrictions", activeRestrictions.length > 0);
-    if (toggle) {
-      toggle.dataset.count = activeRestrictions.length > 9 ? "9+" : String(activeRestrictions.length);
+    if (header) {
+      header.dataset.count = activeRestrictions.length > 9 ? "9+" : String(activeRestrictions.length);
     }
   }
 
@@ -2629,17 +2581,17 @@ function renderDiary() {
 
   const panel = document.getElementById("diaryPanel");
   if (panel) {
-    const toggle = panel.querySelector(".collapse-toggle");
+    const header = panel.querySelector(".panel-header");
     if (isAthleteOwner) {
       panel.classList.toggle("has-entries", false);
-      if (toggle) {
-        toggle.dataset.count = "0";
+      if (header) {
+        header.dataset.count = "0";
       }
     } else {
       const unread = diaryEntries.filter(e => !isEntryRead(athleteId, e.id)).length;
       panel.classList.toggle("has-entries", unread > 0);
-      if (toggle) {
-        toggle.dataset.count = unread > 9 ? "9+" : String(unread);
+      if (header) {
+        header.dataset.count = unread > 9 ? "9+" : String(unread);
       }
     }
   }
@@ -2762,258 +2714,9 @@ document.getElementById("diaryBody")?.addEventListener("click", async (e) => {
   }
 });
 
-const ST_FIELDS = [
-  "stPlank", "stDibens", "stRokas", "stSiena", "stTipLab", "stTipKreis",
-  "stPlankLab", "stPlankKreis", "stPalLab", "stPalKreis",
-];
-const ST_KEYS = [
-  "plank", "dibens_gaisa", "rokas_zeme", "siena_ietupiens", "tiptoes_labakaja", "tiptoes_kreisaja",
-  "plank_labais", "plank_kreisais", "paleciens_laba", "paleciens_kreisa",
-];
-
-function renderSelfTests() {
-  const body = document.getElementById("selfTestsBody");
-  if (!body) return;
-  const athleteId = getSelectedAthleteId();
-  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
-
-  if (!isAthleteView && activeRole !== "coach") {
-    body.innerHTML = "";
-    return;
-  }
-
-  const list = selfTests.length
-    ? selfTests.map(s => `
-        <div class="selftest-row" data-selftest-id="${s.id}">
-          <span class="selftest-date">${formatDateLV(s.date)}</span>
-        </div>
-      `).join("")
-    : '<div class="muted">— Nav paštestu</div>';
-
-  const addBtn = isAthleteView
-    ? '<button id="addSelfTestBtn" class="primary-action" type="button">Pievienot paštestu</button>'
-    : "";
-
-  body.innerHTML = `${addBtn}<div class="selftest-list">${list}</div>`;
-
-  document.getElementById("addSelfTestBtn")?.addEventListener("click", () => openSelfTestDialog(null));
-
-  body.querySelectorAll("[data-selftest-id]").forEach(row => {
-    row.addEventListener("click", () => {
-      const s = selfTests.find(st => st.id === row.dataset.selftestId);
-      if (s) openSelfTestDialog(s);
-    });
-  });
-
-  const panel = document.getElementById("selfTestsPanel");
-  if (panel) {
-    const toggle = panel.querySelector(".collapse-toggle");
-    if (activeRole === "coach") {
-      const unseen = selfTests.filter(t => !isSelfTestSeen(athleteId, t.id)).length;
-      panel.classList.toggle("has-entries", unseen > 0);
-      if (toggle) {
-        toggle.dataset.count = unseen > 9 ? "9+" : String(unseen);
-      }
-    } else {
-      panel.classList.toggle("has-entries", false);
-      if (toggle) {
-        toggle.dataset.count = "0";
-      }
-    }
-  }
-}
-
-function openSelfTestDialog(existing) {
-  const dlg = document.getElementById("selfTestDialog");
-  const athleteId = getSelectedAthleteId();
-  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
-
-  if (existing) {
-    editingSelfTestId = existing.id;
-    document.getElementById("stDate").value = existing.date;
-    ST_FIELDS.forEach((id, i) => {
-      document.getElementById(id).value = existing[ST_KEYS[i]] || "";
-    });
-    document.getElementById("deleteSelfTestBtn").hidden = !isAthleteView;
-  } else {
-    editingSelfTestId = null;
-    document.getElementById("stDate").value = formatDateISO(new Date());
-    ST_FIELDS.forEach(id => { document.getElementById(id).value = ""; });
-    document.getElementById("deleteSelfTestBtn").hidden = true;
-  }
-
-  ST_FIELDS.forEach(id => { document.getElementById(id).disabled = !isAthleteView; });
-  document.getElementById("stDate").disabled = !isAthleteView;
-  document.getElementById("saveSelfTestBtn").hidden = !isAthleteView;
-
-  dlg.showModal();
-}
-
 document.getElementById("saveLabTestBtn")?.addEventListener("click", saveLabTest);
 document.getElementById("deleteLabTestBtn")?.addEventListener("click", deleteLabTestFile);
 
-document.getElementById("saveSelfTestBtn")?.addEventListener("click", async () => {
-  const athleteId = getSelectedAthleteId();
-  const date = document.getElementById("stDate").value;
-  if (!date) return;
-
-  const data = { athlete_id: athleteId, date };
-  ST_FIELDS.forEach((id, i) => { data[ST_KEYS[i]] = document.getElementById(id).value.trim(); });
-
-  try {
-    if (editingSelfTestId) {
-      const updates = { date };
-      ST_KEYS.forEach((k, i) => { updates[k] = document.getElementById(ST_FIELDS[i]).value.trim(); });
-      await updateSelfTest(editingSelfTestId, updates);
-    } else {
-      await insertSelfTest(data);
-    }
-    selfTests = await getSelfTests(athleteId);
-    renderSelfTests();
-    document.getElementById("selfTestDialog").close();
-  } catch (e) {
-    alert("Neizdevās saglabāt: " + (e.message || e));
-  }
-});
-
-document.getElementById("deleteSelfTestBtn")?.addEventListener("click", async () => {
-  if (!editingSelfTestId) return;
-  if (!confirm("Dzēst šo paštestu?")) return;
-  try {
-    await deleteSelfTest(editingSelfTestId);
-    selfTests = await getSelfTests(getSelectedAthleteId());
-    renderSelfTests();
-    document.getElementById("selfTestDialog").close();
-  } catch (e) {
-    alert("Neizdevās dzēst: " + (e.message || e));
-  }
-});
-
-const PT_FIELDS = ["ptMas", "ptMap", "ptVo2", "ptLactAfter", "ptLact5"];
-const PT_KEYS = ["mas_pace", "map_watts", "vo2max", "lactate_after", "lactate_5min"];
-
-function renderPolarTests() {
-  const body = document.getElementById("polarTestsBody");
-  if (!body) return;
-  const athleteId = getSelectedAthleteId();
-  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
-
-  if (!isAthleteView && activeRole !== "coach") {
-    body.innerHTML = "";
-    return;
-  }
-
-  const list = polarTests.length
-    ? polarTests.map(p => `
-        <div class="selftest-row" data-polartest-id="${p.id}">
-          <span class="selftest-date">${formatDateLV(p.date)}</span>
-          ${p.mas_pace ? `<span class="selftest-mas">${escapeHtml(p.mas_pace)}</span>` : ""}
-        </div>
-      `).join("")
-    : '<div class="muted">— Nav polar testu</div>';
-
-  const addBtn = isAthleteView
-    ? '<button id="addPolarTestBtn" class="primary-action" type="button">Pievienot polar testu</button>'
-    : "";
-
-  body.innerHTML = `${addBtn}<div class="selftest-list">${list}</div>`;
-
-  document.getElementById("addPolarTestBtn")?.addEventListener("click", () => openPolarTestDialog(null));
-
-  body.querySelectorAll("[data-polartest-id]").forEach(row => {
-    row.addEventListener("click", () => {
-      const p = polarTests.find(pt => pt.id === row.dataset.polartestId);
-      if (p) openPolarTestDialog(p);
-    });
-  });
-
-  const panel = document.getElementById("polarTestsPanel");
-  if (panel) {
-    const toggle = panel.querySelector(".collapse-toggle");
-    if (activeRole === "coach") {
-      const unseen = polarTests.filter(t => !isPolarTestSeen(athleteId, t.id)).length;
-      panel.classList.toggle("has-entries", unseen > 0);
-      if (toggle) {
-        toggle.dataset.count = unseen > 9 ? "9+" : String(unseen);
-      }
-    } else {
-      panel.classList.toggle("has-entries", false);
-      if (toggle) {
-        toggle.dataset.count = "0";
-      }
-    }
-  }
-}
-
-function openPolarTestDialog(existing) {
-  const dlg = document.getElementById("polarTestDialog");
-  const athleteId = getSelectedAthleteId();
-  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
-
-  if (existing) {
-    editingPolarTestId = existing.id;
-    document.getElementById("ptDate").value = existing.date;
-    document.getElementById("ptMas").value = existing.mas_pace || "";
-    document.getElementById("ptMap").value = existing.map_watts ?? "";
-    document.getElementById("ptVo2").value = existing.vo2max ?? "";
-    document.getElementById("ptLactAfter").value = existing.lactate_after ?? "";
-    document.getElementById("ptLact5").value = existing.lactate_5min ?? "";
-    document.getElementById("deletePolarTestBtn").hidden = !isAthleteView;
-  } else {
-    editingPolarTestId = null;
-    document.getElementById("ptDate").value = formatDateISO(new Date());
-    PT_FIELDS.forEach(id => { document.getElementById(id).value = ""; });
-    document.getElementById("deletePolarTestBtn").hidden = true;
-  }
-
-  PT_FIELDS.forEach(id => { document.getElementById(id).disabled = !isAthleteView; });
-  document.getElementById("ptDate").disabled = !isAthleteView;
-  document.getElementById("savePolarTestBtn").hidden = !isAthleteView;
-
-  dlg.showModal();
-}
-
-document.getElementById("savePolarTestBtn")?.addEventListener("click", async () => {
-  const athleteId = getSelectedAthleteId();
-  const date = document.getElementById("ptDate").value;
-  if (!date) return;
-
-  const data = {
-    athlete_id: athleteId,
-    date,
-    mas_pace: document.getElementById("ptMas").value,
-    map_watts: document.getElementById("ptMap").value ? parseInt(document.getElementById("ptMap").value) : null,
-    vo2max: document.getElementById("ptVo2").value ? parseFloat(document.getElementById("ptVo2").value) : null,
-    lactate_after: document.getElementById("ptLactAfter").value ? parseFloat(document.getElementById("ptLactAfter").value) : null,
-    lactate_5min: document.getElementById("ptLact5").value ? parseFloat(document.getElementById("ptLact5").value) : null,
-  };
-
-  try {
-    if (editingPolarTestId) {
-      await updatePolarTest(editingPolarTestId, data);
-    } else {
-      await insertPolarTest(data);
-    }
-    polarTests = await getPolarTests(athleteId);
-    renderPolarTests();
-    document.getElementById("polarTestDialog").close();
-  } catch (e) {
-    alert("Neizdevās saglabāt: " + (e.message || e));
-  }
-});
-
-document.getElementById("deletePolarTestBtn")?.addEventListener("click", async () => {
-  if (!editingPolarTestId) return;
-  if (!confirm("Dzēst šo polar testu?")) return;
-  try {
-    await deletePolarTest(editingPolarTestId);
-    polarTests = await getPolarTests(getSelectedAthleteId());
-    renderPolarTests();
-    document.getElementById("polarTestDialog").close();
-  } catch (e) {
-    alert("Neizdevās dzēst: " + (e.message || e));
-  }
-});
 
 function renderHealthJournal() {
   const body = document.getElementById("healthJournalBody");
@@ -3059,17 +2762,17 @@ function renderHealthJournal() {
 
   const panel = document.getElementById("healthJournalPanel");
   if (panel) {
-    const toggle = panel.querySelector(".collapse-toggle");
+    const header = panel.querySelector(".panel-header");
     if (activeRole === "coach") {
       const unseen = healthEntries.filter(e => !isHealthSeen(e.id)).length;
       panel.classList.toggle("has-entries", unseen > 0);
-      if (toggle) {
-        toggle.dataset.count = unseen > 9 ? "9+" : String(unseen);
+      if (header) {
+        header.dataset.count = unseen > 9 ? "9+" : String(unseen);
       }
     } else {
       panel.classList.toggle("has-entries", false);
-      if (toggle) {
-        toggle.dataset.count = "0";
+      if (header) {
+        header.dataset.count = "0";
       }
     }
   }
@@ -3189,18 +2892,18 @@ function renderLabTests() {
 
   const panel = document.getElementById("labTestsPanel");
   if (panel) {
-    const toggle = panel.querySelector(".collapse-toggle");
+    const header = panel.querySelector(".panel-header");
     if (isCoachView) {
       const unseen = labTests.filter(t => !isLabTestSeen(athleteId, t.id)).length;
       panel.classList.toggle("has-entries", unseen > 0);
-      if (toggle) {
-        toggle.dataset.count = unseen > 9 ? "9+" : String(unseen);
+      if (header) {
+        header.dataset.count = unseen > 9 ? "9+" : String(unseen);
       }
     } else {
       const unseenIzv = labTests.filter(t => t.izvertets && !isIzvertetsSeen(athleteId, t.id)).length;
       panel.classList.toggle("has-entries", unseenIzv > 0);
-      if (toggle) {
-        toggle.dataset.count = unseenIzv > 9 ? "9+" : String(unseenIzv);
+      if (header) {
+        header.dataset.count = unseenIzv > 9 ? "9+" : String(unseenIzv);
       }
     }
   }
