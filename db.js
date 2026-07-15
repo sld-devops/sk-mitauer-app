@@ -793,6 +793,18 @@ async function deleteLabTest(id) {
   if (error) throw error;
 }
 
+async function updateLabTest(id, updates) {
+  const { data, error } = await supabase
+    .from("lab_tests")
+    .update(updates)
+    .eq("id", id)
+    .select();
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error("Saglabāšana neizdevās (iespējams, trūkst tiesību) — izmaiņas netika saglabātas.");
+  }
+}
+
 async function getNotCompletedAthleteIds() {
   const { data } = await supabase
     .from("plans")

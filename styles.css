@@ -8,6 +8,7 @@
   --surface: #f9f1e4;
   --surface-alt: #f4ece0;
   --surface-hover: #efe6d8;
+  --panel-row-hover: #f7efe2;
   --accent: #c91f2f;
   --accent-dark: #9e1724;
 }
@@ -2491,13 +2492,11 @@ label {
 }
 
 .profile-record-row {
-  align-items: flex-start;
   border: 1px solid var(--line);
   border-radius: 6px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 2px;
   padding: 8px 10px;
 }
 
@@ -2508,24 +2507,20 @@ label {
   gap: 6px;
 }
 
-.profile-record-details {
-  align-items: center;
-  color: var(--muted);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 0.85rem;
-  gap: 6px;
-  width: 100%;
-}
-
-.profile-record-details .muted {
-  font-size: 0.82rem;
-}
-
 .record-chip-date {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   white-space: nowrap;
+}
+
+.record-row-title {
+  overflow-wrap: break-word;
+}
+
+.record-row-line {
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .profile-record-actions {
@@ -2533,18 +2528,12 @@ label {
   gap: 4px;
 }
 
-.record-dist {
-  font-weight: 700;
-  min-width: 50px;
-}
-
 .record-clickable {
   cursor: pointer;
 }
 
 .record-clickable:hover {
-  border-color: var(--accent);
-  background: var(--surface-hover);
+  background: var(--panel-row-hover);
 }
 
 #hrZoneFields input[disabled],
@@ -2552,15 +2541,6 @@ label {
 #profileCard input[disabled] {
   background: #fff;
   color: var(--muted);
-}
-
-.record-time {
-  font-weight: 700;
-}
-
-.chip-pace {
-  color: var(--accent);
-  font-weight: 700;
 }
 
 .edit-record-btn {
@@ -3625,6 +3605,7 @@ textarea:disabled {
 .health-list {
   display: grid;
   gap: 6px;
+  margin-top: 8px;
 }
 .health-entry {
   border: 1px solid var(--line);
@@ -3636,8 +3617,7 @@ textarea:disabled {
   cursor: pointer;
 }
 .health-clickable:hover {
-  border-color: var(--accent);
-  background: var(--surface-hover);
+  background: var(--panel-row-hover);
 }
 .health-entry-header {
   display: flex;
@@ -3685,22 +3665,29 @@ textarea:disabled {
 
 /* ---- Diary ---- */
 .diary-entry {
+  position: relative;
   border: 1px solid var(--line);
-  border-radius: 5px;
-  padding: 8px 10px;
+  border-radius: 6px;
+  padding: 8px 12px;
   margin-bottom: 6px;
+}
+.diary-entry-editable {
+  padding-right: 46px;
+}
+.diary-entry:hover {
+  background: var(--panel-row-hover);
 }
 .diary-entry:last-child {
   margin-bottom: 0;
 }
 .diary-entry-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
 }
 .diary-entry-date {
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 .diary-entry-content {
   margin-top: 4px;
@@ -3710,9 +3697,14 @@ textarea:disabled {
 }
 .diary-entry-content p {
   margin: 0;
+  overflow-wrap: break-word;
 }
 .diary-entry-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   display: flex;
+  align-items: center;
   gap: 4px;
 }
 .diary-edit-btn,
@@ -3722,14 +3714,16 @@ textarea:disabled {
   color: var(--muted);
   cursor: pointer;
   font-size: 0.9rem;
-  padding: 6px 8px;
+  padding: 2px 6px;
   border-radius: 4px;
-  min-height: 40px;
 }
-.diary-edit-btn:hover,
-.diary-delete-btn:hover {
+.diary-edit-btn:hover {
   color: var(--accent);
   background: rgba(0,0,0,0.06);
+}
+.diary-delete-btn:hover {
+  background: var(--danger-bg, #fef2f2);
+  color: var(--danger, #dc2626);
 }
 
 .diary-form {
@@ -3739,6 +3733,12 @@ textarea:disabled {
 }
 .diary-form-row {
   margin-bottom: 8px;
+}
+#newDiaryDate {
+  width: auto;
+}
+#newDiaryContent {
+  resize: none;
 }
 #addDiaryBtn {
   margin-top: 8px;
@@ -3852,21 +3852,40 @@ textarea:disabled {
   margin-top: 8px;
 }
 
+.panel-add-btn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  width: auto;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
 .labtest-row {
-  align-items: center;
+  position: relative;
   display: flex;
-  gap: 8px;
-  padding: 6px 10px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 46px 8px 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
 }
 
 .labtest-row:hover {
-  background: var(--surface-hover);
+  background: var(--panel-row-hover);
+}
+
+.labtest-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
 }
 
 .labtest-date {
+  font-size: 0.8rem;
   font-weight: 600;
+  color: var(--muted);
 }
 
 .labtest-type-badge {
@@ -3878,16 +3897,16 @@ textarea:disabled {
 }
 
 .labtest-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
 }
 
 .labtest-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   display: flex;
+  align-items: center;
   gap: 4px;
-  margin-left: auto;
 }
 
 .labtest-delete-btn {
@@ -3927,7 +3946,6 @@ textarea:disabled {
   background: #f0fdf4;
   color: #16a34a;
   border: 1px solid #bbf7d0;
-  margin-left: 6px;
   vertical-align: middle;
 }
 
@@ -4051,18 +4069,20 @@ textarea:disabled {
   align-items: center;
   display: flex;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
   cursor: pointer;
 }
 
 .selftest-row:hover {
-  background: var(--surface-hover);
+  background: var(--panel-row-hover);
 }
 
 .selftest-date {
+  font-size: 0.8rem;
   font-weight: 600;
+  color: var(--muted);
 }
 
 .selftest-mas {

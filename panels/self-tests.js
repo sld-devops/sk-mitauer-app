@@ -55,10 +55,10 @@ function renderSelfTests() {
     : '<div class="muted">— Nav paštestu</div>';
 
   const addBtn = isAthleteView
-    ? '<button id="addSelfTestBtn" class="primary-action" type="button">Pievienot paštestu</button>'
+    ? '<button id="addSelfTestBtn" class="secondary-action panel-add-btn" type="button">Pievienot</button>'
     : "";
 
-  body.innerHTML = `${addBtn}<div class="selftest-list">${list}</div>`;
+  body.innerHTML = `<div class="selftest-list">${list}</div>${addBtn}`;
 
   document.getElementById("addSelfTestBtn")?.addEventListener("click", () => openSelfTestDialog(null));
 

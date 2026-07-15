@@ -50,10 +50,10 @@ function renderPolarTests() {
     : '<div class="muted">— Nav polar testu</div>';
 
   const addBtn = isAthleteView
-    ? '<button id="addPolarTestBtn" class="primary-action" type="button">Pievienot polar testu</button>'
+    ? '<button id="addPolarTestBtn" class="secondary-action panel-add-btn" type="button">Pievienot</button>'
     : "";
 
-  body.innerHTML = `${addBtn}<div class="selftest-list">${list}</div>`;
+  body.innerHTML = `<div class="selftest-list">${list}</div>${addBtn}`;
 
   document.getElementById("addPolarTestBtn")?.addEventListener("click", () => openPolarTestDialog(null));
 
