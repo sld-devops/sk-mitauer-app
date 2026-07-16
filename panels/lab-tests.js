@@ -50,9 +50,6 @@ function markAllIzvertetsSeen(athleteId, tests) {
 loadSeenLabTestIds();
 loadSeenIzvertetsIds();
 
-document.getElementById("saveLabTestBtn")?.addEventListener("click", saveLabTest);
-document.getElementById("deleteLabTestBtn")?.addEventListener("click", deleteLabTestFile);
-
 const LABTEST_TYPE_LABEL = {
   asins_aina: "🧪 Asins aina",
   slodzes_tests: "💉 Slodzes tests",
@@ -88,11 +85,10 @@ function renderLabTests() {
             <input type="checkbox" data-labtest-id="${t.id}" ${t.izvertets ? "checked" : ""} />
           </label>`
         : "";
-      html += `<div class="labtest-row" data-labtest-id="${t.id}">
+      html += `<div class="labtest-row${isAthleteView ? " labtest-row-editable" : ""}" data-labtest-id="${t.id}">
         <span class="labtest-actions">
           ${coachCheckbox}
           <a class="labtest-download-btn" href="#" data-labtest-id="${t.id}" title="Lejupielādēt">⬇</a>
-          ${isAthleteView ? `<button class="labtest-delete-btn" data-labtest-id="${t.id}" title="Dzēst">✕</button>` : ""}
         </span>
         <div class="labtest-info">
           <span class="labtest-date">${formatDateLV(t.date)}</span>
@@ -105,13 +101,48 @@ function renderLabTests() {
     html += `</div>`;
   }
 
+  const editing = editingLabTestId ? labTests.find(t => t.id === editingLabTestId) : null;
+
   if (isAthleteView) {
-    html += `<button class="secondary-action panel-add-btn" id="addLabTestBtn" type="button">Pievienot</button>`;
+    html += `
+      <div class="labtest-form">
+        <h3 class="labtest-form-title">${editing ? "Rediģēt izmeklējumu" : "Pievienot izmeklējumu"}</h3>
+        <div class="field-grid">
+          <label>Datums <input id="labTestDate" type="date" value="${editing ? editing.date : formatDateISO(new Date())}" /></label>
+          <label>Tips
+            <select id="labTestType">
+              <option value="asins_aina" ${(!editing || editing.type === "asins_aina") ? "selected" : ""}>Asins aina</option>
+              <option value="slodzes_tests" ${editing?.type === "slodzes_tests" ? "selected" : ""}>Slodzes tests</option>
+              <option value="cits" ${editing?.type === "cits" ? "selected" : ""}>Cits</option>
+            </select>
+          </label>
+        </div>
+        <label>Nosaukums <input id="labTestName" type="text" placeholder="piem. Pilna asins aina 06.2026" value="${editing ? escapeHtml(editing.name) : ""}" /></label>
+        <label>Fails${editing ? ` <span class="muted">(atstāj tukšu, lai saglabātu iepriekšējo)</span>` : ""}
+          <input id="labTestFile" type="file" accept=".pdf,.jpg,.jpeg,.png" ${!editing ? "required" : ""} />
+        </label>
+        <div class="labtest-form-actions">
+          ${editing ? `<button class="delete-action" id="deleteLabTestBtn" type="button">Dzēst</button>` : ""}
+          ${editing ? `<button class="secondary-action" id="cancelLabTestEditBtn" type="button">Atcelt</button>` : ""}
+          <button class="secondary-action panel-add-btn" id="saveLabTestBtn" type="button">${editing ? "Saglabāt" : "Pievienot"}</button>
+        </div>
+      </div>
+    `;
   }
 
   body.innerHTML = html;
 
-  document.getElementById("addLabTestBtn")?.addEventListener("click", () => openLabTestDialog(null));
+  if (isAthleteView) {
+    body.querySelectorAll(".labtest-row-editable").forEach(row => {
+      row.addEventListener("click", (e) => {
+        if (e.target.closest(".labtest-actions")) return;
+        startLabTestEdit(row.dataset.labtestId);
+      });
+    });
+    document.getElementById("saveLabTestBtn")?.addEventListener("click", saveLabTest);
+    document.getElementById("cancelLabTestEditBtn")?.addEventListener("click", cancelLabTestEdit);
+    document.getElementById("deleteLabTestBtn")?.addEventListener("click", deleteLabTestFile);
+  }
 
   body.querySelectorAll(".labtest-download-btn").forEach(a => {
     a.addEventListener("click", async (e) => {
@@ -132,23 +163,6 @@ function renderLabTests() {
         }
       } catch (e) {
         alert("Neizdevās lejupielādēt: " + (e.message || e));
-      }
-    });
-  });
-
-  body.querySelectorAll(".labtest-delete-btn").forEach(btn => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const t = labTests.find(lt => lt.id === btn.dataset.labtestId);
-      if (!t) return;
-      if (!confirm(`Dzēst "${t.name}"?`)) return;
-      try {
-        await supabase.storage.from("lab-test-files").remove([t.file_path]);
-        await deleteLabTest(t.id);
-        labTests = await getLabTests(athleteId);
-        renderLabTests();
-      } catch (e) {
-        alert("Neizdevās dzēst: " + (e.message || e));
       }
     });
   });
@@ -187,49 +201,15 @@ function renderLabTests() {
   }
 }
 
-function openLabTestDialog(existing) {
-  const dlg = document.getElementById("labTestDialog");
-  const athleteId = getSelectedAthleteId();
-  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
+function startLabTestEdit(testId) {
+  editingLabTestId = testId || null;
+  renderLabTests();
+  document.querySelector("#labTestsBody .labtest-form")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
 
-  const dateField = document.getElementById("labTestDate");
-  const typeField = document.getElementById("labTestType");
-  const nameField = document.getElementById("labTestName");
-  const fileField = document.getElementById("labTestFile");
-  const deleteBtn = document.getElementById("deleteLabTestBtn");
-  const saveBtn = document.getElementById("saveLabTestBtn");
-  const dlgTitle = dlg.querySelector("h2");
-
-  if (existing) {
-    editingLabTestId = existing.id;
-    dlgTitle.textContent = "Rediģēt izmeklējumu";
-    dateField.value = existing.date;
-    typeField.value = existing.type;
-    nameField.value = existing.name;
-    fileField.value = "";
-    fileField.required = false;
-    deleteBtn.hidden = !isAthleteView;
-    saveBtn.textContent = "Saglabāt izmaiņas";
-    fileField.disabled = false;
-  } else {
-    editingLabTestId = null;
-    dlgTitle.textContent = "Pievienot izmeklējumu";
-    dateField.value = formatDateISO(new Date());
-    typeField.value = "asins_aina";
-    nameField.value = "";
-    fileField.value = "";
-    fileField.required = true;
-    deleteBtn.hidden = true;
-    saveBtn.textContent = "Saglabāt";
-    fileField.disabled = false;
-  }
-
-  dateField.disabled = !isAthleteView;
-  typeField.disabled = !isAthleteView;
-  nameField.disabled = !isAthleteView;
-  fileField.disabled = !isAthleteView;
-
-  dlg.showModal();
+function cancelLabTestEdit() {
+  editingLabTestId = null;
+  renderLabTests();
 }
 
 async function saveLabTest() {
@@ -256,22 +236,16 @@ async function saveLabTest() {
           .upload(filePath, file);
         if (uploadError) throw uploadError;
 
-        await supabase
-          .from("lab_tests")
-          .update({
-            date,
-            type,
-            name,
-            file_path: filePath,
-            file_name: file.name,
-            file_type: file.type,
-          })
-          .eq("id", editingLabTestId);
+        await updateLabTest(editingLabTestId, {
+          date,
+          type,
+          name,
+          file_path: filePath,
+          file_name: file.name,
+          file_type: file.type,
+        });
       } else {
-        await supabase
-          .from("lab_tests")
-          .update({ date, type, name })
-          .eq("id", editingLabTestId);
+        await updateLabTest(editingLabTestId, { date, type, name });
       }
     } catch (e) {
       alert("Neizdevās atjaunināt: " + (e.message || e));
@@ -306,7 +280,6 @@ async function saveLabTest() {
   editingLabTestId = null;
   labTests = await getLabTests(athleteId);
   renderLabTests();
-  document.getElementById("labTestDialog").close();
 }
 
 async function deleteLabTestFile() {
@@ -321,7 +294,6 @@ async function deleteLabTestFile() {
     editingLabTestId = null;
     labTests = await getLabTests(getSelectedAthleteId());
     renderLabTests();
-    document.getElementById("labTestDialog").close();
   } catch (e) {
     alert("Neizdevās dzēst: " + (e.message || e));
   }

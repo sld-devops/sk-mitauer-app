@@ -109,7 +109,6 @@ async function changePassword() {
   confirmPasswordInput.value = "";
 }
 
-loginBtn.addEventListener("click", login);
 authForm.addEventListener("submit", function(e){ e.preventDefault(); login(); });
 logoutBtn.addEventListener("click", logout);
 

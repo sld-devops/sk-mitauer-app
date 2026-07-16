@@ -42,13 +42,9 @@ function renderHealthJournal() {
       const dateLabel = e.end_date
         ? `${e.start_date} – ${e.end_date}`
         : e.start_date;
-      const noTrainingBadge = e.trainings_not_done
-        ? `<span class="health-no-trainings-badge">⛔ Treniņi netiek veikti</span>`
-        : "";
       html += `<div class="health-entry${isAthleteOwner ? " health-clickable" : ""}" data-health-id="${e.id}">
         <div class="health-entry-header">
           <span class="health-entry-date">${dateLabel}</span>
-          ${noTrainingBadge}
         </div>
         <div class="health-entry-text">${escapeHtml(e.description)}</div>
       </div>`;
@@ -56,17 +52,35 @@ function renderHealthJournal() {
     html += `</div>`;
   }
 
+  const editing = editingHealthId ? healthEntries.find(h => h.id === editingHealthId) : null;
+
   if (isAthleteOwner) {
-    html += `<button id="addHealthEntryBtn" class="secondary-action panel-add-btn" type="button">Pievienot</button>`;
+    html += `
+      <div class="health-form">
+        <h3 class="health-form-title">${editing ? "Rediģēt ierakstu" : "Jauns ieraksts"}</h3>
+        <div class="field-grid">
+          <label>No <input id="hjStartDate" type="date" value="${editing ? editing.start_date : formatDateISO(new Date())}" /></label>
+          <label>Līdz <input id="hjEndDate" type="date" placeholder="tukšs, ja viena diena" value="${editing?.end_date || ""}" /></label>
+        </div>
+        <label>Apraksts <textarea id="hjDescription" rows="4">${editing ? escapeHtml(editing.description || "") : ""}</textarea></label>
+        <div class="health-form-actions">
+          ${editing ? `<button class="delete-action" id="deleteHealthBtn" type="button">Dzēst</button>` : ""}
+          ${editing ? `<button class="secondary-action" id="cancelHealthEditBtn" type="button">Atcelt</button>` : ""}
+          <button class="secondary-action panel-add-btn" id="saveHealthBtn" type="button">${editing ? "Saglabāt" : "Pievienot"}</button>
+        </div>
+      </div>
+    `;
   }
 
   body.innerHTML = html;
 
-  document.getElementById("addHealthEntryBtn")?.addEventListener("click", () => openHealthDialog(null));
   if (isAthleteOwner) {
     body.querySelectorAll("[data-health-id]").forEach(el => {
-      el.addEventListener("click", () => openHealthDialog(el.dataset.healthId));
+      el.addEventListener("click", () => startHealthEdit(el.dataset.healthId));
     });
+    document.getElementById("saveHealthBtn")?.addEventListener("click", saveHealthEntry);
+    document.getElementById("cancelHealthEditBtn")?.addEventListener("click", cancelHealthEdit);
+    document.getElementById("deleteHealthBtn")?.addEventListener("click", deleteHealthEntryHandler);
   }
 
   const panel = document.getElementById("healthJournalPanel");
@@ -87,39 +101,22 @@ function renderHealthJournal() {
   }
 }
 
-function openHealthDialog(entryId) {
-  editingHealthId = entryId;
-  const hjStartDate = document.getElementById("hjStartDate");
-  const hjEndDate = document.getElementById("hjEndDate");
-  const hjDescription = document.getElementById("hjDescription");
-  const hjNoTrainings = document.getElementById("hjNoTrainings");
-  const deleteBtn = document.getElementById("deleteHealthBtn");
-
-  if (entryId) {
-    const e = healthEntries.find(h => h.id === entryId);
-    if (!e) return;
-    hjStartDate.value = e.start_date;
-    hjEndDate.value = e.end_date || "";
-    hjDescription.value = e.description;
-    hjNoTrainings.checked = e.trainings_not_done;
-    deleteBtn.hidden = false;
-  } else {
-    hjStartDate.value = formatDateISO(new Date());
-    hjEndDate.value = "";
-    hjDescription.value = "";
-    hjNoTrainings.checked = false;
-    deleteBtn.hidden = true;
-  }
-  document.getElementById("hjNoTrainingsRow").hidden = activeRole !== "coach";
-  document.getElementById("healthDialog").showModal();
+function startHealthEdit(entryId) {
+  editingHealthId = entryId || null;
+  renderHealthJournal();
+  document.querySelector("#healthJournalBody .health-form")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-document.getElementById("saveHealthBtn")?.addEventListener("click", async () => {
+function cancelHealthEdit() {
+  editingHealthId = null;
+  renderHealthJournal();
+}
+
+async function saveHealthEntry() {
   const athleteId = getSelectedAthleteId();
   const startDate = document.getElementById("hjStartDate").value;
   const endDate = document.getElementById("hjEndDate").value || null;
   const description = document.getElementById("hjDescription").value.trim();
-  const trainingsNotDone = document.getElementById("hjNoTrainings").checked;
 
   if (!startDate) return;
   if (!description) return;
@@ -129,7 +126,6 @@ document.getElementById("saveHealthBtn")?.addEventListener("click", async () => 
     start_date: startDate,
     end_date: endDate,
     description,
-    trainings_not_done: trainingsNotDone,
   };
 
   try {
@@ -138,25 +134,25 @@ document.getElementById("saveHealthBtn")?.addEventListener("click", async () => 
     } else {
       await insertHealthEntry(data);
     }
-    document.getElementById("healthDialog").close();
+    editingHealthId = null;
     healthEntries = await getHealthEntries(athleteId);
     await refreshAthleteHealthSet();
     render();
   } catch (e) {
     console.error(e);
   }
-});
+}
 
-document.getElementById("deleteHealthBtn")?.addEventListener("click", async () => {
+async function deleteHealthEntryHandler() {
   if (!editingHealthId) return;
   if (!confirm("Dzēst šo ierakstu?")) return;
   try {
     await deleteHealthEntry(editingHealthId);
-    document.getElementById("healthDialog").close();
+    editingHealthId = null;
     healthEntries = await getHealthEntries(getSelectedAthleteId());
     await refreshAthleteHealthSet();
     render();
   } catch (e) {
     console.error(e);
   }
-});
+}
