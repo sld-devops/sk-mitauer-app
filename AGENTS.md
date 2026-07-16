@@ -1,69 +1,38 @@
-# SK Mitauer Training Planner — Agent instructions
+# SK Mitauer Training Planner — response style
 
-**What this is:** Vanilla HTML/CSS/JS prototype for `tksportisti.netlify.app`. No build step, no tests, no backend.
+This file is only for how to talk to the project owner. For architecture, commands, and coding conventions, see `CLAUDE.md`.
 
-## Commands
-
-```bash
-# run locally
-xdg-open index.html
-```
-
-That is the only command. There is no package.json, no npm, no test runner, no linter, no formatter, no typechecker, no CI.
-
-## Architecture
-
-- `index.html` — entrypoint. Loads `styles.css` and `app.js`.
-- `app.js` — all logic (427 lines). Pure DOM manipulation, no framework.
-- `styles.css` — all styles (414 lines). Custom properties for the design system.
-- UI language: **Latvian** (day names, labels, comments).
-- All data lives in-memory (`plans[]`, `templates[]`, `athletes[]`). No persistence yet.
-- No localStorage, no service worker, no URL routing.
-
-## Conventions
-
-- No package manager or dependency file — the repo is intentionally bare.
-- Comments in code are in English; UI strings are in Latvian.
-- Editing convention: maintain the flat-file style. No component extraction, no module bundler.
-- Always be concise. Use plain language only. Skip code snippets unless explicitly requested. Ask specific questions when clarification is needed.
 - **Always respond in Latvian.**
+- Speak in simple, plain language — explain results, not technical syntax.
+- Do not ask complex technical questions with multiple options. Ask one clear thing at a time.
+- Skip code snippets unless explicitly requested — this includes plans: when proposing what will change (before or after doing it), describe the pieces in plain language (which panel, which file, what kind of change) instead of pasting the actual code.
+- Trust the owner's judgment — when they say "I trust you," proceed without further questions.
+- Keep explanations short and focused on what changed visually/functionally.
+- If you are not fully sure a fix is complete or a feature was tested end-to-end, say so plainly instead of presenting it as done. The owner cannot read the code to check, so an honest "I tested X but not Y" is more useful than a confident-sounding guess.
 
-## Communication style
+## Reporting bugs
 
-- **Do not ask complex technical questions** with multiple options (e.g., "Should we use X or Y? Which do you prefer?")
-- **Speak in simple language** — explain only the result, not technical syntax terms
-- **Trust your judgment** — when user says "I trust you", just do it without asking
-- Keep explanations short and focused on what changed visually/functionally
-- **Always respond in Latvian.**
+When something looks broken, the fastest way to describe it: a screenshot of what you saw, which button/screen you were on, and whether you were logged in as coach or as the athlete. That's enough to start from.
 
-## Key constraints from README
+## Glossary — Latvian training terms
 
-> "Coach selects an athlete. Coach chooses a saved training preparation or creates a new training from form fields. Coach clicks a day to place the selected training for that athlete. Coach can add a coach comment. Athlete can add an athlete comment."
+Keep this vocabulary consistent across new UI text and messages (pulled from what's already used in the app):
 
-## Active Work: Ierobežojumi pa dienas daļām
-
-### Problēma
-Šobrīd ierobežojums bloķē visu dienu. Sportists varētu gribēt bloķēt tikai vakaru, bet treneris varētu likt treniņu no rīta.
-
-### Risinājums
-1. **DB migrācija** — pievienot `time_of_day` kolonnu `restrictions` tabulai (nullable; `null` = visa diena)
-2. **Helper funkcija** `isTimeSlotRestricted(dateStr, tod)` — pārbauda vai konkrēta dienas daļa ir bloķēta:
-   - Ja ir ierobežojums bez `time_of_day` → bloķē visas 3 daļas
-   - Ja ir ierobežojums ar `time_of_day` → bloķē tikai to daļu
-3. **Dienas renderēšana** (`app.js:1943`) — rādīt "Ieplānot" pogu tikai nebloķētām dienas daļām. Ja visas 3 bloķētas → rādīt pilnas dienas ierobežojumu
-4. **Klikšķu handleris** (`app.js:4170`) — bloķēt tikai konkrēto `tod`, nevis visu dienu
-5. **Mēneša skati** (`app.js:3257, 3340`) — rādīt 🚫 ja ir jebkāds ierobežojums (bez izmaiņām)
-6. **Ierobežojuma forma** (`app.js:2325-2332`) — pievienot radio pogas: "Visa diena" (noklusējums), "Rīts", "Pusdiena", "Vakars"
-
-### Esošie ierobežojumi
-Netiek migrēti — `time_of_day = null` tiek traktēts kā visa diena.
-
-## Active Work: Mēneša skata izvēršamie teksti
-
-### Problēma
-Mēneša skatā ierobežojuma un veselības teksti tiek apgriezti ar `text-overflow: ellipsis`. Pilns teksts nav redzams.
-
-### Risinājums (izdarīts)
-- CSS: pievienota `.expanded` klase `.month-restriction-text` un `.month-health-text` elementiem
-- HTML: pievienots `role="button"` un `tabindex="0"` abiem elementiem
-- JS: pievienots klikšķu handleris, kas pārslēdz `.expanded` klasi — uzspiežot teksts izvēršas
+| Latvian | Meaning |
+| --- | --- |
+| Treniņš | Training / workout |
+| Treniņa ieraksts | Training log entry |
+| Iesildīšanās | Warm-up |
+| Atsildīšanās | Cool-down |
+| Atpūta | Rest |
+| Atpūta starp blokiem | Rest between blocks/sets |
+| Temps | Pace |
+| Sirdsritms | Heart rate |
+| Sliekšņvērtības | Threshold values |
+| Distance | Distance |
+| Koptreniņš | Combined/joint training session |
+| VFS | (general strength training, as used in the app) |
+| SFS | (specific strength training, as used in the app) |
+| Drills | Drills |
+| Sportists | Athlete |
+| Treneris | Coach |

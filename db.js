@@ -256,56 +256,6 @@ async function getAllLogEntries(athleteId) {
   return data || [];
 }
 
-async function getWeeklyStats(athleteId, weekStart, weekEnd) {
-  const { data } = await supabase
-    .from("log_entries")
-    .select("activity_type, distance_km, duration_min")
-    .eq("athlete_id", athleteId)
-    .gte("date", weekStart)
-    .lte("date", weekEnd);
-
-  if (!data) return { run: { km: 0, min: 0 }, gym: { min: 0 }, bike: { min: 0 } };
-
-  const stats = { run: { km: 0, min: 0 }, gym: { min: 0 }, bike: { min: 0 } };
-  for (const entry of data) {
-    if (entry.activity_type === "run") {
-      stats.run.km += Number(entry.distance_km) || 0;
-      stats.run.min += Number(entry.duration_min) || 0;
-    } else if (entry.activity_type === "gym") {
-      stats.gym.min += Number(entry.duration_min) || 0;
-    } else if (entry.activity_type === "bike") {
-      stats.bike.min += Number(entry.duration_min) || 0;
-    }
-  }
-  return stats;
-}
-
-async function getMonthlyRunKm(athleteId, monthStart, monthEnd) {
-  const { data } = await supabase
-    .from("log_entries")
-    .select("distance_km")
-    .eq("athlete_id", athleteId)
-    .eq("activity_type", "run")
-    .gte("date", monthStart)
-    .lte("date", monthEnd);
-
-  if (!data) return 0;
-  return data.reduce((sum, e) => sum + (Number(e.distance_km) || 0), 0);
-}
-
-async function getMonthlyRunDuration(athleteId, monthStart, monthEnd) {
-  const { data } = await supabase
-    .from("log_entries")
-    .select("duration_min")
-    .eq("athlete_id", athleteId)
-    .eq("activity_type", "run")
-    .gte("date", monthStart)
-    .lte("date", monthEnd);
-
-  if (!data) return 0;
-  return data.reduce((sum, e) => sum + (Number(e.duration_min) || 0), 0);
-}
-
 function trendDateISO(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -791,6 +741,18 @@ async function deleteLabTest(id) {
     .delete()
     .eq("id", id);
   if (error) throw error;
+}
+
+async function updateLabTest(id, updates) {
+  const { data, error } = await supabase
+    .from("lab_tests")
+    .update(updates)
+    .eq("id", id)
+    .select();
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error("Saglabāšana neizdevās (iespējams, trūkst tiesību) — izmaiņas netika saglabātas.");
+  }
 }
 
 async function getNotCompletedAthleteIds() {
