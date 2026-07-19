@@ -44,7 +44,6 @@ createUserBtn?.addEventListener("click", () => {
   createUserDialog?.showModal();
 });
 
-document.getElementById("closeCreateUserBtn")?.addEventListener("click", () => createUserDialog?.close());
 document.getElementById("cancelCreateUserBtn")?.addEventListener("click", () => createUserDialog?.close());
 document.getElementById("createUserForm")?.addEventListener("submit", (e) => e.preventDefault());
 

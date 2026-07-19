@@ -22,6 +22,11 @@
   --warning-bg: #fbf1d9;
   --warning-border: #e8d19a;
 
+  --olive: #7d9a3a;
+  --olive-dark: #5f7a2c;
+  --olive-bg: #f1f5e6;
+  --olive-border: #d3e0b3;
+
   --danger: var(--accent);
   --danger-dark: var(--accent-dark);
   --danger-bg: #fdecec;
@@ -1039,15 +1044,21 @@ h4 {
 
 #warmupSection,
 .main-content-column,
-#cooldownSection {
+#cooldownSection,
+#customNameRow {
   border: 2px dashed #677e99;
   border-radius: 8px;
   padding: 12px;
   background: #fff;
 }
 
+#customNameRow {
+  margin-bottom: 16px;
+}
+
 #warmupSection,
-#cooldownSection {
+#cooldownSection,
+#customNameRow {
   min-width: 160px;
   max-width: 280px;
 }
@@ -1378,6 +1389,12 @@ button:focus-visible {
   gap: 8px;
 }
 
+#varAddSegment,
+#epVarAddSegment {
+  justify-self: start;
+  width: auto;
+}
+
 #varIntervalFields .field-grid {
   align-items: end;
 }
@@ -1398,14 +1415,14 @@ button:focus-visible {
 }
 
 .var-seg-remove {
-  font-size: 1rem;
-  height: 40px;
-  width: 36px;
+  font-size: 0.9rem;
+  height: 32px;
+  width: 28px;
   flex-shrink: 0;
-  background: var(--surface-alt);
-  border: 1px solid var(--line);
+  background: #ffffff;
+  border: 1px solid var(--accent);
   border-radius: 6px;
-  color: var(--muted);
+  color: var(--accent);
   cursor: pointer;
 }
 
@@ -1491,7 +1508,8 @@ label {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 6px;
-  display: flex;
+  display: inline-flex;
+  width: fit-content;
   gap: 6px;
   padding: 4px 8px;
   font-size: 0.8rem;
@@ -1523,6 +1541,19 @@ label {
   display: grid;
   gap: 12px;
   grid-template-columns: auto auto auto;
+}
+
+#logFormContent .field-grid-3 {
+  gap: 0.7mm;
+}
+
+#logFormContent .field-grid-3 > label {
+  width: fit-content;
+  justify-self: start;
+}
+
+#logFormContent .field-grid-3 > label:not(:last-child)::after {
+  display: none;
 }
 
 .field-grid-4 {
@@ -2119,9 +2150,13 @@ label {
   padding: 2px 6px;
 }
 
-.log-date {
-  font-weight: 700;
-  margin: 0 0 12px;
+.field-label {
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
 }
 
 .var-seg-log-row {
@@ -2214,7 +2249,7 @@ label {
   color: var(--warning);
 }
 .log-actual-pace {
-  width: 100%;
+  width: 160px;
 }
 .log-actual-pace.pace-fast {
   background: var(--danger-bg);
@@ -2274,7 +2309,8 @@ label {
 .pace-text-slow { color: var(--info); font-weight: 700; }
 .pace-text-warn { color: var(--warning); font-weight: 700; }
 
-.log-actual-pulse { width: 100%; }
+.log-actual-pulse { width: 160px; }
+.log-actual-duration { width: 90px; }
 
 .delete-action {
   color: var(--accent);
@@ -2312,6 +2348,16 @@ label {
   background: #566a82;
   box-shadow: 0 4px 12px rgba(103, 126, 153, 0.25);
   transform: translateY(-1px);
+}
+
+.save-template-athlete-btn {
+  background: #677e99;
+  border: 3px solid #000000;
+}
+
+.save-template-athlete-btn:hover {
+  background: #566a82;
+  box-shadow: 0 4px 12px rgba(103, 126, 153, 0.25);
 }
 
 .template-actions {
@@ -2427,6 +2473,15 @@ label {
   font-weight: 700;
   margin-bottom: 2px;
   margin-top: 8px;
+}
+
+#logFormContent .comment-label {
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 800;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }
 
 .inline-comment {

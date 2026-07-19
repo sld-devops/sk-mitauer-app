@@ -90,6 +90,7 @@ When building or restyling a list-style panel body in the sidebar (the narrow ~3
 - **UI language is Latvian** — all user-facing strings, labels, day names. Code identifiers and comments are in English.
 - Add new Supabase table access as a new function in `db.js`, not inline in `app.js`.
 - No localStorage is used for domain data (only for small UI prefs like `calendarMode`, `panelCollapsed`, `rememberLogin`, and "seen/read" ID sets for notification badges) — everything else is Supabase-backed.
+- **`.checkbox-row` (Drill, Naglenes, Sacensību apavi, Sacensību uzturs, etc.) sizes to its label text, not full width.** Fixed 2026-07-19: the class used `display: flex`, which is block-level and stretches to fill its container; changed to `display: inline-flex; width: fit-content;` app-wide so every checkbox+label row (in the training builder, edit-plan dialog, anywhere else this shared class is used) shrink-wraps around its own text instead of spanning the whole card/column. Any new checkbox row added later automatically gets this by using the existing `.checkbox-row` class — don't add a one-off width override per element.
 
 ## Working carefully in `app.js`
 
