@@ -47,6 +47,7 @@ let monthPlans = [];
 let monthLogEntries = [];
 let monthDayNotes = [];
 let weekBlockTypes = [];
+let weeklyReviews = [];
 
 let athleteNextWeeksPlans = {};
 let athleteHealthSet = new Set();
@@ -195,6 +196,16 @@ function parseTimeToSec(timeStr) {
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
   if (parts.length === 2) return parts[0] * 60 + parts[1];
   return 0;
+}
+
+function parseHoursMinutesInput(str) {
+  const v = (str || "").trim().replace(/\s+/g, "");
+  if (!v) return 0;
+  const m = v.match(/^(\d+)(?:h|:)(\d+)?m?$/i);
+  if (m) {
+    return parseInt(m[1]) + (m[2] ? parseInt(m[2]) / 60 : 0);
+  }
+  return parseFloat(v) || 0;
 }
 
 function formatPart(label, duration, pulse, pace, additional) {
@@ -633,6 +644,7 @@ async function loadNonTemplateData() {
     weeklySummaryRes,
     restrictionsRes,
     weekBlockTypesRes,
+    weeklyReviewsRes,
     diaryEntriesRes,
     selfTestsRes,
     polarTestsRes,
@@ -651,6 +663,7 @@ async function loadNonTemplateData() {
     safeGet(getWeeklySummary(athleteId, weekStartStr), null),
     safeGet(getRestrictions(athleteId), []),
     safeGet(getWeekBlockTypes(athleteId), []),
+    safeGet(getWeeklyReviewsForAthlete(athleteId), []),
     safeGet(getDiaryEntries(athleteId), []),
     safeGet(getSelfTests(athleteId), []),
     safeGet(getPolarTests(athleteId), []),
@@ -670,6 +683,7 @@ async function loadNonTemplateData() {
   weeklySummary = weeklySummaryRes;
   restrictions = restrictionsRes;
   weekBlockTypes = weekBlockTypesRes;
+  weeklyReviews = weeklyReviewsRes;
   diaryEntries = diaryEntriesRes;
   selfTests = selfTestsRes;
   polarTests = polarTestsRes;
@@ -1604,7 +1618,7 @@ function renderCalendar() {
       const raceHtml = dayRaces.length
         ? `<div class="race-list">
             <div class="race-section-header">🏁 ${dateStr >= todayStr ? "Gaidāmās sacensības" : "Aizvadītās sacensības"}</div>
-            ${dayRaces.map((r) => {
+            ${dayRaces.map((r, raceIdx) => {
               const isUpcoming = dateStr >= todayStr;
               const hasResult = !!r.result_time;
               const isAthleteOwner = (activeRole === "athlete") && currentUser.id === athleteId;
@@ -1617,7 +1631,9 @@ function renderCalendar() {
                 </div>
                 ${!hasResult && isAthleteOwner ? `<button class="add-day-button" data-log-race="${r.id}" type="button">Pievienot rezultātu</button>` : ""}
                 ${hasResult ? `<div class="race-result">✅ ${r.result_time}${r.result_pace ? " (" + r.result_pace.replace(/\/km\s*$/i, "") + "/km)" : ""}</div>` : ""}
-                ${isAthleteOwner ? `<textarea class="race-inline-comment" data-comment-race="${r.id}" placeholder="Komentārs..." rows="1">${r.result_comment || ""}</textarea>` : ""}
+                ${activeRole === "coach" && !dayPlans.length && raceIdx === dayRaces.length - 1
+                  ? `<div class="comment-label">Trenera komentārs/padomi</div><textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Komentārs...">${dayNote?.coach_comment || ""}</textarea>`
+                  : ""}
                 ${activeRole !== "coach" ? `<div class="race-actions"><button class="edit-race-btn" data-edit-race="${r.id}" type="button" title="Rediģēt">✏️</button><button class="delete-race-btn" data-race="${r.id}" type="button" title="Dzēst">×</button></div>` : ""}
               </div>
             `}).join("")}
@@ -1637,9 +1653,7 @@ function renderCalendar() {
           ${dayPlans.length
             ? dayPlans.map(renderPlanCard).join("")
             : dayRaces.length
-              ? activeRole === "coach"
-                ? `<textarea class="inline-comment" data-comment-day="${dateStr}">${dayNote?.coach_comment || ""}</textarea>`
-                : ""
+              ? ""
               : fullyRestricted
                 ? `<div class="day-restriction-text">🚫 ${escapeHtml(dayRestrictionReason)}</div>`
                 : activeRole === "coach"
@@ -1709,21 +1723,17 @@ function renderWeeklySummary() {
     </div>
     <div class="ws-fields">
       <label>Kilometrāža <input id="wsRunKm" type="number" step="0.1" value="${runKm}" ${isAthleteView ? "" : "disabled"} /></label>
-      <label>Kopējais laiks visos treniņos (h) <input id="wsRunMin" class="ws-time" type="text" value="${runMin}" ${isAthleteView ? "" : "disabled"} placeholder="piem. 10h45m" /></label>
-      <label>VFS/SFS (h) <input id="wsVfsSfs" class="ws-time" type="text" value="${vfsSfs}" ${isAthleteView ? "" : "disabled"} placeholder="piem. 1h30m" /></label>
-      <label>Velo (h) <input id="wsVelo" class="ws-time" type="text" value="${velo}" ${isAthleteView ? "" : "disabled"} placeholder="piem. 0h45m" /></label>
+      <label>Kopējais laiks visos treniņos (h) <input id="wsRunMin" class="ws-time" type="text" value="${runMin}" ${isAthleteView ? "" : "disabled"} ${isAthleteView ? 'placeholder="piem. 10h45m"' : ""} /></label>
+      <label>VFS/SFS (h) <input id="wsVfsSfs" class="ws-time" type="text" value="${vfsSfs}" ${isAthleteView ? "" : "disabled"} ${isAthleteView ? 'placeholder="piem. 1h30m"' : ""} /></label>
+      <label>Velo (h) <input id="wsVelo" class="ws-time" type="text" value="${velo}" ${isAthleteView ? "" : "disabled"} ${isAthleteView ? 'placeholder="piem. 0h45m"' : ""} /></label>
     </div>
   `;
 
   if (isAthleteView) {
     document.querySelectorAll(".ws-time").forEach((inp) => {
-      inp.addEventListener("input", function () {
-        const v = this.value.trim().replace(/\s+/g, "");
-        const m = v.match(/^(\d+)(?:h|:)(\d+)?m?$/i);
-        if (m) {
-          const h = parseInt(m[1]) + (m[2] ? parseInt(m[2]) / 60 : 0);
-          this.value = h.toFixed(2);
-        }
+      inp.addEventListener("blur", function () {
+        if (!this.value.trim()) return;
+        this.value = parseHoursMinutesInput(this.value).toFixed(2);
       });
     });
   }
@@ -1737,9 +1747,9 @@ function renderWeeklySummary() {
       }
       if (isAthleteView) {
         updates.run_km = parseFloat(document.getElementById("wsRunKm").value) || 0;
-        updates.run_min = parseFloat(document.getElementById("wsRunMin").value) || 0;
-        updates.vfs_sfs_min = parseFloat(document.getElementById("wsVfsSfs").value) || 0;
-        updates.velo_min = parseFloat(document.getElementById("wsVelo").value) || 0;
+        updates.run_min = parseHoursMinutesInput(document.getElementById("wsRunMin").value);
+        updates.vfs_sfs_min = parseHoursMinutesInput(document.getElementById("wsVfsSfs").value);
+        updates.velo_min = parseHoursMinutesInput(document.getElementById("wsVelo").value);
         updates.athlete_comment = document.getElementById("wsAthleteComment").value.trim();
       }
       try {
@@ -1807,10 +1817,11 @@ function renderMonthViewInline() {
       const cellBlockType = weekBlockTypes.find(b => b.week_start === cellWeekStart)?.block_type || "";
 
       const plansHtml = dayPlans.map((p) => {
-        const titleHtml = `<strong>${p.completed === false ? '<span class="not-completed-icon">!</span> ' : ""}${displayTitle(p.title)}</strong>`;
+        const titleHtml = `<strong>${displayTitle(p.title)}</strong>`;
         return `
         <div class="month-plan${p.completed === false ? " not-completed" : ""}">
           <span class="month-type-badge">${p.custom_icon || badgeForTitle(p.title)}</span>
+          ${p.completed === false ? '<span class="month-not-completed-icon">!</span>' : ""}
           <div class="month-plan-summary">
             ${titleHtml}
             <span>${extractMainPart(p.details)}</span>
@@ -1873,6 +1884,9 @@ function render() {
   });
   weekLabel.className = currentBlockType ? "wbt-label-" + currentBlockType : "";
 
+  document.getElementById("weekReviewedCheckbox").checked =
+    weeklyReviews.some(r => r.week_start === weekStartStr);
+
   const activeAthleteEl = document.getElementById("activeAthleteName");
   if (activeRole === "coach") {
     const selected = athletes.find((a) => a.id === athleteSelect.value);
@@ -1886,12 +1900,16 @@ function render() {
   athleteSelectorPanel.hidden = activeRole !== "coach" || !hasAthletes;
   document.getElementById("restrictionsPanel").hidden = !hasAthletes;
   document.getElementById("adminPanel").hidden = activeRole !== "coach" || !hasAthletes;
+  document.getElementById("weeklyReviewPanel").hidden = activeRole !== "coach" || !hasAthletes;
   document.getElementById("openRaceBtn").hidden = activeRole === "coach" || !hasAthletes;
   document.getElementById("raceCalendarPanel").hidden = !hasAthletes;
   document.getElementById("copyPrevWeekBtn").hidden = activeRole !== "coach" || viewMode !== "week";
+  document.getElementById("copyWeekDivider").hidden = activeRole !== "coach" || viewMode !== "week";
   const isCurrentWeek = formatDateISO(currentWeekStart) === formatDateISO(getMonday(new Date()));
   trainingBar.hidden = activeRole !== "coach" || !hasAthletes;
   document.getElementById("weekBlockTypeSelect").hidden = activeRole !== "coach" || viewMode !== "week";
+  document.getElementById("weekReviewedRow").hidden = activeRole !== "coach" || viewMode !== "week";
+  document.getElementById("weekNavDivider").hidden = activeRole !== "coach" || viewMode !== "week";
 
   renderAthleteDropdown();
   renderTemplates();
@@ -2003,7 +2021,27 @@ weekCurrent.addEventListener("click", async () => {
   await loadNonTemplateData();
 });
 
+document.getElementById("weekBlockTypeSelect")?.addEventListener("pointerdown", (e) => {
+  const label = e.target.closest(".wbt-option");
+  const radio = label?.querySelector('input[name="weekBlockType"]');
+  if (radio) radio.dataset.wasChecked = radio.checked ? "1" : "";
+});
+
 document.querySelectorAll('input[name="weekBlockType"]').forEach(radio => {
+  radio.addEventListener("click", async (e) => {
+    if (radio.dataset.wasChecked !== "1") return;
+    radio.checked = false;
+    const athleteId = getSelectedAthleteId();
+    if (!athleteId) return;
+    const weekStartStr = formatDateISO(currentWeekStart);
+    await upsertWeekBlockType({
+      athlete_id: athleteId,
+      week_start: weekStartStr,
+      block_type: "",
+    });
+    await loadNonTemplateData();
+  });
+
   radio.addEventListener("change", async () => {
     if (!radio.checked) return;
     const athleteId = getSelectedAthleteId();
@@ -2016,6 +2054,18 @@ document.querySelectorAll('input[name="weekBlockType"]').forEach(radio => {
     });
     await loadNonTemplateData();
   });
+});
+
+document.getElementById("weekReviewedCheckbox")?.addEventListener("change", async (e) => {
+  const athleteId = getSelectedAthleteId();
+  if (!athleteId) return;
+  const weekStartStr = formatDateISO(currentWeekStart);
+  if (e.target.checked) {
+    await markWeekReviewed(athleteId, weekStartStr);
+  } else {
+    await unmarkWeekReviewed(athleteId, weekStartStr);
+  }
+  await loadNonTemplateData();
 });
 
 document.getElementById("copyPrevWeekBtn")?.addEventListener("click", async () => {

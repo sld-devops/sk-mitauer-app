@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=43" />
+    <link rel="stylesheet" href="styles.css?v=64" />
   </head>
   <body>
     <div id="authView">
@@ -70,6 +70,15 @@
             <div class="panel-body">
               <div id="adminAthleteList"></div>
               <button id="createUserBtn" class="secondary-action panel-add-btn" type="button">Pievienot</button>
+            </div>
+          </section>
+
+          <section class="panel" id="weeklyReviewPanel" hidden>
+            <div class="panel-header">
+              <h2>Nedēļu apskates reģistrs</h2>
+            </div>
+            <div class="panel-body">
+              <button id="openWeeklyReviewBtn" class="secondary-action panel-add-btn" type="button">Atvērt pārskatu</button>
             </div>
           </section>
 
@@ -398,16 +407,16 @@
 
           <button id="openRaceBtn" class="secondary-action" type="button">🏁 Pievienot sacensības</button>
 
-          <h2 id="weekLabel"></h2>
-
-          <div class="week-block-type-select" id="weekBlockTypeSelect">
-            <label class="wbt-option wbt-load"><input type="radio" name="weekBlockType" value="load"> Slodzes</label>
-            <label class="wbt-option wbt-competition"><input type="radio" name="weekBlockType" value="competition"> Sacensību</label>
-            <label class="wbt-option wbt-rest"><input type="radio" name="weekBlockType" value="rest"> Atpūtas</label>
+          <div class="week-label-row">
+            <h2 id="weekLabel"></h2>
+            <div class="week-block-type-select" id="weekBlockTypeSelect">
+              <label class="wbt-option wbt-load"><input type="radio" name="weekBlockType" value="load"> Slodzes</label>
+              <label class="wbt-option wbt-competition"><input type="radio" name="weekBlockType" value="competition"> Sacensību</label>
+              <label class="wbt-option wbt-rest"><input type="radio" name="weekBlockType" value="rest"> Atpūtas</label>
+            </div>
           </div>
 
           <div class="view-switcher">
-            <button id="copyPrevWeekBtn" class="secondary-action" type="button" hidden>Nokopēt iepriekšējās nedēļas plānu</button>
             <div class="view-switcher-tabs-row">
               <div class="view-tabs">
                 <button class="active" data-view="week" type="button">Nedēļas plāns</button>
@@ -421,6 +430,10 @@
               <button id="weekPrev" class="secondary-action" type="button">Iepriekšējā nedēļa</button>
               <button id="weekNext" class="secondary-action" type="button">Nākamā nedēļa</button>
               <button id="weekCurrent" class="secondary-action" type="button">Uz šo nedēļu</button>
+              <span class="week-nav-divider" id="weekNavDivider" aria-hidden="true"></span>
+              <label class="checkbox-row week-nav-reviewed" id="weekReviewedRow"><input type="checkbox" id="weekReviewedCheckbox"> Nedēļa apskatīta</label>
+              <span class="week-nav-divider" id="copyWeekDivider" aria-hidden="true"></span>
+              <button id="copyPrevWeekBtn" class="secondary-action" type="button" hidden>Nokopēt iepriekšējās nedēļas plānu</button>
             </div>
           </div>
 
@@ -622,6 +635,14 @@
       </form>
     </dialog>
 
+    <dialog class="session-dialog weekly-review-dialog" id="weeklyReviewDialog">
+      <h2>Nedēļu apskates reģistrs</h2>
+      <div id="weeklyReviewGridWrap" class="weekly-review-grid-wrap"></div>
+      <div class="dialog-actions weekly-review-actions">
+        <button class="secondary-action" id="closeWeeklyReviewBtn" type="button">Aizvērt</button>
+      </div>
+    </dialog>
+
     <dialog class="session-dialog" id="raceDialog">
       <form method="dialog">
         <div class="race-tabs-row">
@@ -646,7 +667,6 @@
         <div class="field-grid">
           <label>Mērķa laiks <input id="raceTargetTime" /></label>
         </div>
-        <label>Sportista komentārs <textarea id="raceNotes" rows="3"></textarea></label>
         <div class="dialog-actions split-actions">
           <button class="delete-action" id="deleteRaceBtn" type="button" hidden>Dzēst</button>
           <button class="primary-action" id="saveRaceBtn" type="button">Saglabāt</button>
@@ -847,6 +867,7 @@
     <script src="panels/diary.js"></script>
     <script src="panels/records.js"></script>
     <script src="panels/admin.js"></script>
+    <script src="panels/weekly-review.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
