@@ -1718,10 +1718,10 @@ function renderWeeklySummary() {
   if (isAthleteView) {
     document.querySelectorAll(".ws-time").forEach((inp) => {
       inp.addEventListener("input", function () {
-        const v = this.value.trim();
-        const m = v.match(/^(\d+)(?:h|:)(\d+)(?:m)?$/);
+        const v = this.value.trim().replace(/\s+/g, "");
+        const m = v.match(/^(\d+)(?:h|:)(\d+)?m?$/i);
         if (m) {
-          const h = parseInt(m[1]) + parseInt(m[2]) / 60;
+          const h = parseInt(m[1]) + (m[2] ? parseInt(m[2]) / 60 : 0);
           this.value = h.toFixed(2);
         }
       });
@@ -1888,10 +1888,10 @@ function render() {
   document.getElementById("adminPanel").hidden = activeRole !== "coach" || !hasAthletes;
   document.getElementById("openRaceBtn").hidden = activeRole === "coach" || !hasAthletes;
   document.getElementById("raceCalendarPanel").hidden = !hasAthletes;
-  document.getElementById("copyPrevWeekBtn").hidden = activeRole !== "coach";
+  document.getElementById("copyPrevWeekBtn").hidden = activeRole !== "coach" || viewMode !== "week";
   const isCurrentWeek = formatDateISO(currentWeekStart) === formatDateISO(getMonday(new Date()));
   trainingBar.hidden = activeRole !== "coach" || !hasAthletes;
-  document.getElementById("weekBlockTypeSelect").hidden = activeRole !== "coach";
+  document.getElementById("weekBlockTypeSelect").hidden = activeRole !== "coach" || viewMode !== "week";
 
   renderAthleteDropdown();
   renderTemplates();
@@ -1904,6 +1904,8 @@ function render() {
     document.getElementById("weekView").hidden = viewMode !== "week";
     document.getElementById("monthView").hidden = viewMode !== "month";
     document.getElementById("weeklySummary").hidden = viewMode !== "week";
+    weekLabel.hidden = viewMode !== "week";
+    document.getElementById("weekViewNav").hidden = viewMode !== "week";
     if (viewMode === "week") {
       renderCalendar();
     } else {
@@ -2245,6 +2247,20 @@ document.querySelectorAll(".panel .panel-header, .stats-collapsible .panel-heade
     if (btn) btn.click();
   });
 });
+
+// Keep the sidebar panel's top offset in sync with the header's actual
+// height, since it wraps onto multiple lines on narrow phone screens.
+function updateMobileHeaderHeight() {
+  const header = document.querySelector(".app-header");
+  if (!header) return;
+  document.documentElement.style.setProperty("--mobile-header-height", `${header.offsetHeight}px`);
+}
+if (typeof ResizeObserver !== "undefined") {
+  const appHeaderEl = document.querySelector(".app-header");
+  if (appHeaderEl) new ResizeObserver(updateMobileHeaderHeight).observe(appHeaderEl);
+}
+window.addEventListener("resize", updateMobileHeaderHeight);
+updateMobileHeaderHeight();
 
 // Hamburger menu (mobile)
 function togglePlannerMenu(open) {

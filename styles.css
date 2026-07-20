@@ -3,14 +3,16 @@
   --ink: #15171a;
   --muted: #667085;
   --line: #d9dee7;
-  --panel: #f9f1e4;
-  --page: linear-gradient(180deg, #f9f1e4 0%, #677e99 100%);
-  --surface: #f9f1e4;
-  --surface-alt: #f4ece0;
-  --surface-hover: #efe6d8;
-  --panel-row-hover: #f7efe2;
+  --panel: #eef7d9;
+  --page: linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.3) 100%),
+    url("images/bg-training.jpg");
+  --surface: #eef7d9;
+  --surface-alt: #e0efc0;
+  --surface-hover: #d3e8a3;
+  --panel-row-hover: #e6f2c9;
   --accent: #c91f2f;
   --accent-dark: #9e1724;
+  --lime: #a3e635;
 
   --success: #3f7d4a;
   --success-dark: #2f5f38;
@@ -51,6 +53,9 @@
 html {
   min-height: 100vh;
   background: var(--page);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }
 
 * {
@@ -62,7 +67,7 @@ body {
   min-height: 100vh;
   color: var(--ink);
   font-family:
-    "Poppins", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
 }
 
@@ -94,10 +99,11 @@ button {
 
 
 .auth-card {
-  background: #677e99;
-  border: 1px solid var(--line);
+  background: rgba(240, 240, 240, 0.93);
+  border: 1px solid #d5d5d5;
+  border-bottom: 4px solid var(--lime);
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.05);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
   max-width: 500px;
   padding: 36px;
   width: 100%;
@@ -111,7 +117,7 @@ button {
 }
 
 .auth-eyebrow {
-  background: linear-gradient(135deg, #ffffff 0%, #F5E8D4 100%);
+  background: linear-gradient(135deg, #15171a 0%, #4a4a4a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -124,7 +130,7 @@ button {
 }
 
 .auth-card h1 {
-  background: linear-gradient(135deg, #ffffff 0%, #F5E8D4 100%);
+  background: linear-gradient(135deg, #15171a 0%, #4a4a4a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -143,7 +149,7 @@ button {
 
 .auth-form label {
   font-size: 1rem;
-  color: #fff;
+  color: #15171a;
 }
 
 .auth-form input {
@@ -152,17 +158,17 @@ button {
 }
 
 .auth-card .checkbox-row {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
+  color: #15171a;
+  border-color: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .auth-card .checkbox-row input {
-  accent-color: #fff;
+  accent-color: #15171a;
 }
 
 .auth-card .auth-error {
-  color: #fecaca;
+  color: #9e1724;
 }
 
 #loginBtn {
@@ -175,8 +181,8 @@ button {
 /* ---- Header ---- */
 .app-header {
   align-items: center;
-  background: #677e99;
-  border-bottom: 1px solid var(--line);
+  background: #1c1c1c;
+  border-bottom: 3px solid var(--lime);
   display: flex;
   justify-content: space-between;
   padding: 12px 16px;
@@ -212,7 +218,7 @@ button {
 }
 
 .eyebrow {
-  background: linear-gradient(135deg, #ffffff 0%, #F5E8D4 100%);
+  background: linear-gradient(135deg, #ffffff 0%, var(--lime) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -225,7 +231,7 @@ button {
 }
 
 h1 {
-  background: linear-gradient(135deg, #ffffff 0%, #F5E8D4 100%);
+  background: linear-gradient(135deg, #ffffff 0%, var(--lime) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -289,22 +295,6 @@ h4 {
   align-items: start;
   padding: 20px;
   position: relative;
-}
-
-.layout::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg,
-    rgba(139, 69, 19, 0.04) 0%,
-    rgba(205, 133, 63, 0.04) 40%,
-    rgba(210, 105, 30, 0.04) 70%,
-    rgba(201, 31, 47, 0.04) 100%);
-  pointer-events: none;
-  z-index: 0;
 }
 
 .planner-panel {
@@ -552,17 +542,20 @@ h4 {
 }
 
 .panel {
-  background: #e8f7ff;
-  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e2e2e2;
+  border-left: 3px solid var(--lime);
   border-radius: 8px;
-  box-shadow: 0 6px 16px -8px rgba(16, 24, 40, 0.05);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 .calendar-shell {
-  background: linear-gradient(0deg, #f9f1e4 0%, #e8f7ff 100%);
-  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(237, 237, 237, 0.82) 100%);
+  border: 1px solid #e2e2e2;
   border-radius: 8px;
-  box-shadow: 0 6px 16px -8px rgba(16, 24, 40, 0.05);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.4),
+    0 0 0 2px rgba(163, 230, 53, 0.25);
 }
 
 #activeAthleteName {
@@ -574,6 +567,9 @@ h4 {
   padding: 4px 16px;
   border-radius: 6px;
   display: none;
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  margin: 12px 0 0 16px;
 }
 
 .panel {
@@ -603,7 +599,7 @@ h4 {
 
 .panel .panel-header:hover,
 .stats-collapsible .panel-header:hover {
-  background: #dbe4f0;
+  background: #eaf5d0;
 }
 .panel-header-text {
   display: flex;
@@ -793,10 +789,6 @@ h4 {
   font-size: 1.35rem;
   margin-bottom: 0;
 }
-#activeAthleteName {
-  grid-column: 2;
-  justify-self: center;
-}
 .week-nav {
   grid-column: 3;
   justify-self: end;
@@ -804,6 +796,29 @@ h4 {
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
+}
+
+#weekLabel {
+  font-size: 1.35rem;
+  margin: 12px 0 0;
+  padding: 0 16px;
+}
+
+#weekBlockTypeSelect {
+  margin: 10px 0 0;
+  padding: 0 16px;
+}
+
+#weekViewNav {
+  grid-column: unset;
+  justify-self: unset;
+  align-items: flex-start;
+  margin: 10px 0;
+  padding: 0 16px;
+}
+
+#openRaceBtn {
+  margin: 10px 0 0 16px;
 }
 
 #monthView .week-nav {
@@ -825,9 +840,11 @@ h4 {
 
 #copyPrevWeekBtn,
 .copy-week-btn {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   padding: 6px 10px;
   white-space: nowrap;
+  align-self: flex-start;
+  width: fit-content;
 }
 
 .week-block-type-select {
@@ -907,7 +924,7 @@ h4 {
 }
 
 .training-bar-header:hover {
-  background: #dbe4f0;
+  background: #eaf5d0;
 }
 
 .training-bar-header h2 {
@@ -1154,6 +1171,7 @@ h4 {
 }
 
 .stats-collapsible .panel-header {
+  margin: 0;
   padding: 14px 18px;
 }
 
@@ -1192,12 +1210,11 @@ h4 {
   position: relative;
 }
 .view-switcher {
-  align-items: center;
+  align-items: stretch;
   border-bottom: 1px solid var(--line);
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  justify-content: space-between;
   padding: 8px 16px;
 }
 
@@ -2340,10 +2357,6 @@ label {
   white-space: nowrap;
   box-sizing: border-box;
 }
-#updateTemplateBtn {
-  background: #677e99;
-  border-color: #677e99;
-}
 #updateTemplateBtn:hover {
   background: #566a82;
   box-shadow: 0 4px 12px rgba(103, 126, 153, 0.25);
@@ -2353,6 +2366,11 @@ label {
 .save-template-athlete-btn {
   background: #677e99;
   border: 3px solid #000000;
+}
+
+.btn-keyword {
+  color: #000000;
+  font-weight: 700;
 }
 
 .save-template-athlete-btn:hover {
@@ -2389,6 +2407,18 @@ label {
   border-color: #b0dff7;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(180, 220, 240, 0.3);
+}
+
+.template-actions > .delete-template-btn-danger {
+  background: var(--accent);
+  border: 3px solid #000000;
+  color: #ffffff;
+}
+
+.template-actions > .delete-template-btn-danger:hover {
+  background: var(--accent-dark);
+  box-shadow: 0 4px 12px rgba(201, 31, 47, 0.25);
+  transform: translateY(-1px);
 }
 
 .session-card {
@@ -2692,7 +2722,7 @@ label {
 }
 
 .stats-tabs {
-  background: var(--surface-hover);
+  background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
   display: flex;
@@ -2701,14 +2731,16 @@ label {
 }
 
 .stats-tabs button {
-  background: transparent;
+  background: #fff;
   border: 0;
   border-radius: 6px;
   color: var(--muted);
   cursor: pointer;
   flex: 1;
   font-weight: 700;
-  padding: 8px 12px;
+  padding: 8px 16px;
+  white-space: nowrap;
+  transition: background 0.15s;
 }
 
 .stats-tabs button.active {
@@ -2718,30 +2750,37 @@ label {
 }
 
 .stats-tabs button:not(.active):hover {
-  background: var(--surface);
+  background: var(--surface-hover);
 }
 
 .stats-range {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   display: flex;
   gap: 4px;
   margin-bottom: 10px;
+  padding: 4px;
 }
 
 .stats-range button {
-  background: transparent;
-  border: 1px solid var(--line);
+  background: #fff;
+  border: 0;
   border-radius: 6px;
   color: var(--muted);
   cursor: pointer;
+  flex: 1;
   font-size: 0.75rem;
   font-weight: 700;
-  padding: 4px 10px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  transition: background 0.15s;
 }
 
 .stats-range button.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #ffffff;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12);
+  color: var(--ink);
 }
 
 .stats-range button:not(.active):hover {
@@ -3301,7 +3340,7 @@ textarea:disabled {
     left: 0;
     overflow: hidden;
     position: fixed;
-    top: 0;
+    top: var(--mobile-header-height, 60px);
     transform: translateX(-100%);
     transition: transform 0.25s ease;
     width: 320px;

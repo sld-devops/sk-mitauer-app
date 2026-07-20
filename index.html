@@ -7,8 +7,8 @@
     <title>Toma Komasa Sportistu Portāls</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=39" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=43" />
   </head>
   <body>
     <div id="authView">
@@ -370,15 +370,17 @@
                   </div>
                 </div>
                 <div class="template-actions">
-                  <button id="saveTemplateOnlyBtn" class="primary-action" type="button">Saglabāt visās sagatavēs</button>
-                  <button id="saveTemplateForAthleteBtn" class="primary-action save-template-athlete-btn" type="button">Saglabāt tikai šī sportista sagatavēs</button>
-                  <button id="updateTemplateBtn" class="primary-action" type="button" hidden>Saglabāt izmaiņas sagatavē</button>
-                  <button id="deleteTemplateBtn" class="delete-template-btn" type="button" hidden data-delete-template>Dzēst sagatavi</button>
+                  <button id="saveTemplateOnlyBtn" class="primary-action save-template-athlete-btn" type="button"><span>Saglabāt <span class="btn-keyword">visās</span> sagatavēs</span></button>
+                  <button id="saveTemplateForAthleteBtn" class="primary-action save-template-athlete-btn" type="button"><span>Saglabāt <span class="btn-keyword">tikai šī</span> sportista sagatavēs</span></button>
+                  <button id="updateTemplateBtn" class="primary-action save-template-athlete-btn" type="button" hidden><span>Saglabāt <span class="btn-keyword">izmaiņas</span> sagatavē</span></button>
+                  <button id="deleteTemplateBtn" class="delete-template-btn delete-template-btn-danger" type="button" hidden data-delete-template>Dzēst sagatavi</button>
                 </div>
                 </form>
               </div>
             </div>
           </div>
+
+          <div id="activeAthleteName"></div>
 
           <div class="stats-collapsible collapsible collapsed" id="raceCalendarPanel">
             <div class="panel-header">
@@ -394,36 +396,35 @@
             </div>
           </div>
 
+          <button id="openRaceBtn" class="secondary-action" type="button">🏁 Pievienot sacensības</button>
+
+          <h2 id="weekLabel"></h2>
+
+          <div class="week-block-type-select" id="weekBlockTypeSelect">
+            <label class="wbt-option wbt-load"><input type="radio" name="weekBlockType" value="load"> Slodzes</label>
+            <label class="wbt-option wbt-competition"><input type="radio" name="weekBlockType" value="competition"> Sacensību</label>
+            <label class="wbt-option wbt-rest"><input type="radio" name="weekBlockType" value="rest"> Atpūtas</label>
+          </div>
+
           <div class="view-switcher">
+            <button id="copyPrevWeekBtn" class="secondary-action" type="button" hidden>Nokopēt iepriekšējās nedēļas plānu</button>
             <div class="view-switcher-tabs-row">
               <div class="view-tabs">
                 <button class="active" data-view="week" type="button">Nedēļas plāns</button>
                 <button data-view="month" type="button">Mēneša plāns</button>
               </div>
-              <button id="openRaceBtn" class="secondary-action" type="button">🏁 Pievienot sacensības</button>
             </div>
-            <button id="copyPrevWeekBtn" class="secondary-action" type="button" hidden>Nokopēt iepriekšējās nedēļas plānu</button>
+          </div>
+
+          <div class="week-nav" id="weekViewNav">
+            <div class="week-nav-row">
+              <button id="weekPrev" class="secondary-action" type="button">Iepriekšējā nedēļa</button>
+              <button id="weekNext" class="secondary-action" type="button">Nākamā nedēļa</button>
+              <button id="weekCurrent" class="secondary-action" type="button">Uz šo nedēļu</button>
+            </div>
           </div>
 
           <div id="weekView">
-            <div class="toolbar">
-              <div>
-                <h2 id="weekLabel"></h2>
-                <div class="week-block-type-select" id="weekBlockTypeSelect">
-                  <label class="wbt-option wbt-load"><input type="radio" name="weekBlockType" value="load"> Slodzes</label>
-                  <label class="wbt-option wbt-competition"><input type="radio" name="weekBlockType" value="competition"> Sacensību</label>
-                  <label class="wbt-option wbt-rest"><input type="radio" name="weekBlockType" value="rest"> Atpūtas</label>
-                </div>
-              </div>
-              <div id="activeAthleteName"></div>
-              <div class="week-nav">
-                <div class="week-nav-row">
-                  <button id="weekPrev" class="secondary-action" type="button">Iepriekšējā nedēļa</button>
-                  <button id="weekNext" class="secondary-action" type="button">Nākamā nedēļa</button>
-                  <button id="weekCurrent" class="secondary-action" type="button">Uz šo nedēļu</button>
-                </div>
-              </div>
-            </div>
             <div class="calendar-grid" id="calendarGrid"></div>
           </div>
 
