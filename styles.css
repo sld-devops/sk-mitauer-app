@@ -3,14 +3,16 @@
   --ink: #15171a;
   --muted: #667085;
   --line: #d9dee7;
-  --panel: #f9f1e4;
-  --page: linear-gradient(180deg, #f9f1e4 0%, #677e99 100%);
-  --surface: #f9f1e4;
-  --surface-alt: #f4ece0;
-  --surface-hover: #efe6d8;
-  --panel-row-hover: #f7efe2;
+  --panel: #eef7d9;
+  --page: linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.3) 100%),
+    url("images/bg-training.jpg");
+  --surface: #eef7d9;
+  --surface-alt: #e0efc0;
+  --surface-hover: #d3e8a3;
+  --panel-row-hover: #e6f2c9;
   --accent: #c91f2f;
   --accent-dark: #9e1724;
+  --lime: #a3e635;
 
   --success: #3f7d4a;
   --success-dark: #2f5f38;
@@ -22,6 +24,11 @@
   --warning-bg: #fbf1d9;
   --warning-border: #e8d19a;
 
+  --olive: #7d9a3a;
+  --olive-dark: #5f7a2c;
+  --olive-bg: #f1f5e6;
+  --olive-border: #d3e0b3;
+
   --danger: var(--accent);
   --danger-dark: var(--accent-dark);
   --danger-bg: #fdecec;
@@ -32,10 +39,10 @@
   --info-bg: #eef1f5;
   --info-border: #c7d0dc;
 
-  --race: #8a4b6b;
-  --race-dark: #6b3a52;
-  --race-bg: #f5eaf0;
-  --race-border: #e3c7d6;
+  --race: #2f6fed;
+  --race-dark: #1d54c4;
+  --race-bg: #e8f0fe;
+  --race-border: #b9d0fb;
 
   --rest: #4a7d78;
   --rest-dark: #386560;
@@ -46,6 +53,9 @@
 html {
   min-height: 100vh;
   background: var(--page);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }
 
 * {
@@ -57,7 +67,7 @@ body {
   min-height: 100vh;
   color: var(--ink);
   font-family:
-    "Poppins", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
 }
 
@@ -89,10 +99,11 @@ button {
 
 
 .auth-card {
-  background: #677e99;
-  border: 1px solid var(--line);
+  background: rgba(240, 240, 240, 0.93);
+  border: 1px solid #d5d5d5;
+  border-bottom: 4px solid var(--lime);
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.05);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
   max-width: 500px;
   padding: 36px;
   width: 100%;
@@ -106,7 +117,7 @@ button {
 }
 
 .auth-eyebrow {
-  background: linear-gradient(135deg, #ffffff 0%, #F5E8D4 100%);
+  background: linear-gradient(135deg, #15171a 0%, #4a4a4a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -119,7 +130,7 @@ button {
 }
 
 .auth-card h1 {
-  background: linear-gradient(135deg, #ffffff 0%, #F5E8D4 100%);
+  background: linear-gradient(135deg, #15171a 0%, #4a4a4a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -138,7 +149,7 @@ button {
 
 .auth-form label {
   font-size: 1rem;
-  color: #fff;
+  color: #15171a;
 }
 
 .auth-form input {
@@ -147,17 +158,17 @@ button {
 }
 
 .auth-card .checkbox-row {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
+  color: #15171a;
+  border-color: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .auth-card .checkbox-row input {
-  accent-color: #fff;
+  accent-color: #15171a;
 }
 
 .auth-card .auth-error {
-  color: #fecaca;
+  color: #9e1724;
 }
 
 #loginBtn {
@@ -170,8 +181,8 @@ button {
 /* ---- Header ---- */
 .app-header {
   align-items: center;
-  background: #677e99;
-  border-bottom: 1px solid var(--line);
+  background: #1c1c1c;
+  border-bottom: 3px solid var(--lime);
   display: flex;
   justify-content: space-between;
   padding: 12px 16px;
@@ -207,7 +218,7 @@ button {
 }
 
 .eyebrow {
-  background: linear-gradient(135deg, #ffffff 0%, #F5E8D4 100%);
+  background: linear-gradient(135deg, #ffffff 0%, var(--lime) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -220,7 +231,7 @@ button {
 }
 
 h1 {
-  background: linear-gradient(135deg, #ffffff 0%, #F5E8D4 100%);
+  background: linear-gradient(135deg, #ffffff 0%, var(--lime) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -281,25 +292,9 @@ h4 {
   display: grid;
   gap: 20px;
   grid-template-columns: 300px minmax(0, 1fr);
-  align-items: start;
+  align-items: stretch;
   padding: 20px;
   position: relative;
-}
-
-.layout::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg,
-    rgba(139, 69, 19, 0.04) 0%,
-    rgba(205, 133, 63, 0.04) 40%,
-    rgba(210, 105, 30, 0.04) 70%,
-    rgba(201, 31, 47, 0.04) 100%);
-  pointer-events: none;
-  z-index: 0;
 }
 
 .planner-panel {
@@ -341,7 +336,7 @@ h4 {
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
-  max-height: calc(100vh - 100px);
+  max-height: min(100%, calc(100vh - 100px));
   padding-bottom: 12px;
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
@@ -547,28 +542,36 @@ h4 {
 }
 
 .panel {
-  background: #e8f7ff;
-  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e2e2e2;
+  border-left: 3px solid var(--lime);
   border-radius: 8px;
-  box-shadow: 0 6px 16px -8px rgba(16, 24, 40, 0.05);
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.2),
+    0 0 0 2px rgba(163, 230, 53, 0.5);
 }
 
 .calendar-shell {
-  background: linear-gradient(0deg, #f9f1e4 0%, #e8f7ff 100%);
-  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(237, 237, 237, 0.82) 100%);
+  border: 1px solid #e2e2e2;
   border-radius: 8px;
-  box-shadow: 0 6px 16px -8px rgba(16, 24, 40, 0.05);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.4),
+    0 0 0 2px rgba(163, 230, 53, 0.25);
 }
 
 #activeAthleteName {
-  background: #677e99;
-  color: #fff;
+  background: var(--lime);
+  color: var(--ink);
   font-size: 1rem;
   font-weight: 700;
   text-transform: uppercase;
   padding: 4px 16px;
   border-radius: 6px;
   display: none;
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  margin: 12px 0 0 16px;
 }
 
 .panel {
@@ -598,7 +601,7 @@ h4 {
 
 .panel .panel-header:hover,
 .stats-collapsible .panel-header:hover {
-  background: #dbe4f0;
+  background: #eaf5d0;
 }
 .panel-header-text {
   display: flex;
@@ -788,10 +791,6 @@ h4 {
   font-size: 1.35rem;
   margin-bottom: 0;
 }
-#activeAthleteName {
-  grid-column: 2;
-  justify-self: center;
-}
 .week-nav {
   grid-column: 3;
   justify-self: end;
@@ -799,6 +798,56 @@ h4 {
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
+}
+
+.week-label-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 12px 0 0;
+  padding: 0 16px;
+}
+
+#weekLabel {
+  font-size: 1.35rem;
+  margin: 0;
+  padding: 0;
+}
+
+#weekBlockTypeSelect {
+  margin: 0;
+  padding: 0;
+}
+
+.week-nav-divider {
+  align-self: stretch;
+  background: var(--line);
+  margin: 0 10px;
+  width: 1px;
+}
+
+.week-nav-reviewed#weekReviewedRow {
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 10px;
+}
+
+#weekReviewedRow[hidden] {
+  display: none;
+}
+
+#weekViewNav {
+  grid-column: unset;
+  justify-self: unset;
+  align-items: flex-start;
+  margin: 10px 0;
+  padding: 0 16px;
+}
+
+#openRaceBtn {
+  margin: 10px 0 0 16px;
 }
 
 #monthView .week-nav {
@@ -813,6 +862,7 @@ h4 {
 
 .week-nav-row button {
   font-size: 0.85rem;
+  font-weight: 600;
   padding: 6px 10px;
   white-space: nowrap;
   flex-shrink: 0;
@@ -820,9 +870,10 @@ h4 {
 
 #copyPrevWeekBtn,
 .copy-week-btn {
-  font-size: 0.82rem;
-  padding: 6px 10px;
+  font-size: 0.85rem;
+  padding: 6px 8px;
   white-space: nowrap;
+  width: fit-content;
 }
 
 .week-block-type-select {
@@ -843,26 +894,26 @@ h4 {
   align-items: center;
   gap: 3px;
   background: #fff;
+  color: var(--ink);
   transition: background 0.15s;
   min-height: 40px;
-}
-
-.wbt-option:not(:has(input:checked)):hover {
-  background: var(--surface-hover);
 }
 
 .wbt-option input {
   margin: 0;
 }
 
-.wbt-load { color: darkorange; }
-.wbt-load:has(input:checked) { background: darkorange; color: #fff; border-color: darkorange; }
+.wbt-load { color: var(--ink); }
+.wbt-load:not(:has(input:checked)):hover,
+.wbt-load:has(input:checked) { background: darkorange; color: var(--ink); border-color: darkorange; }
 
-.wbt-competition { color: var(--race); }
-.wbt-competition:has(input:checked) { background: var(--race); color: #fff; border-color: var(--race); }
+.wbt-competition { color: var(--ink); }
+.wbt-competition:not(:has(input:checked)):hover,
+.wbt-competition:has(input:checked) { background: var(--race); color: var(--ink); border-color: var(--race); }
 
-.wbt-rest { color: gold; }
-.wbt-rest:has(input:checked) { background: gold; color: #fff; border-color: gold; }
+.wbt-rest { color: var(--ink); }
+.wbt-rest:not(:has(input:checked)):hover,
+.wbt-rest:has(input:checked) { background: gold; color: var(--ink); border-color: gold; }
 
 .wbt-label-load { color: darkorange !important; text-shadow: 0 0 3px #000, 0 0 3px #000; }
 .wbt-label-competition { color: var(--race) !important; text-shadow: 0 0 3px #000, 0 0 3px #000; }
@@ -902,7 +953,7 @@ h4 {
 }
 
 .training-bar-header:hover {
-  background: #dbe4f0;
+  background: #eaf5d0;
 }
 
 .training-bar-header h2 {
@@ -1039,15 +1090,21 @@ h4 {
 
 #warmupSection,
 .main-content-column,
-#cooldownSection {
+#cooldownSection,
+#customNameRow {
   border: 2px dashed #677e99;
   border-radius: 8px;
   padding: 12px;
   background: #fff;
 }
 
+#customNameRow {
+  margin-bottom: 16px;
+}
+
 #warmupSection,
-#cooldownSection {
+#cooldownSection,
+#customNameRow {
   min-width: 160px;
   max-width: 280px;
 }
@@ -1143,6 +1200,7 @@ h4 {
 }
 
 .stats-collapsible .panel-header {
+  margin: 0;
   padding: 14px 18px;
 }
 
@@ -1181,12 +1239,11 @@ h4 {
   position: relative;
 }
 .view-switcher {
-  align-items: center;
+  align-items: stretch;
   border-bottom: 1px solid var(--line);
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  justify-content: space-between;
   padding: 8px 16px;
 }
 
@@ -1378,6 +1435,12 @@ button:focus-visible {
   gap: 8px;
 }
 
+#varAddSegment,
+#epVarAddSegment {
+  justify-self: start;
+  width: auto;
+}
+
 #varIntervalFields .field-grid {
   align-items: end;
 }
@@ -1398,14 +1461,14 @@ button:focus-visible {
 }
 
 .var-seg-remove {
-  font-size: 1rem;
-  height: 40px;
-  width: 36px;
+  font-size: 0.9rem;
+  height: 32px;
+  width: 28px;
   flex-shrink: 0;
-  background: var(--surface-alt);
-  border: 1px solid var(--line);
+  background: #ffffff;
+  border: 1px solid var(--accent);
   border-radius: 6px;
-  color: var(--muted);
+  color: var(--accent);
   cursor: pointer;
 }
 
@@ -1491,7 +1554,8 @@ label {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 6px;
-  display: flex;
+  display: inline-flex;
+  width: fit-content;
   gap: 6px;
   padding: 4px 8px;
   font-size: 0.8rem;
@@ -1523,6 +1587,19 @@ label {
   display: grid;
   gap: 12px;
   grid-template-columns: auto auto auto;
+}
+
+#logFormContent .field-grid-3 {
+  gap: 0.7mm;
+}
+
+#logFormContent .field-grid-3 > label {
+  width: fit-content;
+  justify-self: start;
+}
+
+#logFormContent .field-grid-3 > label:not(:last-child)::after {
+  display: none;
 }
 
 .field-grid-4 {
@@ -1660,10 +1737,16 @@ label {
   margin-bottom: 4px;
 }
 
+.race-chip .add-day-button {
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+
 .race-chip.upcoming {
   background: var(--race);
   border-color: var(--race-dark);
-  color: #fff;
+  color: var(--ink);
 }
 
 .race-chip.upcoming .race-label {
@@ -1673,7 +1756,11 @@ label {
 
 .race-chip.upcoming .race-meta {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--ink);
+}
+
+.race-chip.upcoming .comment-label {
+  color: var(--ink);
 }
 
 .race-chip .race-result {
@@ -2099,6 +2186,24 @@ label {
 .month-plan.not-completed {
   background: var(--danger-bg);
   border-color: var(--danger);
+  padding-left: 20px;
+}
+
+.month-not-completed-icon {
+  align-items: center;
+  background: var(--danger);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  font-size: 0.6rem;
+  font-weight: 900;
+  height: 14px;
+  justify-content: center;
+  left: 3px;
+  line-height: 1;
+  position: absolute;
+  top: 3px;
+  width: 14px;
 }
 
 .not-completed-comment {
@@ -2119,9 +2224,13 @@ label {
   padding: 2px 6px;
 }
 
-.log-date {
-  font-weight: 700;
-  margin: 0 0 12px;
+.field-label {
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
 }
 
 .var-seg-log-row {
@@ -2214,7 +2323,7 @@ label {
   color: var(--warning);
 }
 .log-actual-pace {
-  width: 100%;
+  width: 160px;
 }
 .log-actual-pace.pace-fast {
   background: var(--danger-bg);
@@ -2274,7 +2383,8 @@ label {
 .pace-text-slow { color: var(--info); font-weight: 700; }
 .pace-text-warn { color: var(--warning); font-weight: 700; }
 
-.log-actual-pulse { width: 100%; }
+.log-actual-pulse { width: 160px; }
+.log-actual-duration { width: 90px; }
 
 .delete-action {
   color: var(--accent);
@@ -2284,16 +2394,16 @@ label {
 }
 
 .primary-action {
-  background: var(--accent);
-  border: 1px solid var(--accent);
-  color: #ffffff;
+  background: var(--lime);
+  border: 1px solid var(--lime);
+  color: var(--ink);
   transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .primary-action:hover {
-  background: var(--accent-dark);
+  background: #8bc926;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(201, 31, 47, 0.25);
+  box-shadow: 0 4px 12px rgba(163, 230, 53, 0.35);
 }
 
 .primary-action:active {
@@ -2304,14 +2414,26 @@ label {
   white-space: nowrap;
   box-sizing: border-box;
 }
-#updateTemplateBtn {
-  background: #677e99;
-  border-color: #677e99;
-}
 #updateTemplateBtn:hover {
-  background: #566a82;
-  box-shadow: 0 4px 12px rgba(103, 126, 153, 0.25);
+  background: #8bc926;
+  box-shadow: 0 4px 12px rgba(163, 230, 53, 0.35);
   transform: translateY(-1px);
+}
+
+.save-template-athlete-btn {
+  background: var(--lime);
+  border: 3px solid #000000;
+  color: var(--ink);
+}
+
+.btn-keyword {
+  color: #000000;
+  font-weight: 700;
+}
+
+.save-template-athlete-btn:hover {
+  background: #8bc926;
+  box-shadow: 0 4px 12px rgba(163, 230, 53, 0.35);
 }
 
 .template-actions {
@@ -2343,6 +2465,18 @@ label {
   border-color: #b0dff7;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(180, 220, 240, 0.3);
+}
+
+.template-actions > .delete-template-btn-danger {
+  background: var(--accent);
+  border: 3px solid #000000;
+  color: #ffffff;
+}
+
+.template-actions > .delete-template-btn-danger:hover {
+  background: var(--accent-dark);
+  box-shadow: 0 4px 12px rgba(201, 31, 47, 0.25);
+  transform: translateY(-1px);
 }
 
 .session-card {
@@ -2427,6 +2561,15 @@ label {
   font-weight: 700;
   margin-bottom: 2px;
   margin-top: 8px;
+}
+
+#logFormContent .comment-label {
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 800;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }
 
 .inline-comment {
@@ -2637,7 +2780,7 @@ label {
 }
 
 .stats-tabs {
-  background: var(--surface-hover);
+  background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
   display: flex;
@@ -2646,14 +2789,16 @@ label {
 }
 
 .stats-tabs button {
-  background: transparent;
+  background: #fff;
   border: 0;
   border-radius: 6px;
   color: var(--muted);
   cursor: pointer;
   flex: 1;
   font-weight: 700;
-  padding: 8px 12px;
+  padding: 8px 16px;
+  white-space: nowrap;
+  transition: background 0.15s;
 }
 
 .stats-tabs button.active {
@@ -2663,30 +2808,37 @@ label {
 }
 
 .stats-tabs button:not(.active):hover {
-  background: var(--surface);
+  background: var(--surface-hover);
 }
 
 .stats-range {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   display: flex;
   gap: 4px;
   margin-bottom: 10px;
+  padding: 4px;
 }
 
 .stats-range button {
-  background: transparent;
-  border: 1px solid var(--line);
+  background: #fff;
+  border: 0;
   border-radius: 6px;
   color: var(--muted);
   cursor: pointer;
+  flex: 1;
   font-size: 0.75rem;
   font-weight: 700;
-  padding: 4px 10px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  transition: background 0.15s;
 }
 
 .stats-range button.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #ffffff;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12);
+  color: var(--ink);
 }
 
 .stats-range button:not(.active):hover {
@@ -2992,6 +3144,86 @@ label {
   flex: 1;
 }
 
+.weekly-review-dialog[open] {
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: min(96vw, 1200px);
+  padding: 20px;
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  z-index: 1000;
+}
+
+.weekly-review-dialog h2 {
+  margin: 0;
+}
+
+.weekly-review-grid-wrap {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.weekly-review-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.weekly-review-table th,
+.weekly-review-table td {
+  border: 2px solid var(--ink);
+  padding: 6px 10px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.weekly-review-table thead th {
+  background: #fff;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.weekly-review-name-col {
+  background: #fff;
+  font-weight: 600;
+  left: 0;
+  position: sticky;
+  text-align: left;
+  z-index: 1;
+}
+
+.weekly-review-table thead th.weekly-review-name-col {
+  z-index: 3;
+}
+
+.weekly-review-table tbody tr:hover td {
+  background: var(--panel-row-hover);
+}
+
+.weekly-review-check {
+  color: var(--ink);
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+#weekReviewedCheckbox {
+  accent-color: var(--lime);
+}
+
+.weekly-review-actions {
+  justify-content: flex-start;
+  margin-top: 4px;
+  padding: 0;
+}
+
 .icon-button {
   background: var(--surface-hover);
   border: 0;
@@ -3156,9 +3388,10 @@ textarea:disabled {
 
 .month-race {
   align-items: baseline;
-  background: var(--race-bg);
-  border: 1px solid var(--race-border);
+  background: var(--race);
+  border: 1px solid var(--race-dark);
   border-radius: 4px;
+  color: var(--ink);
   display: flex;
   flex-wrap: wrap;
   font-size: 0.82rem;
@@ -3169,15 +3402,16 @@ textarea:disabled {
 }
 
 .month-race-name {
+  color: var(--ink);
   font-weight: 600;
 }
 
 .month-race-location {
-  color: var(--muted);
+  color: var(--ink);
 }
 
 .month-race-dist {
-  color: var(--accent);
+  color: var(--ink);
   font-weight: 800;
 }
 
@@ -3229,11 +3463,13 @@ textarea:disabled {
 
   .month-plan {
     font-size: 0.72rem;
+    padding-right: 34px;
   }
 
   .month-plan-summary strong,
   .month-plan-summary span {
     display: block;
+    overflow-wrap: break-word;
   }
 
   .layout {
@@ -3246,7 +3482,7 @@ textarea:disabled {
     left: 0;
     overflow: hidden;
     position: fixed;
-    top: 0;
+    top: var(--mobile-header-height, 60px);
     transform: translateX(-100%);
     transition: transform 0.25s ease;
     width: 320px;

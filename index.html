@@ -7,8 +7,8 @@
     <title>Toma Komasa Sportistu Portāls</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=26" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=64" />
   </head>
   <body>
     <div id="authView">
@@ -70,6 +70,15 @@
             <div class="panel-body">
               <div id="adminAthleteList"></div>
               <button id="createUserBtn" class="secondary-action panel-add-btn" type="button">Pievienot</button>
+            </div>
+          </section>
+
+          <section class="panel" id="weeklyReviewPanel" hidden>
+            <div class="panel-header">
+              <h2>Nedēļu apskates reģistrs</h2>
+            </div>
+            <div class="panel-body">
+              <button id="openWeeklyReviewBtn" class="secondary-action panel-add-btn" type="button">Atvērt pārskatu</button>
             </div>
           </section>
 
@@ -244,15 +253,16 @@
                 <label class="type-select-label">Izveidot jaunu treniņu
                   <select id="customType">
                     <option value="" selected disabled>Izvēlies treniņa tipu</option>
-                    <option value="Atjaunojošais/lēnais skrējiens">Atjaunojošais/lēnais skrējiens</option>
-                    <option value="Garais skrējiens">Garais skrējiens</option>
-                    <option value="Intervāli (vienāda garuma/ilguma)">Intervāli (vienāda garuma/ilguma)</option>
-                    <option value="Intervāli (dažāda garuma/ilguma)">Intervāli (dažāda garuma/ilguma)</option>
-                    <option value="Tempa skrējiens">Tempa skrējiens</option>
-                    <option value="Cita veida skrējiens">Cita veida skrējiens</option>
-                    <option value="VFS">VFS</option>
-                    <option value="SFS">SFS</option>
-                    <option value="Velo">Velo</option>
+                    <option value="Atjaunojošais/lēnais skrējiens">🐢 Atjaunojošais/lēnais skrējiens</option>
+                    <option value="Vidējas intensitātes skrējiens">🛳️ Vidējas intensitātes skrējiens</option>
+                    <option value="Garais skrējiens">⌛ Garais skrējiens</option>
+                    <option value="Intervāli (vienāda garuma/ilguma)">⚡ Intervāli (vienāda garuma/ilguma)</option>
+                    <option value="Intervāli (dažāda garuma/ilguma)">⚡ Intervāli (dažāda garuma/ilguma)</option>
+                    <option value="Tempa skrējiens">📈 Tempa skrējiens</option>
+                    <option value="Cita veida skrējiens">🎲 Cita veida skrējiens</option>
+                    <option value="VFS">💪 VFS</option>
+                    <option value="SFS">💪 SFS</option>
+                    <option value="Velo">🚴 Velo</option>
                   </select>
                   <span class="icon-picker" id="customIconPicker" hidden>
                     <button type="button" class="icon-btn" data-icon="🐢" title="Lēnais">🐢</button>
@@ -264,6 +274,14 @@
                   </span>
                 </label>
                 <div class="builder-form">
+                  <label id="customNameRow" hidden>
+                    Nosaukums
+                    <input id="customName" type="text" placeholder="Fartleks, Progresīvais, u.c." />
+                  </label>
+                  <label class="checkbox-row" id="raceNutritionRow" hidden>
+                    <input id="raceNutrition" type="checkbox" />
+                    <span>Sacensību uzturs</span>
+                  </label>
                   <div class="builder-sections-row">
                     <div id="warmupSection">
                       <p class="section-label">Iesildīšanās</p>
@@ -275,16 +293,16 @@
                         <label>Ilgums/garums <input id="warmupDuration" type="text" /></label>
                         <label>Pulss <input id="warmupPulse" type="text" /></label>
                       </div>
-                      <label id="warmupAdditionalRow" hidden>
-                        Papildus uzdevums
-                        <input id="warmupAdditional" type="text" />
-                      </label>
                       <div id="drillsRow">
                         <label class="checkbox-row">
                           <input id="includeDrills" type="checkbox" />
                           <span>Drills</span>
                         </label>
                       </div>
+                      <label id="warmupAdditionalRow" hidden>
+                        Papildus uzdevums
+                        <input id="warmupAdditional" type="text" />
+                      </label>
                     </div>
                     <div class="main-content-column">
                       <div id="intervalFields">
@@ -299,7 +317,7 @@
                       <div id="varIntervalFields" hidden>
                         <p class="section-label">Pamatdaļa</p>
                         <div id="varSegmentList"></div>
-                        <button id="varAddSegment" class="secondary-action" type="button" style="width:100%;margin-bottom:6px">+ Pievienot segmentu</button>
+                        <button id="varAddSegment" class="secondary-action" type="button" style="width:auto;margin-bottom:6px">Pievienot segmentu</button>
                         <div class="field-grid">
                           <label>Apļi <input id="varLaps" type="text" /></label>
                           <label>Atpūta starp blokiem <input id="varRestBetweenLaps" type="text" /></label>
@@ -317,14 +335,27 @@
                           <span>Koptreniņš</span>
                         </label>
                       </div>
+                      <label class="checkbox-row" id="spikesRow" hidden>
+                        <input id="spikes" type="checkbox" />
+                        <span>Naglenes</span>
+                      </label>
+                      <label class="checkbox-row" id="raceShoesRow" hidden>
+                        <input id="raceShoes" type="checkbox" />
+                        <span>Sacensību apavi</span>
+                      </label>
                       <label id="freeTextRow" hidden>
                         Pamatdaļas uzdevums
                         <textarea id="customFreeText" rows="3"></textarea>
                       </label>
-                      <label id="customNameRow" hidden>
-                        Nosaukums
-                        <input id="customName" type="text" placeholder="Fartleks, Progresīvais, u.c." />
-                      </label>
+                      <div id="mainExtraSection" hidden>
+                        <label class="checkbox-row">
+                          <input id="mainDrills" type="checkbox" />
+                          <span>Drills</span>
+                        </label>
+                        <label>Papildus uzdevums
+                          <input id="mainAdditional" type="text" />
+                        </label>
+                      </div>
                     </div>
                     <div id="cooldownSection">
                       <p class="section-label">Atsildīšanās</p>
@@ -344,22 +375,21 @@
                     <div class="preview-compact">
                       <p class="preview-label">Treniņa priekšskatījums</p>
                       <div class="generated-preview" id="customPreview"></div>
-                      <label class="checkbox-row" id="templateForAthleteRow">
-                        <input id="templateForAthlete" type="checkbox" />
-                        <span>Tikai šim sportistam</span>
-                      </label>
                     </div>
                   </div>
                 </div>
                 <div class="template-actions">
-                  <button id="saveTemplateOnlyBtn" class="primary-action" type="button">Saglabāt jaunu sagatavi</button>
-                  <button id="updateTemplateBtn" class="primary-action" type="button" hidden>Saglabāt izmaiņas sagatavē</button>
-                  <button id="deleteTemplateBtn" class="delete-template-btn" type="button" hidden data-delete-template>Dzēst sagatavi</button>
+                  <button id="saveTemplateOnlyBtn" class="primary-action save-template-athlete-btn" type="button"><span>Saglabāt <span class="btn-keyword">visās</span> sagatavēs</span></button>
+                  <button id="saveTemplateForAthleteBtn" class="primary-action save-template-athlete-btn" type="button"><span>Saglabāt <span class="btn-keyword">tikai šī</span> sportista sagatavēs</span></button>
+                  <button id="updateTemplateBtn" class="primary-action save-template-athlete-btn" type="button" hidden><span>Saglabāt <span class="btn-keyword">izmaiņas</span> sagatavē</span></button>
+                  <button id="deleteTemplateBtn" class="delete-template-btn delete-template-btn-danger" type="button" hidden data-delete-template>Dzēst sagatavi</button>
                 </div>
                 </form>
               </div>
             </div>
           </div>
+
+          <div id="activeAthleteName"></div>
 
           <div class="stats-collapsible collapsible collapsed" id="raceCalendarPanel">
             <div class="panel-header">
@@ -375,36 +405,39 @@
             </div>
           </div>
 
+          <button id="openRaceBtn" class="secondary-action" type="button">🏁 Pievienot sacensības</button>
+
+          <div class="week-label-row">
+            <h2 id="weekLabel"></h2>
+            <div class="week-block-type-select" id="weekBlockTypeSelect">
+              <label class="wbt-option wbt-load"><input type="radio" name="weekBlockType" value="load"> Slodzes</label>
+              <label class="wbt-option wbt-competition"><input type="radio" name="weekBlockType" value="competition"> Sacensību</label>
+              <label class="wbt-option wbt-rest"><input type="radio" name="weekBlockType" value="rest"> Atpūtas</label>
+            </div>
+          </div>
+
           <div class="view-switcher">
             <div class="view-switcher-tabs-row">
               <div class="view-tabs">
                 <button class="active" data-view="week" type="button">Nedēļas plāns</button>
                 <button data-view="month" type="button">Mēneša plāns</button>
               </div>
-              <button id="openRaceBtn" class="secondary-action" type="button">🏁 Pievienot sacensības</button>
             </div>
-            <button id="copyPrevWeekBtn" class="secondary-action" type="button" hidden>Nokopēt iepriekšējās nedēļas plānu</button>
+          </div>
+
+          <div class="week-nav" id="weekViewNav">
+            <div class="week-nav-row">
+              <button id="weekPrev" class="secondary-action" type="button">Iepriekšējā nedēļa</button>
+              <button id="weekNext" class="secondary-action" type="button">Nākamā nedēļa</button>
+              <button id="weekCurrent" class="secondary-action" type="button">Uz šo nedēļu</button>
+              <span class="week-nav-divider" id="weekNavDivider" aria-hidden="true"></span>
+              <label class="checkbox-row week-nav-reviewed" id="weekReviewedRow"><input type="checkbox" id="weekReviewedCheckbox"> Nedēļa apskatīta</label>
+              <span class="week-nav-divider" id="copyWeekDivider" aria-hidden="true"></span>
+              <button id="copyPrevWeekBtn" class="secondary-action" type="button" hidden>Nokopēt iepriekšējās nedēļas plānu</button>
+            </div>
           </div>
 
           <div id="weekView">
-            <div class="toolbar">
-              <div>
-                <h2 id="weekLabel"></h2>
-                <div class="week-block-type-select" id="weekBlockTypeSelect">
-                  <label class="wbt-option wbt-load"><input type="radio" name="weekBlockType" value="load"> Slodzes</label>
-                  <label class="wbt-option wbt-competition"><input type="radio" name="weekBlockType" value="competition"> Sacensību</label>
-                  <label class="wbt-option wbt-rest"><input type="radio" name="weekBlockType" value="rest"> Atpūtas</label>
-                </div>
-              </div>
-              <div id="activeAthleteName"></div>
-              <div class="week-nav">
-                <div class="week-nav-row">
-                  <button id="weekPrev" class="secondary-action" type="button">Iepriekšējā nedēļa</button>
-                  <button id="weekNext" class="secondary-action" type="button">Nākamā nedēļa</button>
-                  <button id="weekCurrent" class="secondary-action" type="button">Uz šo nedēļu</button>
-                </div>
-              </div>
-            </div>
             <div class="calendar-grid" id="calendarGrid"></div>
           </div>
 
@@ -447,21 +480,21 @@
       <form method="dialog">
         <div class="dialog-header">
           <h2>Rediģēt treniņu</h2>
-          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
         </div>
 
         <label>
           Treniņa tips
            <select id="epType">
-            <option value="Atjaunojošais/lēnais skrējiens">Atjaunojošais/lēnais skrējiens</option>
-            <option value="Garais skrējiens">Garais skrējiens</option>
-              <option value="Intervāli (vienāda garuma/ilguma)">Intervāli (vienāda garuma/ilguma)</option>
-              <option value="Intervāli (dažāda garuma/ilguma)">Intervāli (dažāda garuma/ilguma)</option>
-              <option value="Tempa skrējiens">Tempa skrējiens</option>
-              <option value="Cita veida skrējiens">Cita veida skrējiens</option>
-            <option value="VFS">VFS</option>
-            <option value="SFS">SFS</option>
-            <option value="Velo">Velo</option>
+            <option value="Atjaunojošais/lēnais skrējiens">🐢 Atjaunojošais/lēnais skrējiens</option>
+            <option value="Vidējas intensitātes skrējiens">🛳️ Vidējas intensitātes skrējiens</option>
+            <option value="Garais skrējiens">⌛ Garais skrējiens</option>
+              <option value="Intervāli (vienāda garuma/ilguma)">⚡ Intervāli (vienāda garuma/ilguma)</option>
+              <option value="Intervāli (dažāda garuma/ilguma)">⚡ Intervāli (dažāda garuma/ilguma)</option>
+              <option value="Tempa skrējiens">📈 Tempa skrējiens</option>
+              <option value="Cita veida skrējiens">🎲 Cita veida skrējiens</option>
+            <option value="VFS">💪 VFS</option>
+            <option value="SFS">💪 SFS</option>
+            <option value="Velo">🚴 Velo</option>
           </select>
           <span class="icon-picker" id="epIconPicker" hidden>
             <button type="button" class="icon-btn" data-icon="🐢" title="Lēnais">🐢</button>
@@ -471,6 +504,11 @@
             <button type="button" class="icon-btn" data-icon="💪" title="VFS/SFS">💪</button>
             <button type="button" class="icon-btn" data-icon="🚴" title="Velo">🚴</button>
           </span>
+        </label>
+
+        <label class="checkbox-row" id="epRaceNutritionRow">
+          <input id="epRaceNutrition" type="checkbox" />
+          <span>Sacensību uzturs</span>
         </label>
 
         <div id="epWarmupSection">
@@ -483,16 +521,15 @@
             <label>Ilgums/garums <input id="epWarmupDuration" type="text" value="15 min" /></label>
             <label>Pulss <input id="epWarmupPulse" type="text" value="130-145" /></label>
           </div>
+          <div id="epDrillsRow">
+            <label class="checkbox-row">
+              <input id="epIncludeDrills" type="checkbox" checked />
+              <span>Drills</span>
+            </label>
+          </div>
           <label id="epWarmupAdditionalRow" hidden>
             Papildus uzdevums
             <input id="epWarmupAdditional" type="text" />
-          </label>
-        </div>
-
-        <div id="epDrillsRow">
-          <label class="checkbox-row">
-            <input id="epIncludeDrills" type="checkbox" checked />
-            <span>Drills</span>
           </label>
         </div>
 
@@ -511,7 +548,7 @@
         <div id="epVarIntervalFields" hidden>
           <p class="section-label">Pamatdaļa</p>
           <div id="epVarSegmentList"></div>
-          <button id="epVarAddSegment" class="secondary-action" type="button" style="width:100%;margin-bottom:6px">+ Pievienot segmentu</button>
+          <button id="epVarAddSegment" class="secondary-action" type="button" style="width:auto;margin-bottom:6px">Pievienot segmentu</button>
           <div class="field-grid">
             <label>Apļi <input id="epVarLaps" type="text" /></label>
             <label>Atpūta starp blokiem <input id="epVarRestBetweenLaps" type="text" /></label>
@@ -532,10 +569,30 @@
           <span>Koptreniņš</span>
         </label>
 
+        <label class="checkbox-row" id="epSpikesRow" hidden>
+          <input id="epSpikes" type="checkbox" />
+          <span>Naglenes</span>
+        </label>
+
+        <label class="checkbox-row" id="epRaceShoesRow" hidden>
+          <input id="epRaceShoes" type="checkbox" />
+          <span>Sacensību apavi</span>
+        </label>
+
         <label id="epFreeTextRow" hidden>
           Pamatdaļas uzdevums
           <textarea id="epFreeText" rows="3"></textarea>
         </label>
+
+        <div id="epMainExtraSection" hidden>
+          <label class="checkbox-row">
+            <input id="epMainDrills" type="checkbox" />
+            <span>Drills</span>
+          </label>
+          <label>Papildus uzdevums
+            <input id="epMainAdditional" type="text" />
+          </label>
+        </div>
 
         <label id="epCustomNameRow" hidden>
           Nosaukums
@@ -570,16 +627,20 @@
 
     <dialog class="session-dialog" id="logDialog">
       <form method="dialog">
-        <div class="dialog-header">
-          <h2>Treniņa ieraksts</h2>
-          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
-        </div>
         <div id="logFormContent"></div>
         <div class="dialog-actions">
           <button value="cancel" type="submit">Atcelt</button>
           <button class="primary-action" id="saveLogBtn" type="button">Saglabāt</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog class="session-dialog weekly-review-dialog" id="weeklyReviewDialog">
+      <h2>Nedēļu apskates reģistrs</h2>
+      <div id="weeklyReviewGridWrap" class="weekly-review-grid-wrap"></div>
+      <div class="dialog-actions weekly-review-actions">
+        <button class="secondary-action" id="closeWeeklyReviewBtn" type="button">Aizvērt</button>
+      </div>
     </dialog>
 
     <dialog class="session-dialog" id="raceDialog">
@@ -606,7 +667,6 @@
         <div class="field-grid">
           <label>Mērķa laiks <input id="raceTargetTime" /></label>
         </div>
-        <label>Sportista komentārs <textarea id="raceNotes" rows="3"></textarea></label>
         <div class="dialog-actions split-actions">
           <button class="delete-action" id="deleteRaceBtn" type="button" hidden>Dzēst</button>
           <button class="primary-action" id="saveRaceBtn" type="button">Saglabāt</button>
@@ -618,7 +678,6 @@
       <form method="dialog">
         <div class="dialog-header">
           <h2>Sacensību rezultāts</h2>
-          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
         </div>
         <div id="raceResultInfo" class="generated-preview"></div>
         <label>Rezultāts (laiks)
@@ -695,7 +754,6 @@
       <form id="createUserForm">
         <div class="dialog-header">
           <h2>Pievienot lietotāju</h2>
-          <button aria-label="Aizvērt" class="icon-button" id="closeCreateUserBtn" type="button">×</button>
         </div>
         <label>Vārds <input id="newUserFirstName" required /></label>
         <label>Uzvārds <input id="newUserLastName" required /></label>
@@ -716,7 +774,6 @@
       <form method="dialog">
         <div class="dialog-header">
           <h2>Dzēst sportistu</h2>
-          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
         </div>
         <div id="deleteUserConfirmBody"></div>
         <div id="deleteUserError" class="auth-error" hidden></div>
@@ -774,7 +831,6 @@
       <form method="dialog">
         <div class="dialog-header">
           <h2>Mainīt paroli</h2>
-          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
         </div>
         <p id="resetPwAthleteName" class="muted" style="margin:0 0 4px"></p>
         <label>
@@ -811,6 +867,7 @@
     <script src="panels/diary.js"></script>
     <script src="panels/records.js"></script>
     <script src="panels/admin.js"></script>
+    <script src="panels/weekly-review.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -47,6 +47,7 @@ let monthPlans = [];
 let monthLogEntries = [];
 let monthDayNotes = [];
 let weekBlockTypes = [];
+let weeklyReviews = [];
 
 let athleteNextWeeksPlans = {};
 let athleteHealthSet = new Set();
@@ -99,7 +100,10 @@ const includeWarmup = document.getElementById("includeWarmup");
 const intervalFields = document.getElementById("intervalFields");
 const intervalLength = document.getElementById("intervalLength");
 const intervalPace = document.getElementById("intervalPace");
+const mainAdditional = document.getElementById("mainAdditional");
+const mainDrills = document.getElementById("mainDrills");
 const mainDuration = document.getElementById("mainDuration");
+const mainExtraSection = document.getElementById("mainExtraSection");
 const mainFields = document.getElementById("mainFields");
 const mainPulse = document.getElementById("mainPulse");
 const tempoPace = document.getElementById("tempoPace");
@@ -121,6 +125,12 @@ const weekPrev = document.getElementById("weekPrev");
 const weekNext = document.getElementById("weekNext");
 const weekCurrent = document.getElementById("weekCurrent");
 const profileCoachSection = document.getElementById("profileCoachSection");
+const raceNutrition = document.getElementById("raceNutrition");
+const raceNutritionRow = document.getElementById("raceNutritionRow");
+const spikes = document.getElementById("spikes");
+const spikesRow = document.getElementById("spikesRow");
+const raceShoes = document.getElementById("raceShoes");
+const raceShoesRow = document.getElementById("raceShoesRow");
 
 function getMonday(date) {
   const d = new Date(date);
@@ -188,6 +198,16 @@ function parseTimeToSec(timeStr) {
   return 0;
 }
 
+function parseHoursMinutesInput(str) {
+  const v = (str || "").trim().replace(/\s+/g, "");
+  if (!v) return 0;
+  const m = v.match(/^(\d+)(?:h|:)(\d+)?m?$/i);
+  if (m) {
+    return parseInt(m[1]) + (m[2] ? parseInt(m[2]) / 60 : 0);
+  }
+  return parseFloat(v) || 0;
+}
+
 function formatPart(label, duration, pulse, pace, additional) {
   const dur = duration.trim();
   if (!dur) return "";
@@ -215,13 +235,17 @@ function getGeneratedTraining() {
     const lines = [warmup, drills].filter(Boolean);
     const mainText = customFreeText.value.trim();
     if (mainText) lines.push(`Pamatdaļa: ${mainText}`);
+    if (mainDrills.checked) lines.push("Drill");
+    const mainAdditionalText = mainAdditional.value.trim();
+    if (mainAdditionalText) lines.push(`Papildus uzdevums: ${mainAdditionalText}`);
     if (cooldown) lines.push(cooldown);
+    if (raceNutrition.checked) lines.push("• Izmantot sacensību uzturu");
     const title = customName.value.trim() || OTHER_RUN_TYPE;
     const customIcon = getSelectedIcon("customIconPicker");
     return { title, details: lines.join("\n"), custom_icon: customIcon };
   }
 
-  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
+  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens" || type === "Vidējas intensitātes skrējiens";
   const isSimple = type === "VFS" || type === "SFS";
   const isVelo = type === "Velo";
 
@@ -260,7 +284,14 @@ function getGeneratedTraining() {
     if (main) lines.push(main);
   }
 
+  const footwearParts = [];
+  if (spikes.checked && isIntervalType(type)) footwearParts.push("Naglenes");
+  if (raceShoes.checked && (isIntervalType(type) || type === "Tempa skrējiens")) footwearParts.push("Sacensību apavi");
+  if (footwearParts.length) lines.push(`• Apavi: ${footwearParts.join(", ")}`);
+
   if (cooldown) lines.push(cooldown);
+
+  if (raceNutrition.checked) lines.push("• Izmantot sacensību uzturu");
 
   const koptreniņš = isSimple && document.getElementById("includeKoptreniņš")?.checked;
   const title = koptreniņš ? `${type} Koptreniņš` : type;
@@ -293,13 +324,17 @@ function getEditPlanTraining() {
     const lines = [warmup, drills].filter(Boolean);
     const mainText = getVal("epFreeText");
     if (mainText) lines.push(`Pamatdaļa: ${mainText}`);
+    if (getBool("epMainDrills")) lines.push("Drill");
+    const mainAdditionalText = getVal("epMainAdditional");
+    if (mainAdditionalText) lines.push(`Papildus uzdevums: ${mainAdditionalText}`);
     if (cooldown) lines.push(cooldown);
+    if (getBool("epRaceNutrition")) lines.push("• Izmantot sacensību uzturu");
     const title = getVal("epCustomName") || OTHER_RUN_TYPE;
     const customIcon = getSelectedIcon("epIconPicker");
     return { title, details: lines.join("\n"), custom_icon: customIcon };
   }
 
-  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
+  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens" || type === "Vidējas intensitātes skrējiens";
   const isSimple = type === "VFS" || type === "SFS";
   const isVelo = type === "Velo";
 
@@ -358,7 +393,14 @@ function getEditPlanTraining() {
     if (main) lines.push(main);
   }
 
+  const footwearParts = [];
+  if (getBool("epSpikes") && isIntervalType(type)) footwearParts.push("Naglenes");
+  if (getBool("epRaceShoes") && (isIntervalType(type) || type === "Tempa skrējiens")) footwearParts.push("Sacensību apavi");
+  if (footwearParts.length) lines.push(`• Apavi: ${footwearParts.join(", ")}`);
+
   if (cooldown) lines.push(cooldown);
+
+  if (getBool("epRaceNutrition")) lines.push("• Izmantot sacensību uzturu");
 
   const koptreniņš = isSimple && document.getElementById("epIncludeKoptreniņš")?.checked;
   const title = koptreniņš ? `${type} Koptreniņš` : type;
@@ -385,8 +427,8 @@ function createVarSegmentRow(container, lengthVal, paceVal, restVal, repsVal) {
     <label>Garums/Ilgums <input class="var-seg-length" type="text" value="${lengthVal || ""}" /></label>
     <label>Temps <input class="var-seg-pace" type="text" value="${paceVal || ""}" /></label>
     <label>Atpūta <input class="var-seg-rest" type="text" value="${restVal || ""}" /></label>
-    <label>× <input class="var-seg-reps" type="number" min="1" value="${repsVal || "1"}" style="width:50px" /></label>
-    <button class="var-seg-remove secondary-action-sm" type="button">×</button>`;
+    <label>Reizes <input class="var-seg-reps" type="number" min="1" value="${repsVal || "1"}" style="width:60px" /></label>
+    <button class="var-seg-remove" type="button">×</button>`;
   row.querySelector(".var-seg-remove").addEventListener("click", () => row.remove());
   container.appendChild(row);
 }
@@ -602,6 +644,7 @@ async function loadNonTemplateData() {
     weeklySummaryRes,
     restrictionsRes,
     weekBlockTypesRes,
+    weeklyReviewsRes,
     diaryEntriesRes,
     selfTestsRes,
     polarTestsRes,
@@ -620,6 +663,7 @@ async function loadNonTemplateData() {
     safeGet(getWeeklySummary(athleteId, weekStartStr), null),
     safeGet(getRestrictions(athleteId), []),
     safeGet(getWeekBlockTypes(athleteId), []),
+    safeGet(getWeeklyReviewsForAthlete(athleteId), []),
     safeGet(getDiaryEntries(athleteId), []),
     safeGet(getSelfTests(athleteId), []),
     safeGet(getPolarTests(athleteId), []),
@@ -639,6 +683,7 @@ async function loadNonTemplateData() {
   weeklySummary = weeklySummaryRes;
   restrictions = restrictionsRes;
   weekBlockTypes = weekBlockTypesRes;
+  weeklyReviews = weeklyReviewsRes;
   diaryEntries = diaryEntriesRes;
   selfTests = selfTestsRes;
   polarTests = polarTestsRes;
@@ -808,7 +853,7 @@ function renderAthleteDropdown() {
 }
 
 const TEMPLATE_GROUPS = [
-  { key: "recovery", label: "Lēnie/atjaunojošie skrējieni", types: ["Atjaunojošais/lēnais skrējiens", "Garais skrējiens"] },
+  { key: "recovery", label: "Lēnie/vidēji/garie skrējieni", types: ["Atjaunojošais/lēnais skrējiens", "Vidējas intensitātes skrējiens", "Garais skrējiens"] },
   { key: "intervals", label: "Intervāli", types: ["Intervāli (vienāda garuma/ilguma)", "Intervāli (dažāda garuma/ilguma)"] },
   { key: "tempo", label: "Tempa skrējieni", types: ["Tempa skrējiens"] },
   { key: "other", label: "Citi skrējieni", types: ["Cita veida skrējiens"] },
@@ -877,6 +922,7 @@ function renderCustomBuilder() {
     intervalFields.hidden = true;
     mainFields.hidden = true;
     freeTextRow.hidden = true;
+    mainExtraSection.hidden = true;
     drillsRow.hidden = true;
     warmupToggleRow.hidden = true;
     cooldownToggleRow.hidden = true;
@@ -890,9 +936,16 @@ function renderCustomBuilder() {
     if (ktr) ktr.hidden = true;
     document.getElementById("customIconPicker").hidden = true;
     setSelectedIcon("customIconPicker", "");
+    raceNutritionRow.hidden = true;
+    raceNutrition.checked = false;
+    spikesRow.hidden = true;
+    spikes.checked = false;
+    raceShoesRow.hidden = true;
+    raceShoes.checked = false;
     document.querySelector(".preview-compact").hidden = true;
     document.querySelector(".main-content-column").hidden = true;
     document.getElementById("saveTemplateOnlyBtn").hidden = true;
+    document.getElementById("saveTemplateForAthleteBtn").hidden = true;
     document.getElementById("updateTemplateBtn").hidden = true;
     document.getElementById("deleteTemplateBtn").hidden = true;
     return;
@@ -900,7 +953,8 @@ function renderCustomBuilder() {
   document.querySelector(".preview-compact").hidden = false;
   document.querySelector(".main-content-column").hidden = false;
   document.getElementById("saveTemplateOnlyBtn").hidden = false;
-  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
+  document.getElementById("saveTemplateForAthleteBtn").hidden = false;
+  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens" || type === "Vidējas intensitātes skrējiens";
   const isSimple = type === "VFS" || type === "SFS";
   const isVelo = type === "Velo";
   const isOtherRun = type === OTHER_RUN_TYPE;
@@ -915,9 +969,17 @@ function renderCustomBuilder() {
   document.getElementById("customIconPicker").hidden = !isOtherRun;
   if (!isOtherRun) setSelectedIcon("customIconPicker", "");
   drillsRow.hidden = isEasyOrLong || isSimple || isVelo;
+  mainExtraSection.hidden = !isOtherRun;
 
   const koptreniņšRow = document.getElementById("koptreniņšRow");
   if (koptreniņšRow) koptreniņšRow.hidden = !isSimple;
+
+  raceNutritionRow.hidden = false;
+  const isTempo = type === "Tempa skrējiens";
+  spikesRow.hidden = !isInterval;
+  if (!isInterval) spikes.checked = false;
+  raceShoesRow.hidden = !(isInterval || isTempo);
+  if (!(isInterval || isTempo)) raceShoes.checked = false;
 
   if (isVarInterval) {
     if (!varSegmentList.children.length) addVarSegmentRow(varSegmentList);
@@ -979,7 +1041,7 @@ function renderCustomBuilder() {
 
 function renderEditPlanBuilder() {
   const type = document.getElementById("epType").value;
-  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens";
+  const isEasyOrLong = type === "Atjaunojošais/lēnais skrējiens" || type === "Garais skrējiens" || type === "Vidējas intensitātes skrējiens";
   const isSimple = type === "VFS" || type === "SFS";
   const isVelo = type === "Velo";
   const isOtherRun = type === OTHER_RUN_TYPE;
@@ -994,9 +1056,16 @@ function renderEditPlanBuilder() {
   document.getElementById("epIconPicker").hidden = !isOtherRun;
   if (!isOtherRun) setSelectedIcon("epIconPicker", "");
   document.getElementById("epDrillsRow").hidden = isEasyOrLong || isSimple || isVelo;
+  document.getElementById("epMainExtraSection").hidden = !isOtherRun;
 
   const epKoptreniņšRow = document.getElementById("epKoptreniņšRow");
   if (epKoptreniņšRow) epKoptreniņšRow.hidden = !isSimple;
+
+  const epIsTempo = type === "Tempa skrējiens";
+  document.getElementById("epSpikesRow").hidden = !isInterval;
+  if (!isInterval) document.getElementById("epSpikes").checked = false;
+  document.getElementById("epRaceShoesRow").hidden = !(isInterval || epIsTempo);
+  if (!(isInterval || epIsTempo)) document.getElementById("epRaceShoes").checked = false;
 
   if (isVarInterval) {
     if (!document.getElementById("epVarSegmentList").children.length) addVarSegmentRow(document.getElementById("epVarSegmentList"));
@@ -1057,7 +1126,7 @@ function renderEditPlanPreview() {
 }
 
 function parsePlanToForm(plan) {
-  const knownTypes = ["Atjaunojošais/lēnais skrējiens", "Garais skrējiens", "Intervāli", SAME_INTERVAL_TYPE, VAR_INTERVAL_TYPE, "Tempa skrējiens", OTHER_RUN_TYPE, "VFS", "SFS", "Velo", "Cits"];
+  const knownTypes = ["Atjaunojošais/lēnais skrējiens", "Vidējas intensitātes skrējiens", "Garais skrējiens", "Intervāli", SAME_INTERVAL_TYPE, VAR_INTERVAL_TYPE, "Tempa skrējiens", OTHER_RUN_TYPE, "VFS", "SFS", "Velo", "Cits"];
   const isKnownType = knownTypes.includes(plan.title);
   const resolvedType = isKnownType ? plan.title : OTHER_RUN_TYPE;
 
@@ -1068,6 +1137,8 @@ function parsePlanToForm(plan) {
   document.getElementById("epIncludeWarmup").checked = false;
   document.getElementById("epIncludeCooldown").checked = false;
   document.getElementById("epIncludeDrills").checked = false;
+  document.getElementById("epMainAdditional").value = "";
+  document.getElementById("epMainDrills").checked = false;
   document.getElementById("epCooldownDuration").value = "15 min";
   document.getElementById("epCooldownPulse").value = "120-135";
   document.getElementById("epIntervalLength").value = "600 m";
@@ -1083,9 +1154,13 @@ function parsePlanToForm(plan) {
   document.getElementById("epIncludeWarmup").checked = false;
   document.getElementById("epIncludeCooldown").checked = false;
   document.getElementById("epIncludeDrills").checked = false;
+  document.getElementById("epRaceNutrition").checked = false;
+  document.getElementById("epSpikes").checked = false;
+  document.getElementById("epRaceShoes").checked = false;
 
   const details = plan.details || "";
   const lines = details.split("\n").filter(Boolean);
+  let epMainSeen = false;
 
   for (const line of lines) {
     if (line.startsWith("Iesildīšanās:")) {
@@ -1105,8 +1180,21 @@ function parsePlanToForm(plan) {
         if (m[3]) document.getElementById("epCooldownAdditional").value = m[3];
       }
     } else if (line === "Drill") {
-      document.getElementById("epIncludeDrills").checked = true;
+      if (epMainSeen) {
+        document.getElementById("epMainDrills").checked = true;
+      } else {
+        document.getElementById("epIncludeDrills").checked = true;
+      }
+    } else if (line === "Sacensību uzturs" || line === "• Izmantot sacensību uzturu") {
+      document.getElementById("epRaceNutrition").checked = true;
+    } else if (line.startsWith("Apavi:") || line.startsWith("• Apavi:")) {
+      const footwearText = line.replace(/^•\s*/, "").slice("Apavi:".length);
+      document.getElementById("epSpikes").checked = footwearText.includes("Naglenes");
+      document.getElementById("epRaceShoes").checked = footwearText.includes("Sacensību apavi");
+    } else if (line.startsWith("Papildus uzdevums:")) {
+      document.getElementById("epMainAdditional").value = line.slice("Papildus uzdevums:".length).trim();
     } else if (line.startsWith("Pamatdaļa:") || line.startsWith("Velo:")) {
+      epMainSeen = true;
       const isVelo = line.startsWith("Velo:");
       const mainContent = line.replace(/^(Pamatdaļa|Velo):\s*/, "");
       if (isVelo) document.getElementById("epType").value = "Velo";
@@ -1168,7 +1256,7 @@ function loadTemplateToForm(template) {
     if (el) el.checked = val;
   }
 
-  const knownTypes = ["Atjaunojošais/lēnais skrējiens", "Garais skrējiens", "Intervāli", SAME_INTERVAL_TYPE, VAR_INTERVAL_TYPE, "Tempa skrējiens", OTHER_RUN_TYPE, "VFS", "SFS", "Velo", "Cits"];
+  const knownTypes = ["Atjaunojošais/lēnais skrējiens", "Vidējas intensitātes skrējiens", "Garais skrējiens", "Intervāli", SAME_INTERVAL_TYPE, VAR_INTERVAL_TYPE, "Tempa skrējiens", OTHER_RUN_TYPE, "VFS", "SFS", "Velo", "Cits"];
   const isKnownType = knownTypes.includes(name);
   let type = name;
   if (!isKnownType) type = OTHER_RUN_TYPE;
@@ -1181,7 +1269,11 @@ function loadTemplateToForm(template) {
   setChecked("includeWarmup", true);
   setChecked("includeCooldown", true);
   setChecked("includeDrills", false);
+  setChecked("mainDrills", false);
   setChecked("includeKoptreniņš", false);
+  setChecked("raceNutrition", false);
+  setChecked("spikes", false);
+  setChecked("raceShoes", false);
   setVal("warmupDuration", "");
   setVal("warmupPulse", "");
   setVal("warmupAdditional", "");
@@ -1196,6 +1288,7 @@ function loadTemplateToForm(template) {
   setVal("intervalPace", "");
   setVal("restDuration", "");
   setVal("customFreeText", "");
+  setVal("mainAdditional", "");
 
   const lines = details.split("\n").map(l => l.trim()).filter(Boolean);
 
@@ -1206,8 +1299,10 @@ function loadTemplateToForm(template) {
   }
 
   let hasDrills = false;
+  let hasMainDrills = false;
   let hasWarmup = false;
   let hasCooldown = false;
+  let mainSeen = false;
 
   for (const line of lines) {
     const parsed = parseLine(line);
@@ -1227,8 +1322,20 @@ function loadTemplateToForm(template) {
       if (parts[1]) setVal("cooldownPulse", parts[1]);
       if (parts[2]) setVal("cooldownAdditional", parts[2]);
     } else if (line === "Drill") {
-      hasDrills = true;
+      if (mainSeen) {
+        hasMainDrills = true;
+      } else {
+        hasDrills = true;
+      }
+    } else if (line === "Sacensību uzturs" || line === "• Izmantot sacensību uzturu") {
+      setChecked("raceNutrition", true);
+    } else if (label === "Apavi" || label === "• Apavi") {
+      setChecked("spikes", rest.includes("Naglenes"));
+      setChecked("raceShoes", rest.includes("Sacensību apavi"));
+    } else if (label === "Papildus uzdevums") {
+      setVal("mainAdditional", rest);
     } else if (label === "Pamatdaļa" || label === "Velo") {
+      mainSeen = true;
       if (type === VAR_INTERVAL_TYPE && isVarIntervalLine(line)) {
         parseVarIntervalMain(line, varSegmentList, varLaps, varRestBetweenLaps);
       } else if (type === OTHER_RUN_TYPE) {
@@ -1255,6 +1362,7 @@ function loadTemplateToForm(template) {
   }
 
   setChecked("includeDrills", hasDrills);
+  setChecked("mainDrills", hasMainDrills);
   setChecked("includeWarmup", hasWarmup);
   setChecked("includeCooldown", hasCooldown);
   if (name.includes("Koptreniņš")) setChecked("includeKoptreniņš", true);
@@ -1295,6 +1403,7 @@ function formatDetailsForCard(details) {
 function badgeForTitle(title) {
   const t = (title || "").toLowerCase();
   if (t.includes("vieglais") || t.includes("atjaunojošais") || t.includes("lēnais")) return "🐢";
+  if (t.includes("vidējas intensitātes")) return "🛳️";
   if (t.includes("garais")) return "⌛";
   if (t.includes("intervāli")) return "⚡";
   if (t.includes("tempa")) return "📈";
@@ -1509,7 +1618,7 @@ function renderCalendar() {
       const raceHtml = dayRaces.length
         ? `<div class="race-list">
             <div class="race-section-header">🏁 ${dateStr >= todayStr ? "Gaidāmās sacensības" : "Aizvadītās sacensības"}</div>
-            ${dayRaces.map((r) => {
+            ${dayRaces.map((r, raceIdx) => {
               const isUpcoming = dateStr >= todayStr;
               const hasResult = !!r.result_time;
               const isAthleteOwner = (activeRole === "athlete") && currentUser.id === athleteId;
@@ -1522,7 +1631,9 @@ function renderCalendar() {
                 </div>
                 ${!hasResult && isAthleteOwner ? `<button class="add-day-button" data-log-race="${r.id}" type="button">Pievienot rezultātu</button>` : ""}
                 ${hasResult ? `<div class="race-result">✅ ${r.result_time}${r.result_pace ? " (" + r.result_pace.replace(/\/km\s*$/i, "") + "/km)" : ""}</div>` : ""}
-                ${isAthleteOwner ? `<textarea class="race-inline-comment" data-comment-race="${r.id}" placeholder="Komentārs..." rows="1">${r.result_comment || ""}</textarea>` : ""}
+                ${activeRole === "coach" && !dayPlans.length && raceIdx === dayRaces.length - 1
+                  ? `<div class="comment-label">Trenera komentārs/padomi</div><textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Komentārs...">${dayNote?.coach_comment || ""}</textarea>`
+                  : ""}
                 ${activeRole !== "coach" ? `<div class="race-actions"><button class="edit-race-btn" data-edit-race="${r.id}" type="button" title="Rediģēt">✏️</button><button class="delete-race-btn" data-race="${r.id}" type="button" title="Dzēst">×</button></div>` : ""}
               </div>
             `}).join("")}
@@ -1542,9 +1653,7 @@ function renderCalendar() {
           ${dayPlans.length
             ? dayPlans.map(renderPlanCard).join("")
             : dayRaces.length
-              ? activeRole === "coach"
-                ? `<textarea class="inline-comment" data-comment-day="${dateStr}">${dayNote?.coach_comment || ""}</textarea>`
-                : ""
+              ? ""
               : fullyRestricted
                 ? `<div class="day-restriction-text">🚫 ${escapeHtml(dayRestrictionReason)}</div>`
                 : activeRole === "coach"
@@ -1614,21 +1723,17 @@ function renderWeeklySummary() {
     </div>
     <div class="ws-fields">
       <label>Kilometrāža <input id="wsRunKm" type="number" step="0.1" value="${runKm}" ${isAthleteView ? "" : "disabled"} /></label>
-      <label>Kopējais laiks visos treniņos (h) <input id="wsRunMin" class="ws-time" type="text" value="${runMin}" ${isAthleteView ? "" : "disabled"} placeholder="piem. 10h45m" /></label>
-      <label>VFS/SFS (h) <input id="wsVfsSfs" class="ws-time" type="text" value="${vfsSfs}" ${isAthleteView ? "" : "disabled"} placeholder="piem. 1h30m" /></label>
-      <label>Velo (h) <input id="wsVelo" class="ws-time" type="text" value="${velo}" ${isAthleteView ? "" : "disabled"} placeholder="piem. 0h45m" /></label>
+      <label>Kopējais laiks visos treniņos (h) <input id="wsRunMin" class="ws-time" type="text" value="${runMin}" ${isAthleteView ? "" : "disabled"} ${isAthleteView ? 'placeholder="piem. 10h45m"' : ""} /></label>
+      <label>VFS/SFS (h) <input id="wsVfsSfs" class="ws-time" type="text" value="${vfsSfs}" ${isAthleteView ? "" : "disabled"} ${isAthleteView ? 'placeholder="piem. 1h30m"' : ""} /></label>
+      <label>Velo (h) <input id="wsVelo" class="ws-time" type="text" value="${velo}" ${isAthleteView ? "" : "disabled"} ${isAthleteView ? 'placeholder="piem. 0h45m"' : ""} /></label>
     </div>
   `;
 
   if (isAthleteView) {
     document.querySelectorAll(".ws-time").forEach((inp) => {
-      inp.addEventListener("input", function () {
-        const v = this.value.trim();
-        const m = v.match(/^(\d+)(?:h|:)(\d+)(?:m)?$/);
-        if (m) {
-          const h = parseInt(m[1]) + parseInt(m[2]) / 60;
-          this.value = h.toFixed(2);
-        }
+      inp.addEventListener("blur", function () {
+        if (!this.value.trim()) return;
+        this.value = parseHoursMinutesInput(this.value).toFixed(2);
       });
     });
   }
@@ -1642,9 +1747,9 @@ function renderWeeklySummary() {
       }
       if (isAthleteView) {
         updates.run_km = parseFloat(document.getElementById("wsRunKm").value) || 0;
-        updates.run_min = parseFloat(document.getElementById("wsRunMin").value) || 0;
-        updates.vfs_sfs_min = parseFloat(document.getElementById("wsVfsSfs").value) || 0;
-        updates.velo_min = parseFloat(document.getElementById("wsVelo").value) || 0;
+        updates.run_min = parseHoursMinutesInput(document.getElementById("wsRunMin").value);
+        updates.vfs_sfs_min = parseHoursMinutesInput(document.getElementById("wsVfsSfs").value);
+        updates.velo_min = parseHoursMinutesInput(document.getElementById("wsVelo").value);
         updates.athlete_comment = document.getElementById("wsAthleteComment").value.trim();
       }
       try {
@@ -1712,10 +1817,11 @@ function renderMonthViewInline() {
       const cellBlockType = weekBlockTypes.find(b => b.week_start === cellWeekStart)?.block_type || "";
 
       const plansHtml = dayPlans.map((p) => {
-        const titleHtml = `<strong>${p.completed === false ? '<span class="not-completed-icon">!</span> ' : ""}${displayTitle(p.title)}</strong>`;
+        const titleHtml = `<strong>${displayTitle(p.title)}</strong>`;
         return `
         <div class="month-plan${p.completed === false ? " not-completed" : ""}">
           <span class="month-type-badge">${p.custom_icon || badgeForTitle(p.title)}</span>
+          ${p.completed === false ? '<span class="month-not-completed-icon">!</span>' : ""}
           <div class="month-plan-summary">
             ${titleHtml}
             <span>${extractMainPart(p.details)}</span>
@@ -1778,6 +1884,9 @@ function render() {
   });
   weekLabel.className = currentBlockType ? "wbt-label-" + currentBlockType : "";
 
+  document.getElementById("weekReviewedCheckbox").checked =
+    weeklyReviews.some(r => r.week_start === weekStartStr);
+
   const activeAthleteEl = document.getElementById("activeAthleteName");
   if (activeRole === "coach") {
     const selected = athletes.find((a) => a.id === athleteSelect.value);
@@ -1791,12 +1900,16 @@ function render() {
   athleteSelectorPanel.hidden = activeRole !== "coach" || !hasAthletes;
   document.getElementById("restrictionsPanel").hidden = !hasAthletes;
   document.getElementById("adminPanel").hidden = activeRole !== "coach" || !hasAthletes;
+  document.getElementById("weeklyReviewPanel").hidden = activeRole !== "coach" || !hasAthletes;
   document.getElementById("openRaceBtn").hidden = activeRole === "coach" || !hasAthletes;
   document.getElementById("raceCalendarPanel").hidden = !hasAthletes;
-  document.getElementById("copyPrevWeekBtn").hidden = activeRole !== "coach";
+  document.getElementById("copyPrevWeekBtn").hidden = activeRole !== "coach" || viewMode !== "week";
+  document.getElementById("copyWeekDivider").hidden = activeRole !== "coach" || viewMode !== "week";
   const isCurrentWeek = formatDateISO(currentWeekStart) === formatDateISO(getMonday(new Date()));
   trainingBar.hidden = activeRole !== "coach" || !hasAthletes;
-  document.getElementById("weekBlockTypeSelect").hidden = activeRole !== "coach";
+  document.getElementById("weekBlockTypeSelect").hidden = activeRole !== "coach" || viewMode !== "week";
+  document.getElementById("weekReviewedRow").hidden = activeRole !== "coach" || viewMode !== "week";
+  document.getElementById("weekNavDivider").hidden = activeRole !== "coach" || viewMode !== "week";
 
   renderAthleteDropdown();
   renderTemplates();
@@ -1809,6 +1922,8 @@ function render() {
     document.getElementById("weekView").hidden = viewMode !== "week";
     document.getElementById("monthView").hidden = viewMode !== "month";
     document.getElementById("weeklySummary").hidden = viewMode !== "week";
+    weekLabel.hidden = viewMode !== "week";
+    document.getElementById("weekViewNav").hidden = viewMode !== "week";
     if (viewMode === "week") {
       renderCalendar();
     } else {
@@ -1906,7 +2021,27 @@ weekCurrent.addEventListener("click", async () => {
   await loadNonTemplateData();
 });
 
+document.getElementById("weekBlockTypeSelect")?.addEventListener("pointerdown", (e) => {
+  const label = e.target.closest(".wbt-option");
+  const radio = label?.querySelector('input[name="weekBlockType"]');
+  if (radio) radio.dataset.wasChecked = radio.checked ? "1" : "";
+});
+
 document.querySelectorAll('input[name="weekBlockType"]').forEach(radio => {
+  radio.addEventListener("click", async (e) => {
+    if (radio.dataset.wasChecked !== "1") return;
+    radio.checked = false;
+    const athleteId = getSelectedAthleteId();
+    if (!athleteId) return;
+    const weekStartStr = formatDateISO(currentWeekStart);
+    await upsertWeekBlockType({
+      athlete_id: athleteId,
+      week_start: weekStartStr,
+      block_type: "",
+    });
+    await loadNonTemplateData();
+  });
+
   radio.addEventListener("change", async () => {
     if (!radio.checked) return;
     const athleteId = getSelectedAthleteId();
@@ -1919,6 +2054,18 @@ document.querySelectorAll('input[name="weekBlockType"]').forEach(radio => {
     });
     await loadNonTemplateData();
   });
+});
+
+document.getElementById("weekReviewedCheckbox")?.addEventListener("change", async (e) => {
+  const athleteId = getSelectedAthleteId();
+  if (!athleteId) return;
+  const weekStartStr = formatDateISO(currentWeekStart);
+  if (e.target.checked) {
+    await markWeekReviewed(athleteId, weekStartStr);
+  } else {
+    await unmarkWeekReviewed(athleteId, weekStartStr);
+  }
+  await loadNonTemplateData();
 });
 
 document.getElementById("copyPrevWeekBtn")?.addEventListener("click", async () => {
@@ -2151,6 +2298,20 @@ document.querySelectorAll(".panel .panel-header, .stats-collapsible .panel-heade
   });
 });
 
+// Keep the sidebar panel's top offset in sync with the header's actual
+// height, since it wraps onto multiple lines on narrow phone screens.
+function updateMobileHeaderHeight() {
+  const header = document.querySelector(".app-header");
+  if (!header) return;
+  document.documentElement.style.setProperty("--mobile-header-height", `${header.offsetHeight}px`);
+}
+if (typeof ResizeObserver !== "undefined") {
+  const appHeaderEl = document.querySelector(".app-header");
+  if (appHeaderEl) new ResizeObserver(updateMobileHeaderHeight).observe(appHeaderEl);
+}
+window.addEventListener("resize", updateMobileHeaderHeight);
+updateMobileHeaderHeight();
+
 // Hamburger menu (mobile)
 function togglePlannerMenu(open) {
   const panel = document.querySelector(".planner-panel");
@@ -2322,7 +2483,7 @@ document.getElementById("epVarAddSegment")?.addEventListener("click", () => {
   renderEditPlanPreview();
 });
 
-[customType, warmupDuration, warmupPulse, includeWarmup, includeCooldown, includeDrills, repeatCount, intervalLength, intervalPace, restDuration, mainDuration, mainPulse, cooldownDuration, cooldownPulse, tempoPace, document.getElementById("includeKoptreniņš"), varLaps, varRestBetweenLaps, document.getElementById("customName"), document.getElementById("customFreeText")].forEach((input) => {
+[customType, warmupDuration, warmupPulse, includeWarmup, includeCooldown, includeDrills, mainAdditional, mainDrills, repeatCount, intervalLength, intervalPace, restDuration, mainDuration, mainPulse, cooldownDuration, cooldownPulse, tempoPace, document.getElementById("includeKoptreniņš"), varLaps, varRestBetweenLaps, document.getElementById("customName"), document.getElementById("customFreeText"), raceNutrition, spikes, raceShoes].forEach((input) => {
   input?.addEventListener("input", renderSourcePicker);
   input?.addEventListener("change", renderSourcePicker);
 });
@@ -2582,9 +2743,8 @@ calendarGrid.addEventListener("change", async (event) => {
   }
 });
 
-document.getElementById("saveTemplateOnlyBtn")?.addEventListener("click", async () => {
+async function saveNewTemplate(forAthlete) {
   const training = getGeneratedTraining();
-  const forAthlete = document.getElementById("templateForAthlete")?.checked;
   try {
     const saved = await insertTemplate({
       name: training.title,
@@ -2598,7 +2758,10 @@ document.getElementById("saveTemplateOnlyBtn")?.addEventListener("click", async 
   } catch (e) {
     console.error(e);
   }
-});
+}
+
+document.getElementById("saveTemplateOnlyBtn")?.addEventListener("click", () => saveNewTemplate(false));
+document.getElementById("saveTemplateForAthleteBtn")?.addEventListener("click", () => saveNewTemplate(true));
 
 document.getElementById("saveEditPlanBtn")?.addEventListener("click", async () => {
   const id = editPlanDialog.dataset.editId;
@@ -2628,7 +2791,7 @@ document.getElementById("saveEditPlanBtn")?.addEventListener("click", async () =
   });
 });
 
-["epType", "epWarmupDuration", "epWarmupPulse", "epIncludeWarmup", "epIncludeCooldown", "epIncludeDrills", "epRepeatCount", "epIntervalLength", "epIntervalPace", "epRestDuration", "epMainDuration", "epMainPulse", "epCooldownDuration", "epCooldownPulse", "epTempoPace", "epFreeText", "epIncludeKoptreniņš", "epVarLaps", "epVarRestBetweenLaps", "epCustomName"].forEach((id) => {
+["epType", "epWarmupDuration", "epWarmupPulse", "epIncludeWarmup", "epIncludeCooldown", "epIncludeDrills", "epMainAdditional", "epMainDrills", "epRepeatCount", "epIntervalLength", "epIntervalPace", "epRestDuration", "epMainDuration", "epMainPulse", "epCooldownDuration", "epCooldownPulse", "epTempoPace", "epFreeText", "epIncludeKoptreniņš", "epVarLaps", "epVarRestBetweenLaps", "epCustomName", "epRaceNutrition", "epSpikes", "epRaceShoes"].forEach((id) => {
   document.getElementById(id)?.addEventListener("input", () => renderEditPlanPreview());
 });
 document.getElementById("epVarSegmentList")?.addEventListener("input", () => {
@@ -2673,6 +2836,12 @@ function feelingBadgeHtml(feeling, feelingTags) {
     "Viena no veiksmīgākajām dienām pedējā laikā": { bg: "var(--success-bg)", color: "var(--success)" },
     "Jutos pārliecināts un kājas jutās svaigas": { bg: "var(--success-bg)", color: "var(--success-dark)" },
     "Jutu progresu un spēka pieaugumu, esmu priecīgs.": { bg: "var(--success-bg)", color: "var(--success-dark)" },
+    "Slikti — kājas nemaz neklausīja, cīnījos visu treniņu.": { bg: "var(--danger-bg)", color: "var(--danger)" },
+    "Grūti — pabeidzu, bet ar piepūli un zemu motivāciju.": { bg: "var(--warning-bg)", color: "var(--warning-dark)" },
+    "Vidēji — nekas īpašs, parasta diena.": { bg: "var(--surface-alt)", color: "var(--muted)" },
+    "Labi — jutos stabili, viss gāja kā ierasts.": { bg: "var(--info-bg)", color: "var(--info)" },
+    "Ļoti labi — jutos spēcīgs un viegli.": { bg: "var(--olive-bg)", color: "var(--olive-dark)" },
+    "Lieliski — viena no labākajām dienām, pilns enerģijas.": { bg: "var(--success-bg)", color: "var(--success-dark)" },
   };
   const all = [];
   if (feeling) all.push(feeling);
@@ -2696,6 +2865,7 @@ function getActivityType(title) {
 
 function getRatingGroup(planTitle, customIcon) {
   if (customIcon === "🐢") return "easy";
+  if (customIcon === "🛳️") return "easy";
   if (customIcon === "🚴") return "bike";
   if (customIcon === "💪") return "gym";
   if (customIcon === "⚡") return "intervals";
@@ -2707,6 +2877,7 @@ function getRatingGroup(planTitle, customIcon) {
   if (t.includes("intervāl")) return "intervals";
   if (t.includes("temp")) return "tempo";
   if (t.includes("garais")) return "long";
+  if (t.includes("vidējas intensitātes")) return "easy";
   if (t.includes("atjaunojoš") || t.includes("lēn")) return "easy";
   return "other";
 }
@@ -2727,44 +2898,44 @@ function getRatingHtml(planTitle, customIcon) {
       { label: "Spēks un solis jaudīgs, psiholoģiski pārliecinoši!", bg: "var(--success-bg)", border: "var(--success)", color: "var(--success)" },
     ],
     long: [
-      { label: "Kājas pasmagas, motivācija zema, jau pusē bija viss :[", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
-      { label: "Normāli, nevaru sūdzēties.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
-      { label: "Diezgan labi - kā gaidīts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
-      { label: "Viena no veiksmīgākajām dienām pedējā laikā", bg: "var(--success-bg)", border: "var(--success)", color: "var(--success)" },
-      { label: "Jutos pārliecināts un kājas jutās svaigas", bg: "var(--success-bg)", border: "var(--success)", color: "var(--success)" },
-      { label: "Jutu progresu un spēka pieaugumu, esmu priecīgs.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
+      { label: "Slikti — kājas nemaz neklausīja, cīnījos visu treniņu.", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
+      { label: "Grūti — pabeidzu, bet ar piepūli un zemu motivāciju.", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning-dark)" },
+      { label: "Vidēji — nekas īpašs, parasta diena.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
+      { label: "Labi — jutos stabili, viss gāja kā ierasts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
+      { label: "Ļoti labi — jutos spēcīgs un viegli.", bg: "var(--olive-bg)", border: "var(--olive)", color: "var(--olive-dark)" },
+      { label: "Lieliski — viena no labākajām dienām, pilns enerģijas.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
     ],
     easy: [
-      { label: "Kājas pasmagas, motivācija zema, jau pusē bija viss :[", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
-      { label: "Normāli, nevaru sūdzēties.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
-      { label: "Diezgan labi - kā gaidīts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
-      { label: "Viena no veiksmīgākajām dienām pedējā laikā", bg: "var(--success-bg)", border: "var(--success)", color: "var(--success)" },
-      { label: "Jutos pārliecināts un kājas jutās svaigas", bg: "var(--success-bg)", border: "var(--success)", color: "var(--success)" },
-      { label: "Jutu progresu un spēka pieaugumu, esmu priecīgs.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
+      { label: "Slikti — kājas nemaz neklausīja, cīnījos visu treniņu.", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
+      { label: "Grūti — pabeidzu, bet ar piepūli un zemu motivāciju.", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning-dark)" },
+      { label: "Vidēji — nekas īpašs, parasta diena.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
+      { label: "Labi — jutos stabili, viss gāja kā ierasts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
+      { label: "Ļoti labi — jutos spēcīgs un viegli.", bg: "var(--olive-bg)", border: "var(--olive)", color: "var(--olive-dark)" },
+      { label: "Lieliski — viena no labākajām dienām, pilns enerģijas.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
     ],
     gym: [
-      { label: "Kājas pasmagas, motivācija zema, jau pusē bija viss :[", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
-      { label: "Normāli, nevaru sūdzēties.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
-      { label: "Diezgan labi - kā gaidīts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
-      { label: "Viena no veiksmīgākajām dienām pedējā laikā", bg: "var(--success-bg)", border: "var(--success)", color: "var(--success)" },
-      { label: "Jutos pārliecināts un kājas jutās svaigas", bg: "var(--success-bg)", border: "var(--success)", color: "var(--success)" },
-      { label: "Jutu progresu un spēka pieaugumu, esmu priecīgs.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
+      { label: "Slikti — kājas nemaz neklausīja, cīnījos visu treniņu.", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
+      { label: "Grūti — pabeidzu, bet ar piepūli un zemu motivāciju.", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning-dark)" },
+      { label: "Vidēji — nekas īpašs, parasta diena.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
+      { label: "Labi — jutos stabili, viss gāja kā ierasts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
+      { label: "Ļoti labi — jutos spēcīgs un viegli.", bg: "var(--olive-bg)", border: "var(--olive)", color: "var(--olive-dark)" },
+      { label: "Lieliski — viena no labākajām dienām, pilns enerģijas.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
     ],
     bike: [
-      { label: "Kājas pasmagas, motivācija zema, jau pusē bija viss :[", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
-      { label: "Normāli, nevaru sūdzēties.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
-      { label: "Diezgan labi - kā gaidīts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
-      { label: "Viena no veiksmīgākajām dienām pedējā laikā", bg: "var(--success-bg)", border: "var(--success)", color: "var(--success)" },
-      { label: "Jutos pārliecināts un kājas jutās svaigas", bg: "var(--success-bg)", border: "var(--success)", color: "var(--success)" },
-      { label: "Jutu progresu un spēka pieaugumu, esmu priecīgs.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
+      { label: "Slikti — kājas nemaz neklausīja, cīnījos visu treniņu.", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
+      { label: "Grūti — pabeidzu, bet ar piepūli un zemu motivāciju.", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning-dark)" },
+      { label: "Vidēji — nekas īpašs, parasta diena.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
+      { label: "Labi — jutos stabili, viss gāja kā ierasts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
+      { label: "Ļoti labi — jutos spēcīgs un viegli.", bg: "var(--olive-bg)", border: "var(--olive)", color: "var(--olive-dark)" },
+      { label: "Lieliski — viena no labākajām dienām, pilns enerģijas.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
     ],
     other: [
-      { label: "Kājas pasmagas, motivācija zema, jau pusē bija viss :[", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
-      { label: "Normāli, nevaru sūdzēties.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
-      { label: "Diezgan labi - kā gaidīts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
-      { label: "Viena no veiksmīgākajām dienām pedējā laikā", bg: "var(--success-bg)", border: "var(--success)", color: "var(--success)" },
-      { label: "Jutos pārliecināts un kājas jutās svaigas", bg: "var(--success-bg)", border: "var(--success)", color: "var(--success)" },
-      { label: "Jutu progresu un spēka pieaugumu, esmu priecīgs.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
+      { label: "Slikti — kājas nemaz neklausīja, cīnījos visu treniņu.", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
+      { label: "Grūti — pabeidzu, bet ar piepūli un zemu motivāciju.", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning-dark)" },
+      { label: "Vidēji — nekas īpašs, parasta diena.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
+      { label: "Labi — jutos stabili, viss gāja kā ierasts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
+      { label: "Ļoti labi — jutos spēcīgs un viegli.", bg: "var(--olive-bg)", border: "var(--olive)", color: "var(--olive-dark)" },
+      { label: "Lieliski — viena no labākajām dienām, pilns enerģijas.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
     ],
   };
   const items = typeOpts[group] || typeOpts.other;
@@ -2958,7 +3129,7 @@ function openPlanLogDialog(planId) {
   logDialogDate = plan.date;
   logDialogPlanId = plan.id;
   const existingLog = logEntries.find((l) => l.plan_id === plan.id);
-  let html = `<p class="log-date">Treniņa ieraksts — ${plan.date}</p>`;
+  let html = "";
   if (activeRole !== "coach") {
     html += `<label class="field-label">Izpildes datums <input type="date" id="logDatePicker" value="${plan.date}" /></label>`;
   }
@@ -2977,7 +3148,7 @@ function openPlanLogDialog(planId) {
         for (let r = 0; r < count; r++) {
           html += `<div class="var-seg-log-row">
             <span class="var-seg-log-label">${escapeHtml(label)}${count > 1 ? " (" + (r + 1) + "." + ")" : ""}</span>
-            <label>Izp. temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" placeholder="${seg.pace || "min/km"}" /></label>
+            <label>Izp. temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" placeholder="${seg.pace || ""}" /></label>
           </div>`;
           globalIdx++;
         }
@@ -2994,9 +3165,13 @@ function openPlanLogDialog(planId) {
           html += `<label>${i + 1}. atkārtojums <input class="log-interval-pace" data-log-interval="${i}" placeholder="${extractPace(line)}" /></label>`;
         }
         html += `</div></div>`;
+      } else if (line === "Sacensību uzturs" || line === "• Izmantot sacensību uzturu" || line.startsWith("Apavi:") || line.startsWith("• Apavi:")) {
+        html += `<div class="log-section-row" data-log-section="${line}">
+          <div class="log-target">${line}</div>
+        </div>`;
       } else if (line.includes(":")) {
         const paceStr = extractPace(line);
-      const paceField = `<label>Izp. vidējais temps <input class="log-actual-pace" placeholder="${paceStr || "min/km"}" /></label>`;
+      const paceField = `<label>Izp. vidējais temps <input class="log-actual-pace" placeholder="${paceStr || ""}" /></label>`;
       const pulseStr = extractPulse(line);
       html += `<div class="log-section-row" data-log-section="${line.split(":")[0]}">
         <div class="log-target">${line}</div>
@@ -3010,7 +3185,7 @@ function openPlanLogDialog(planId) {
       html += `<div class="log-section-row" data-log-section="Drill">
         <div class="log-target">Drill</div>
         <div class="field-grid">
-          <label>Izp. ilgums <input class="log-actual-duration" placeholder="15'" /></label>
+          <label>Izp. ilgums <input class="log-actual-duration" /></label>
         </div>
       </div>`;
     } else {
@@ -3075,7 +3250,7 @@ function openLogDialog(dateStr) {
     logDialog.showModal();
     return;
   }
-  let html = `<p class="log-date">Treniņa ieraksts — ${dateStr}</p>`;
+  let html = "";
   dayPlans.forEach((plan) => {
     html += `<div class="log-plan-block"><h3>${displayTitle(plan.title)}</h3>`;
     const lines = (plan.details || "").split("\n");
@@ -3092,7 +3267,7 @@ function openLogDialog(dateStr) {
           for (let r = 0; r < count; r++) {
             html += `<div class="var-seg-log-row">
               <span class="var-seg-log-label">${escapeHtml(label)}${count > 1 ? " (" + (r + 1) + "." + ")" : ""}</span>
-              <label>Izp. temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" placeholder="${seg.pace || "min/km"}" /></label>
+              <label>Izp. temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" placeholder="${seg.pace || ""}" /></label>
             </div>`;
             globalIdx++;
           }
@@ -3109,9 +3284,13 @@ function openLogDialog(dateStr) {
             html += `<label>${i + 1}. atkārtojums <input class="log-interval-pace" data-log-interval="${i}" placeholder="${extractPace(line)}" /></label>`;
           }
           html += `</div></div>`;
+        } else if (line === "Sacensību uzturs" || line === "• Izmantot sacensību uzturu" || line.startsWith("Apavi:") || line.startsWith("• Apavi:")) {
+          html += `<div class="log-section-row" data-log-section="${line}">
+            <div class="log-target">${line}</div>
+          </div>`;
         } else if (line.includes(":")) {
         const paceStr = extractPace(line);
-      const paceField = `<label>Izp. vidējais temps <input class="log-actual-pace" placeholder="${paceStr || "min/km"}" /></label>`;
+      const paceField = `<label>Izp. vidējais temps <input class="log-actual-pace" placeholder="${paceStr || ""}" /></label>`;
         const pulseStr = extractPulse(line);
         html += `<div class="log-section-row" data-log-section="${line.split(":")[0]}">
           <div class="log-target">${line}</div>
@@ -3125,7 +3304,7 @@ function openLogDialog(dateStr) {
         html += `<div class="log-section-row" data-log-section="Drill">
           <div class="log-target">Drill</div>
           <div class="field-grid">
-            <label>Izp. ilgums <input class="log-actual-duration" placeholder="15'" /></label>
+            <label>Izp. ilgums <input class="log-actual-duration" /></label>
           </div>
         </div>`;
       } else {

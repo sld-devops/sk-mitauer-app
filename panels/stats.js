@@ -95,7 +95,7 @@ function renderStats() {
 
   const isWeek = statsPeriod === "week";
   const ranges = isWeek
-    ? [{ val: 4, label: "4 ned." }, { val: 8, label: "8 ned." }, { val: 12, label: "12 ned." }]
+    ? [{ val: 4, label: "4 nedēļas" }, { val: 8, label: "8 nedēļas" }, { val: 12, label: "12 nedēļas" }]
     : [{ val: 3, label: "3 mēn." }, { val: 6, label: "6 mēn." }, { val: 12, label: "12 mēn." }];
   const currentRange = isWeek ? trendWeeks : trendMonths;
 

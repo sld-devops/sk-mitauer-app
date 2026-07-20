@@ -31,7 +31,6 @@ const raceDialog = document.getElementById("raceDialog");
 const raceDate = document.getElementById("raceDate");
 const raceName = document.getElementById("raceName");
 const raceLocation = document.getElementById("raceLocation");
-const raceNotes = document.getElementById("raceNotes");
 const saveRaceBtn = document.getElementById("saveRaceBtn");
 const deleteRaceBtn = document.getElementById("deleteRaceBtn");
 let editingRaceId = null;
@@ -57,7 +56,6 @@ function openRaceDialog(raceId) {
     document.getElementById("raceDistance").value = r.distance || "";
     document.getElementById("raceTerrain").value = r.terrain || "";
     document.getElementById("raceTargetTime").value = r.target_time || "";
-    raceNotes.value = r.notes || "";
     if (deleteRaceBtn) deleteRaceBtn.hidden = false;
   } else {
     raceDate.value = formatDateISO(new Date());
@@ -66,7 +64,6 @@ function openRaceDialog(raceId) {
     document.getElementById("raceDistance").value = "";
     document.getElementById("raceTerrain").value = "";
     document.getElementById("raceTargetTime").value = "";
-    raceNotes.value = "";
     if (deleteRaceBtn) deleteRaceBtn.hidden = true;
   }
   raceDialog.showModal();
@@ -83,7 +80,6 @@ saveRaceBtn.addEventListener("click", async () => {
     distance: document.getElementById("raceDistance").value.trim(),
     terrain: document.getElementById("raceTerrain").value,
     target_time: document.getElementById("raceTargetTime").value.trim(),
-    notes: raceNotes.value.trim(),
   };
   try {
     if (editingRaceId) {
@@ -182,7 +178,6 @@ function renderRaceTabFromRaces(allRaces, tab) {
           }
         </div>
         ${tab === "past" && r.result_comment ? `<div class="race-comment-block"><div class="race-comment-label">Komentārs pēc sacensībām</div><p class="race-notes">${escapeHtml(r.result_comment)}</p></div>` : ""}
-        ${r.notes ? `<div class="race-comment-block"><div class="race-comment-label">Komentārs pirms sacensībām</div><p class="race-notes">${escapeHtml(r.notes)}</p></div>` : ""}
         ${isAthleteOwner ? `<div class="race-list-actions">
           <button class="secondary-action-sm" data-race-edit="${r.id}" type="button">✏️ Rediģēt</button>
           ${tab === "upcoming" && !hasResult

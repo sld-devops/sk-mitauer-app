@@ -800,4 +800,40 @@ async function upsertWeekBlockType(data) {
   if (error) throw error;
 }
 
+async function getWeeklyReviews() {
+  const { data, error } = await supabase
+    .from("weekly_reviews")
+    .select("athlete_id, week_start");
+  if (error) throw error;
+  return data || [];
+}
+
+async function getWeeklyReviewsForAthlete(athleteId) {
+  const { data, error } = await supabase
+    .from("weekly_reviews")
+    .select("week_start")
+    .eq("athlete_id", athleteId);
+  if (error) throw error;
+  return data || [];
+}
+
+async function markWeekReviewed(athleteId, weekStart) {
+  const { error } = await supabase
+    .from("weekly_reviews")
+    .upsert(
+      { athlete_id: athleteId, week_start: weekStart },
+      { onConflict: "athlete_id,week_start" }
+    );
+  if (error) throw error;
+}
+
+async function unmarkWeekReviewed(athleteId, weekStart) {
+  const { error } = await supabase
+    .from("weekly_reviews")
+    .delete()
+    .eq("athlete_id", athleteId)
+    .eq("week_start", weekStart);
+  if (error) throw error;
+}
+
 
