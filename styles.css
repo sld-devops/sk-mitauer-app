@@ -13,6 +13,7 @@
   --accent: #c91f2f;
   --accent-dark: #9e1724;
   --lime: #a3e635;
+  --info-accent: #2563eb;
 
   --success: #3f7d4a;
   --success-dark: #2f5f38;
@@ -149,7 +150,7 @@ button {
 
 .auth-form label {
   font-size: 1rem;
-  color: #15171a;
+  color: var(--ink);
 }
 
 .auth-form input {
@@ -158,17 +159,17 @@ button {
 }
 
 .auth-card .checkbox-row {
-  color: #15171a;
+  color: var(--ink);
   border-color: rgba(0, 0, 0, 0.2);
   background: rgba(0, 0, 0, 0.03);
 }
 
 .auth-card .checkbox-row input {
-  accent-color: #15171a;
+  accent-color: var(--ink);
 }
 
 .auth-card .auth-error {
-  color: #9e1724;
+  color: var(--accent-dark);
 }
 
 #loginBtn {
@@ -475,9 +476,9 @@ h4 {
 
 .reset-pw-athlete-btn {
   background: none;
-  border: 1px solid #2563eb;
+  border: 1px solid var(--info-accent);
   border-radius: 6px;
-  color: #2563eb;
+  color: var(--info-accent);
   cursor: pointer;
   font-size: 0.78rem;
   font-weight: 700;
@@ -487,7 +488,7 @@ h4 {
 }
 
 .reset-pw-athlete-btn:hover {
-  background: #2563eb;
+  background: var(--info-accent);
   color: #fff;
 }
 
@@ -655,12 +656,17 @@ h4 {
   align-items: center;
   cursor: pointer;
   display: flex;
+  font-size: 1rem;
   gap: 8px;
   justify-content: space-between;
   user-select: none;
 }
 .dropdown-trigger:hover {
   border-color: #677e99;
+}
+.template-dropdown .dropdown-trigger {
+  border-color: #b8c0cc;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
 }
 .custom-dropdown.open .dropdown-trigger {
   border-color: #677e99;
@@ -670,6 +676,7 @@ h4 {
   align-items: center;
   display: flex;
   flex: 1;
+  font-weight: 400;
   gap: 8px;
   justify-content: space-between;
   min-width: 0;
@@ -698,7 +705,8 @@ h4 {
   gap: 2px;
   padding: 4px;
 }
-.dropdown-list .athlete-row {
+.dropdown-list .athlete-row,
+.dropdown-list .type-dropdown-item {
   align-items: center;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -709,11 +717,13 @@ h4 {
   padding: 8px 10px;
   transition: background 0.1s;
 }
-.dropdown-list .athlete-row:hover {
+.dropdown-list .athlete-row:hover,
+.dropdown-list .type-dropdown-item:hover {
   background: var(--surface-hover);
   border-color: #677e99;
 }
-.dropdown-list .athlete-row.selected {
+.dropdown-list .athlete-row.selected,
+.dropdown-list .type-dropdown-item.selected {
   background: var(--surface-alt);
   border-color: #677e99;
   box-shadow: inset 3px 0 0 #677e99;
@@ -827,21 +837,14 @@ h4 {
   width: 1px;
 }
 
-.week-nav-reviewed#weekReviewedRow {
-  color: var(--ink);
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 6px 10px;
-}
-
-#weekReviewedRow[hidden] {
-  display: none;
+#copyWeekDivider {
+  margin-left: auto;
 }
 
 #weekViewNav {
   grid-column: unset;
   justify-self: unset;
-  align-items: flex-start;
+  align-items: stretch;
   margin: 10px 0;
   padding: 0 16px;
 }
@@ -1147,7 +1150,7 @@ h4 {
   background: var(--surface);
 }
 .icon-btn.selected {
-  background: #e8f0fe;
+  background: var(--race-bg);
   border-color: var(--accent);
 }
 
@@ -2493,7 +2496,6 @@ label {
   font-size: 0.98rem;
   margin-bottom: 8px;
   word-break: break-word;
-  overflow-wrap: anywhere;
   padding-right: 50px;
 }
 
@@ -2721,7 +2723,7 @@ label {
 }
 
 .record-row-line {
-  color: var(--muted);
+  color: var(--ink);
   font-size: 0.85rem;
 }
 
@@ -2895,7 +2897,7 @@ label {
 }
 
 .chart-bar.run_min {
-  background: #2563eb;
+  background: var(--info-accent);
 }
 
 .chart-bar.vfs_sfs_min {
@@ -2952,7 +2954,7 @@ label {
 }
 
 .chart-legend-swatch.run_km { background: var(--accent); }
-.chart-legend-swatch.run_min { background: #2563eb; }
+.chart-legend-swatch.run_min { background: var(--info-accent); }
 .chart-legend-swatch.vfs_sfs_min { background: #16a34a; }
 .chart-legend-swatch.velo_min { background: #ca8a04; }
 
@@ -2974,7 +2976,7 @@ label {
 }
 
 .chart-stacked-segment.run_km { background: var(--accent); }
-.chart-stacked-segment.run_min { background: #2563eb; }
+.chart-stacked-segment.run_min { background: var(--info-accent); }
 .chart-stacked-segment.vfs_sfs_min { background: #16a34a; }
 .chart-stacked-segment.velo_min { background: #ca8a04; }
 
@@ -3006,9 +3008,17 @@ label {
 }
 
 .ws-header {
+  align-items: center;
+  display: flex;
   font-size: 0.88rem;
   font-weight: 800;
+  justify-content: space-between;
   margin-bottom: 10px;
+}
+
+.ws-header-reviewed {
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .ws-fields {
@@ -3984,9 +3994,8 @@ textarea:disabled {
 }
 .health-entry {
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 8px 10px;
-  background: var(--surface);
 }
 .health-clickable {
   cursor: pointer;
@@ -4001,8 +4010,8 @@ textarea:disabled {
   margin-bottom: 4px;
 }
 .health-entry-date {
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--muted);
 }
 .health-entry-text {
@@ -4014,6 +4023,12 @@ textarea:disabled {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
+}
+.health-form .field-grid {
+  grid-template-columns: 1fr;
+}
+.health-form .field-grid > label:not(:last-child)::after {
+  display: none;
 }
 .health-form-title {
   margin: 0 0 8px 0;
@@ -4313,7 +4328,7 @@ textarea:disabled {
   padding: 1px 6px;
   border-radius: 4px;
   background: var(--surface-hover);
-  color: var(--text-muted);
+  color: var(--muted);
 }
 
 .labtest-name {

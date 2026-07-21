@@ -60,7 +60,7 @@ function renderHealthJournal() {
         <h3 class="health-form-title">${editing ? "Rediģēt ierakstu" : "Jauns ieraksts"}</h3>
         <div class="field-grid">
           <label>No <input id="hjStartDate" type="date" value="${editing ? editing.start_date : formatDateISO(new Date())}" /></label>
-          <label>Līdz <input id="hjEndDate" type="date" placeholder="tukšs, ja viena diena" value="${editing?.end_date || ""}" /></label>
+          <label>Līdz (tukšs, ja viena diena) <input id="hjEndDate" type="date" value="${editing?.end_date || ""}" /></label>
         </div>
         <label>Apraksts <textarea id="hjDescription" rows="4">${editing ? escapeHtml(editing.description || "") : ""}</textarea></label>
         <div class="health-form-actions">

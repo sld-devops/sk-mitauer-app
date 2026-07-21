@@ -416,7 +416,7 @@ function isIntervalType(type) {
 }
 
 function displayTitle(name) {
-  return name ? name.replace(/\s*\(.*?\)\s*$/, "") : "";
+  return name ? name.replace(/\s*\(.*?\)\s*$/, "").replace(/\//g, " un ") : "";
 }
 
 function createVarSegmentRow(container, lengthVal, paceVal, restVal, repsVal) {
@@ -774,15 +774,12 @@ async function initApp() {
     athletes = activeRole === "coach" ? await getAthletes() : [currentProfile];
 
 
-    if (activeRole === "coach" && athletes.length && !athleteSelect.value) {
-      athleteSelect.value = athletes[0].id;
-    }
-
     if (activeRole === "athlete") {
       athleteSelect.value = currentUser.id;
     }
 
     renderAthleteDropdown();
+    render();
 
     await loadAllData();
     if (activeRole === "coach") await refreshWeekStatuses();
@@ -807,6 +804,10 @@ function renderAthleteDropdown() {
   // Restore selection after repopulating
   if (currentValue) {
     athleteSelect.value = currentValue;
+  } else if (activeRole === "coach") {
+    // Populating a <select> with no option marked "selected" makes the browser
+    // default to the first option — undo that so "nothing selected yet" persists.
+    athleteSelect.selectedIndex = -1;
   }
 
   if (!athleteSelect.value && activeRole === "athlete" && currentUser) {
@@ -834,9 +835,15 @@ function renderAthleteDropdown() {
 
   if (athleteSelect.value) {
     const selectedAthlete = athletes.find((a) => a.id === athleteSelect.value);
-    selected.innerHTML = selectedAthlete
-      ? `<span class="athlete-name">${selectedAthlete.full_name}</span><span class="athlete-indicators">${weekIndicators(selectedAthlete.id)}</span>`
-      : "";
+    if (selectedAthlete) {
+      const selectedHealthBadge = athleteHealthSet.has(selectedAthlete.id) ? '<span class="health-dropdown-badge">⚕</span> ' : "";
+      const selectedNotCompletedBadge = athleteNotCompletedSet.has(selectedAthlete.id) ? '<span class="not-completed-icon">!</span> ' : "";
+      selected.innerHTML = `<span class="athlete-name">${selectedHealthBadge}${selectedNotCompletedBadge}${selectedAthlete.full_name}</span><span class="athlete-indicators">${weekIndicators(selectedAthlete.id)}</span>`;
+    } else {
+      selected.innerHTML = "";
+    }
+  } else {
+    selected.innerHTML = "Izvēlies sportistu...";
   }
 
   list.innerHTML = athletes
@@ -918,6 +925,13 @@ function renderSourcePicker() {
 
 function renderCustomBuilder() {
   const type = customType.value;
+  const customTypeTrigger = document.querySelector("#customTypeDropdown .dropdown-selected");
+  if (customTypeTrigger) {
+    customTypeTrigger.textContent = customType.options[customType.selectedIndex]?.textContent || "Izvēlies treniņa tipu";
+  }
+  document.querySelectorAll("#customTypeDropdown .type-dropdown-item").forEach((item) => {
+    item.classList.toggle("selected", item.dataset.value === type);
+  });
   if (!type) {
     intervalFields.hidden = true;
     mainFields.hidden = true;
@@ -1508,12 +1522,12 @@ function renderPlanCard(plan) {
         ${hasPamatdala ? `<div class="task-card">${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}<textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" placeholder="Trenera komentārs..."></textarea></div>` : `<textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" placeholder="Trenera komentārs..."></textarea>`}
         ${logBlock}
         ${notCompleted ? `<div class="not-completed-badge"><span class="not-completed-icon">!</span> Sportists atzīmēja kā neizpildītu</div>${plan.athlete_comment ? `<div class="log-notes not-completed-comment">${plan.athlete_comment}</div>` : ""}` : ""}
-        <div class="card-actions"><button class="icon-button" data-edit-plan="${plan.id}" type="button">✏️</button><button class="delete-action" data-delete-plan="${plan.id}" type="button">×</button></div>
+        <div class="card-actions"><button class="icon-button" data-edit-plan="${plan.id}" type="button">✏️</button><button class="delete-action" data-delete-plan="${plan.id}" type="button">✕</button></div>
       </article>
     `;
   }
 
-  const logActions = planLog ? `<div class="log-actions"><button class="edit-log-btn" data-log-plan="${plan.id}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${planLog.id}" type="button">×</button></div>` : "";
+  const logActions = planLog ? `<div class="log-actions"><button class="edit-log-btn" data-log-plan="${plan.id}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${planLog.id}" type="button">✕</button></div>` : "";
 
   const logBlock = planLog
     ? `<div class="log-card log-inline">${planLogData.length ? renderInlineLog(planLogData, paceBoundsMap, plannedIntervalCount) : ""}${feelingBadge}${planLogNotes}</div>`
@@ -1588,7 +1602,7 @@ function renderLogCard(log) {
   const feelingBadge = log?.feeling || log?.feeling_tags ? feelingBadgeHtml(log.feeling, log.feeling_tags) : "";
   const logNotes = log?.notes ? `<div class="log-notes">${log.notes}</div>` : "";
   const athleteIsOwner = (activeRole === "athlete") && currentUser.id === getSelectedAthleteId();
-  const logActions = athleteIsOwner ? `<div class="log-actions"><button class="edit-log-btn" data-log-day="${log.date}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${log.id}" type="button">×</button></div>` : "";
+  const logActions = athleteIsOwner ? `<div class="log-actions"><button class="edit-log-btn" data-log-day="${log.date}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${log.id}" type="button">✕</button></div>` : "";
   return `<div class="session-card log-card">${items}${feelingBadge}${logNotes}${athleteIsOwner ? `<div class="card-actions">${logActions}</div>` : ""}</div>`;
 }
 
@@ -1634,7 +1648,7 @@ function renderCalendar() {
                 ${activeRole === "coach" && !dayPlans.length && raceIdx === dayRaces.length - 1
                   ? `<div class="comment-label">Trenera komentārs/padomi</div><textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Komentārs...">${dayNote?.coach_comment || ""}</textarea>`
                   : ""}
-                ${activeRole !== "coach" ? `<div class="race-actions"><button class="edit-race-btn" data-edit-race="${r.id}" type="button" title="Rediģēt">✏️</button><button class="delete-race-btn" data-race="${r.id}" type="button" title="Dzēst">×</button></div>` : ""}
+                ${activeRole !== "coach" ? `<div class="race-actions"><button class="edit-race-btn" data-edit-race="${r.id}" type="button" title="Rediģēt">✏️</button><button class="delete-race-btn" data-race="${r.id}" type="button" title="Dzēst">✕</button></div>` : ""}
               </div>
             `}).join("")}
           </div>`
@@ -1714,9 +1728,14 @@ function renderWeeklySummary() {
   const velo = s.velo_min || "";
   const coachComment = s.coach_comment ?? "";
   const athleteComment = s.athlete_comment ?? "";
+  const weekStartStr = formatDateISO(currentWeekStart);
+  const isWeekReviewed = weeklyReviews.some(r => r.week_start === weekStartStr);
 
   ws.innerHTML = `
-    <div class="ws-header">Nedēļas kopsavilkums</div>
+    <div class="ws-header">
+      <span>Nedēļas kopsavilkums</span>
+      ${activeRole === "coach" ? `<label class="checkbox-row ws-header-reviewed"><input type="checkbox" id="weekReviewedCheckbox" ${isWeekReviewed ? "checked" : ""}> Nedēļa apskatīta</label>` : ""}
+    </div>
     <div class="ws-comments">
       <label>Trenera komentārs <textarea id="wsCoachComment" rows="3" ${activeRole === "coach" ? "" : "disabled"}>${coachComment}</textarea></label>
       <label>Sportista komentārs <textarea id="wsAthleteComment" rows="3" ${isAthleteView ? "" : "disabled"}>${athleteComment}</textarea></label>
@@ -1738,7 +1757,17 @@ function renderWeeklySummary() {
     });
   }
 
-  document.querySelectorAll("#weeklySummary input, #weeklySummary textarea").forEach(el => {
+  document.getElementById("weekReviewedCheckbox")?.addEventListener("change", async (e) => {
+    if (!athleteId) return;
+    if (e.target.checked) {
+      await markWeekReviewed(athleteId, weekStartStr);
+    } else {
+      await unmarkWeekReviewed(athleteId, weekStartStr);
+    }
+    await loadNonTemplateData();
+  });
+
+  document.querySelectorAll("#weeklySummary .ws-comments textarea, #weeklySummary .ws-fields input").forEach(el => {
     el.addEventListener("change", async () => {
       const weekStart = formatDateISO(currentWeekStart);
       const updates = { athlete_id: athleteId, week_start: weekStart };
@@ -1884,9 +1913,6 @@ function render() {
   });
   weekLabel.className = currentBlockType ? "wbt-label-" + currentBlockType : "";
 
-  document.getElementById("weekReviewedCheckbox").checked =
-    weeklyReviews.some(r => r.week_start === weekStartStr);
-
   const activeAthleteEl = document.getElementById("activeAthleteName");
   if (activeRole === "coach") {
     const selected = athletes.find((a) => a.id === athleteSelect.value);
@@ -1908,8 +1934,6 @@ function render() {
   const isCurrentWeek = formatDateISO(currentWeekStart) === formatDateISO(getMonday(new Date()));
   trainingBar.hidden = activeRole !== "coach" || !hasAthletes;
   document.getElementById("weekBlockTypeSelect").hidden = activeRole !== "coach" || viewMode !== "week";
-  document.getElementById("weekReviewedRow").hidden = activeRole !== "coach" || viewMode !== "week";
-  document.getElementById("weekNavDivider").hidden = activeRole !== "coach" || viewMode !== "week";
 
   renderAthleteDropdown();
   renderTemplates();
@@ -2054,18 +2078,6 @@ document.querySelectorAll('input[name="weekBlockType"]').forEach(radio => {
     });
     await loadNonTemplateData();
   });
-});
-
-document.getElementById("weekReviewedCheckbox")?.addEventListener("change", async (e) => {
-  const athleteId = getSelectedAthleteId();
-  if (!athleteId) return;
-  const weekStartStr = formatDateISO(currentWeekStart);
-  if (e.target.checked) {
-    await markWeekReviewed(athleteId, weekStartStr);
-  } else {
-    await unmarkWeekReviewed(athleteId, weekStartStr);
-  }
-  await loadNonTemplateData();
 });
 
 document.getElementById("copyPrevWeekBtn")?.addEventListener("click", async () => {
@@ -2218,7 +2230,7 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
         if (athleteId && diaryEntries.length) {
           markAllEntriesRead(athleteId, diaryEntries);
           panel.classList.toggle("has-entries", false);
-          btn.dataset.count = "0";
+          panel.querySelector(".panel-header").dataset.count = "0";
         }
       }
     }
@@ -2229,7 +2241,7 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
         if (athleteId && records.length) {
           markAllRecordsSeen(athleteId, records);
           panel.classList.toggle("has-entries", false);
-          btn.dataset.count = "0";
+          panel.querySelector(".panel-header").dataset.count = "0";
         }
       }
     }
@@ -2239,7 +2251,7 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
         if (healthEntries.length) {
           markAllHealthSeen(healthEntries);
           panel.classList.toggle("has-entries", false);
-          btn.dataset.count = "0";
+          panel.querySelector(".panel-header").dataset.count = "0";
         }
       }
     }
@@ -2250,7 +2262,7 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
         if (athleteId && selfTests.length) {
           markAllSelfTestsSeen(athleteId, selfTests);
           panel.classList.toggle("has-entries", false);
-          btn.dataset.count = "0";
+          panel.querySelector(".panel-header").dataset.count = "0";
         }
       }
     }
@@ -2261,7 +2273,7 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
         if (athleteId && polarTests.length) {
           markAllPolarTestsSeen(athleteId, polarTests);
           panel.classList.toggle("has-entries", false);
-          btn.dataset.count = "0";
+          panel.querySelector(".panel-header").dataset.count = "0";
         }
       }
     }
@@ -2272,13 +2284,13 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
         if (athleteId && labTests.length) {
           markAllLabTestsSeen(athleteId, labTests);
           panel.classList.toggle("has-entries", false);
-          btn.dataset.count = "0";
+          panel.querySelector(".panel-header").dataset.count = "0";
         }
       } else {
         if (athleteId && labTests.length) {
           markAllIzvertetsSeen(athleteId, labTests);
           panel.classList.toggle("has-entries", false);
-          btn.dataset.count = "0";
+          panel.querySelector(".panel-header").dataset.count = "0";
         }
       }
     }
@@ -2429,6 +2441,21 @@ document.querySelectorAll(".template-dropdown-list").forEach(list => {
 
 document.addEventListener("click", () => {
   document.querySelectorAll(".template-dropdown.open").forEach(d => d.classList.remove("open"));
+});
+
+// Training-type custom dropdown (mirrors the hidden #customType select's options)
+const customTypeDropdownList = document.querySelector("#customTypeDropdown .dropdown-list");
+customTypeDropdownList.innerHTML = Array.from(customType.options)
+  .filter(opt => opt.value)
+  .map(opt => `<div class="type-dropdown-item" data-value="${opt.value}">${opt.textContent}</div>`)
+  .join("");
+
+customTypeDropdownList.addEventListener("click", (e) => {
+  const item = e.target.closest(".type-dropdown-item");
+  if (!item) return;
+  customType.value = item.dataset.value;
+  document.getElementById("customTypeDropdown").classList.remove("open");
+  customType.dispatchEvent(new Event("change"));
 });
 
 // Edit/Delete template buttons (delegated)
