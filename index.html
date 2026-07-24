@@ -5,10 +5,39 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Toma Komasa Sportistu Portāls</title>
+    <script>
+      (function () {
+        // position: on wide screens the browser crops the top/bottom of the photo (the
+        // full width always fits, since these photos are less wide than most monitors),
+        // so this points the crop at whichever edge each photo's items actually sit on.
+        var images = [
+          { file: "bg-rotate-1.jpg", position: "right center" },
+          { file: "bg-rotate-2.jpg", position: "left center" },
+          { file: "bg-rotate-3.jpg", position: "right center" },
+          { file: "bg-rotate-4.jpg", position: "center bottom" },
+          { file: "bg-rotate-5.jpg", position: "right center" },
+          { file: "bg-rotate-6.jpg", position: "right center" },
+          { file: "bg-rotate-7.jpg", position: "left center" },
+          { file: "bg-rotate-8.jpg", position: "center top" },
+          { file: "bg-rotate-9.jpg", position: "left center" },
+          { file: "bg-rotate-10.jpg", position: "right center" },
+          { file: "bg-rotate-11.jpg", position: "right center" }
+        ];
+        var now = new Date();
+        var dateStr = now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate();
+        var hash = 0;
+        for (var i = 0; i < dateStr.length; i++) {
+          hash = (hash * 31 + dateStr.charCodeAt(i)) >>> 0;
+        }
+        var chosen = images[hash % images.length];
+        document.documentElement.style.setProperty("--page-bg-image", 'url("images/' + chosen.file + '")');
+        document.documentElement.style.setProperty("--page-bg-position", chosen.position);
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=64" />
+    <link rel="stylesheet" href="styles.css?v=115" />
   </head>
   <body>
     <div id="authView">
@@ -44,7 +73,7 @@
     <div id="appView" hidden>
       <header class="app-header">
         <div class="header-left">
-          <button id="mobileMenuBtn" class="secondary-action" type="button" aria-label="Izvēlne">☰</button>
+          <button id="mobileMenuBtn" class="secondary-action" type="button" aria-label="Sakļaut/izvērst sānu paneli"><span class="menu-btn-arrow">◀</span></button>
           <div class="header-titles">
             <p class="eyebrow">Toma Komasa</p>
             <h1>SPORTISTU PORTĀLS</h1>
@@ -74,11 +103,8 @@
           </section>
 
           <section class="panel" id="weeklyReviewPanel" hidden>
-            <div class="panel-header">
+            <div class="panel-header" id="openWeeklyReviewBtn">
               <h2>Nedēļu apskates reģistrs</h2>
-            </div>
-            <div class="panel-body">
-              <button id="openWeeklyReviewBtn" class="secondary-action panel-add-btn" type="button">Atvērt pārskatu</button>
             </div>
           </section>
 
@@ -87,14 +113,16 @@
               <h2>Sportisti</h2>
               <button id="refreshStatusBtn" class="refresh-status-btn" type="button" title="Atsvaidzināt statusu">↻</button>
             </div>
-            <div class="custom-dropdown" id="athleteDropdown">
-              <div class="dropdown-trigger" id="dropdownTrigger">
-                <div class="dropdown-selected" id="dropdownSelected"></div>
-                <span class="dropdown-arrow">▼</span>
+            <div class="panel-body">
+              <div class="custom-dropdown" id="athleteDropdown">
+                <div class="dropdown-trigger" id="dropdownTrigger">
+                  <div class="dropdown-selected" id="dropdownSelected"></div>
+                  <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="dropdown-list" id="dropdownList"></div>
               </div>
-              <div class="dropdown-list" id="dropdownList"></div>
+              <select id="athleteSelect" hidden aria-label="Izvēlies sportistu"></select>
             </div>
-            <select id="athleteSelect" hidden aria-label="Izvēlies sportistu"></select>
           </section>
 
           <section class="panel collapsible collapsed" id="profileCoachSection">
@@ -149,7 +177,7 @@
             <div class="panel-header">
               <div class="panel-header-text">
                 <h2>Veselības žurnāls</h2>
-                <span class="panel-subtitle">Sūdzības par sāpēm, esoša trauma, slimība, jūtama pārslodze u.c.</span>
+                <span class="panel-subtitle">Sāpes, trauma, slimība, pārslodze u.c.</span>
               </div>
               <button class="collapse-toggle" type="button" aria-label="Rādīt veselības žurnālu">▶</button>
             </div>
@@ -219,6 +247,16 @@
             <div class="panel-body" id="polarTestsBody"></div>
           </section>
 
+          <section class="panel collapsible collapsed" id="ruffierTestsPanel">
+            <div class="panel-header">
+              <div class="panel-header-text">
+                <h2>Rufjē tests</h2>
+                <span class="panel-subtitle">Fiziskās darbaspējas noteikšana</span>
+              </div>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt Rufjē testu">▶</button>
+            </div>
+            <div class="panel-body" id="ruffierTestsBody"></div>
+          </section>
 
           </div>
         </aside>
@@ -231,7 +269,7 @@
             </div>
             <div class="training-bar-body">
               <div class="training-bar-content">
-                <form autocomplete="off">
+                <form id="newTrainingForm" autocomplete="off">
                 <div class="template-dropdown-section">
                   <div class="custom-dropdown template-dropdown" id="allTemplatesDropdown">
                     <label class="template-dropdown-label">Visas sagataves</label>
@@ -250,8 +288,8 @@
                     <div class="dropdown-list template-dropdown-list"></div>
                   </div>
                 </div>
-                <label class="type-select-label">Izveidot jaunu treniņu
-                  <select id="customType">
+                <div class="type-select-label">Izveidot jaunu treniņu
+                  <select id="customType" hidden>
                     <option value="" selected disabled>Izvēlies treniņa tipu</option>
                     <option value="Atjaunojošais/lēnais skrējiens">🐢 Atjaunojošais/lēnais skrējiens</option>
                     <option value="Vidējas intensitātes skrējiens">🛳️ Vidējas intensitātes skrējiens</option>
@@ -264,23 +302,27 @@
                     <option value="SFS">💪 SFS</option>
                     <option value="Velo">🚴 Velo</option>
                   </select>
+                  <div class="custom-dropdown template-dropdown" id="customTypeDropdown">
+                    <div class="dropdown-trigger">
+                      <span class="dropdown-selected">Izvēlies treniņa tipu</span>
+                      <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="dropdown-list"></div>
+                  </div>
                   <span class="icon-picker" id="customIconPicker" hidden>
                     <button type="button" class="icon-btn" data-icon="🐢" title="Lēnais">🐢</button>
+                    <button type="button" class="icon-btn" data-icon="🛳️" title="Vidējas intensitātes">🛳️</button>
                     <button type="button" class="icon-btn" data-icon="⌛" title="Garais">⌛</button>
                     <button type="button" class="icon-btn" data-icon="⚡" title="Intervāli">⚡</button>
                     <button type="button" class="icon-btn" data-icon="📈" title="Tempa">📈</button>
                     <button type="button" class="icon-btn" data-icon="💪" title="VFS/SFS">💪</button>
                     <button type="button" class="icon-btn" data-icon="🚴" title="Velo">🚴</button>
                   </span>
-                </label>
+                </div>
                 <div class="builder-form">
                   <label id="customNameRow" hidden>
                     Nosaukums
                     <input id="customName" type="text" placeholder="Fartleks, Progresīvais, u.c." />
-                  </label>
-                  <label class="checkbox-row" id="raceNutritionRow" hidden>
-                    <input id="raceNutrition" type="checkbox" />
-                    <span>Sacensību uzturs</span>
                   </label>
                   <div class="builder-sections-row">
                     <div id="warmupSection">
@@ -305,6 +347,18 @@
                       </label>
                     </div>
                     <div class="main-content-column">
+                      <label class="checkbox-row" id="raceNutritionRow" hidden>
+                        <input id="raceNutrition" type="checkbox" />
+                        <span>Sacensību uzturs</span>
+                      </label>
+                      <label class="checkbox-row" id="spikesRow" hidden>
+                        <input id="spikes" type="checkbox" />
+                        <span>Naglenes</span>
+                      </label>
+                      <label class="checkbox-row" id="raceShoesRow" hidden>
+                        <input id="raceShoes" type="checkbox" />
+                        <span>Sacensību apavi</span>
+                      </label>
                       <div id="intervalFields">
                         <p class="section-label">Pamatdaļa</p>
                         <div class="field-grid-4">
@@ -317,7 +371,7 @@
                       <div id="varIntervalFields" hidden>
                         <p class="section-label">Pamatdaļa</p>
                         <div id="varSegmentList"></div>
-                        <button id="varAddSegment" class="secondary-action" type="button" style="width:auto;margin-bottom:6px">Pievienot segmentu</button>
+                        <button id="varAddSegment" class="secondary-action" type="button" style="width:auto">Pievienot segmentu</button>
                         <div class="field-grid">
                           <label>Apļi <input id="varLaps" type="text" /></label>
                           <label>Atpūta starp blokiem <input id="varRestBetweenLaps" type="text" /></label>
@@ -335,14 +389,6 @@
                           <span>Koptreniņš</span>
                         </label>
                       </div>
-                      <label class="checkbox-row" id="spikesRow" hidden>
-                        <input id="spikes" type="checkbox" />
-                        <span>Naglenes</span>
-                      </label>
-                      <label class="checkbox-row" id="raceShoesRow" hidden>
-                        <input id="raceShoes" type="checkbox" />
-                        <span>Sacensību apavi</span>
-                      </label>
                       <label id="freeTextRow" hidden>
                         Pamatdaļas uzdevums
                         <textarea id="customFreeText" rows="3"></textarea>
@@ -379,9 +425,9 @@
                   </div>
                 </div>
                 <div class="template-actions">
-                  <button id="saveTemplateOnlyBtn" class="primary-action save-template-athlete-btn" type="button"><span>Saglabāt <span class="btn-keyword">visās</span> sagatavēs</span></button>
-                  <button id="saveTemplateForAthleteBtn" class="primary-action save-template-athlete-btn" type="button"><span>Saglabāt <span class="btn-keyword">tikai šī</span> sportista sagatavēs</span></button>
-                  <button id="updateTemplateBtn" class="primary-action save-template-athlete-btn" type="button" hidden><span>Saglabāt <span class="btn-keyword">izmaiņas</span> sagatavē</span></button>
+                  <button id="saveTemplateOnlyBtn" class="primary-action save-template-athlete-btn" type="button"><span>Saglabāt jaunu <span class="btn-keyword">visiem</span></span></button>
+                  <button id="saveTemplateForAthleteBtn" class="primary-action save-template-athlete-btn" type="button"><span>Saglabāt jaunu <span class="btn-keyword">tikai šim sportistam</span></span></button>
+                  <button id="updateTemplateBtn" class="primary-action save-template-athlete-btn" type="button" hidden><span>Saglabāt <span class="btn-keyword">izmaiņas</span></span></button>
                   <button id="deleteTemplateBtn" class="delete-template-btn delete-template-btn-danger" type="button" hidden data-delete-template>Dzēst sagatavi</button>
                 </div>
                 </form>
@@ -410,28 +456,25 @@
           <div class="week-label-row">
             <h2 id="weekLabel"></h2>
             <div class="week-block-type-select" id="weekBlockTypeSelect">
-              <label class="wbt-option wbt-load"><input type="radio" name="weekBlockType" value="load"> Slodzes</label>
-              <label class="wbt-option wbt-competition"><input type="radio" name="weekBlockType" value="competition"> Sacensību</label>
-              <label class="wbt-option wbt-rest"><input type="radio" name="weekBlockType" value="rest"> Atpūtas</label>
+              <label class="wbt-option wbt-load"><input type="radio" name="weekBlockType" value="load"> Slodze</label>
+              <span class="week-nav-divider" aria-hidden="true"></span>
+              <label class="wbt-option wbt-competition"><input type="radio" name="weekBlockType" value="competition"> Sacensības</label>
+              <span class="week-nav-divider" aria-hidden="true"></span>
+              <label class="wbt-option wbt-rest"><input type="radio" name="weekBlockType" value="rest"> Atpūta</label>
             </div>
-          </div>
-
-          <div class="view-switcher">
-            <div class="view-switcher-tabs-row">
-              <div class="view-tabs">
-                <button class="active" data-view="week" type="button">Nedēļas plāns</button>
-                <button data-view="month" type="button">Mēneša plāns</button>
-              </div>
+            <div class="view-tabs">
+              <button class="active" data-view="week" type="button">Nedēļas plāns</button>
+              <button data-view="month" type="button">Mēneša plāns</button>
             </div>
           </div>
 
           <div class="week-nav" id="weekViewNav">
             <div class="week-nav-row">
               <button id="weekPrev" class="secondary-action" type="button">Iepriekšējā nedēļa</button>
+              <span class="week-nav-divider" aria-hidden="true"></span>
               <button id="weekNext" class="secondary-action" type="button">Nākamā nedēļa</button>
+              <span class="week-nav-divider" aria-hidden="true"></span>
               <button id="weekCurrent" class="secondary-action" type="button">Uz šo nedēļu</button>
-              <span class="week-nav-divider" id="weekNavDivider" aria-hidden="true"></span>
-              <label class="checkbox-row week-nav-reviewed" id="weekReviewedRow"><input type="checkbox" id="weekReviewedCheckbox"> Nedēļa apskatīta</label>
               <span class="week-nav-divider" id="copyWeekDivider" aria-hidden="true"></span>
               <button id="copyPrevWeekBtn" class="secondary-action" type="button" hidden>Nokopēt iepriekšējās nedēļas plānu</button>
             </div>
@@ -498,6 +541,7 @@
           </select>
           <span class="icon-picker" id="epIconPicker" hidden>
             <button type="button" class="icon-btn" data-icon="🐢" title="Lēnais">🐢</button>
+            <button type="button" class="icon-btn" data-icon="🛳️" title="Vidējas intensitātes">🛳️</button>
             <button type="button" class="icon-btn" data-icon="⌛" title="Garais">⌛</button>
             <button type="button" class="icon-btn" data-icon="⚡" title="Intervāli">⚡</button>
             <button type="button" class="icon-btn" data-icon="📈" title="Tempa">📈</button>
@@ -645,10 +689,6 @@
 
     <dialog class="session-dialog" id="raceDialog">
       <form method="dialog">
-        <div class="race-tabs-row">
-          <div></div>
-          <button aria-label="Aizvērt" class="icon-button compact-close" value="cancel" type="submit">×</button>
-        </div>
         <label>Datums <input id="raceDate" type="date" /></label>
         <label>Nosaukums <input id="raceName" /></label>
         <label>Vieta <input id="raceLocation" /></label>
@@ -668,6 +708,7 @@
           <label>Mērķa laiks <input id="raceTargetTime" /></label>
         </div>
         <div class="dialog-actions split-actions">
+          <button value="cancel" type="submit">Atcelt</button>
           <button class="delete-action" id="deleteRaceBtn" type="button" hidden>Dzēst</button>
           <button class="primary-action" id="saveRaceBtn" type="button">Saglabāt</button>
         </div>
@@ -676,9 +717,6 @@
 
     <dialog class="session-dialog" id="raceResultDialog">
       <form method="dialog">
-        <div class="dialog-header">
-          <h2>Sacensību rezultāts</h2>
-        </div>
         <div id="raceResultInfo" class="generated-preview"></div>
         <label>Rezultāts (laiks)
           <input id="raceResultTime" placeholder="piem. 42:30" />
@@ -698,10 +736,6 @@
 
     <dialog class="session-dialog" id="recordDialog">
       <form method="dialog">
-        <div class="dialog-header">
-          <h2>Personīgais rekords</h2>
-          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
-        </div>
         <label>Distance
           <select id="recordDistSelect">
             <option value="">— Izvēlies —</option>
@@ -719,6 +753,7 @@
         <label>Sacensības <input id="recordCompetition" placeholder="Piem. Rīgas Rimi Maratons" /></label>
         <label>Datums <input id="recordDate" type="date" /></label>
         <div class="dialog-actions split-actions">
+          <button value="cancel" type="submit">Atcelt</button>
           <button class="delete-action" id="deleteRecordBtn" type="button" hidden>Dzēst</button>
           <button class="primary-action" id="saveRecordBtn" type="button">Saglabāt</button>
         </div>
@@ -727,10 +762,6 @@
 
     <dialog class="session-dialog" id="changePasswordDialog">
       <form method="dialog">
-        <div class="dialog-header">
-          <h2>Mainīt paroli</h2>
-          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
-        </div>
         <label>Jaunā parole (min. 5 simboli)
           <span class="pw-wrapper">
             <input id="newPassword" type="password" autocomplete="new-password" />
@@ -744,7 +775,8 @@
           </span>
         </label>
         <div id="passwordError" class="auth-error" hidden></div>
-        <div class="dialog-actions" style="justify-content:flex-start">
+        <div class="dialog-actions">
+          <button value="cancel" type="submit">Atcelt</button>
           <button class="primary-action" id="savePasswordBtn" type="button">Saglabāt</button>
         </div>
       </form>
@@ -752,9 +784,6 @@
 
     <dialog class="session-dialog" id="createUserDialog">
       <form id="createUserForm">
-        <div class="dialog-header">
-          <h2>Pievienot lietotāju</h2>
-        </div>
         <label>Vārds <input id="newUserFirstName" required /></label>
         <label>Uzvārds <input id="newUserLastName" required /></label>
 
@@ -786,10 +815,6 @@
 
     <dialog class="session-dialog" id="selfTestDialog">
       <form method="dialog">
-        <div class="dialog-header">
-          <h2>Paštests</h2>
-          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
-        </div>
         <label>Datums <input id="stDate" type="date" /></label>
         <label>Plank (laiks) <input id="stPlank" type="time" step="1" /></label>
         <label>Noturēt dibenu gaisā (laiks) <input id="stDibens" type="time" step="1" /></label>
@@ -802,6 +827,7 @@
         <label>Mazais paleciens izklupienā (15cm), labā kāja priekšā (reizes) <input id="stPalLab" type="number" min="0" /></label>
         <label>Mazais paleciens izklupienā (15cm), kreisā kāja priekšā (reizes) <input id="stPalKreis" type="number" min="0" /></label>
         <div class="dialog-actions split-actions">
+          <button value="cancel" type="submit">Atcelt</button>
           <button class="delete-action" id="deleteSelfTestBtn" type="button" hidden>Dzēst</button>
           <button class="primary-action" id="saveSelfTestBtn" type="button">Saglabāt</button>
         </div>
@@ -810,10 +836,6 @@
 
     <dialog class="session-dialog" id="polarTestDialog">
       <form method="dialog">
-        <div class="dialog-header">
-          <h2>Polar tests</h2>
-          <button aria-label="Aizvērt" class="icon-button" value="cancel" type="submit">×</button>
-        </div>
         <label>Datums <input id="ptDate" type="date" /></label>
         <label>MAS (min/km) <input id="ptMas" type="time" step="1" /></label>
         <label>MAP (W) <input id="ptMap" type="number" min="0" /></label>
@@ -821,6 +843,7 @@
         <label>Laktāts uzreiz pēc (mmol/L) <input id="ptLactAfter" type="number" step="0.1" min="0" /></label>
         <label>Laktāts 5 min pēc (mmol/L) <input id="ptLact5" type="number" step="0.1" min="0" /></label>
         <div class="dialog-actions split-actions">
+          <button value="cancel" type="submit">Atcelt</button>
           <button class="delete-action" id="deletePolarTestBtn" type="button" hidden>Dzēst</button>
           <button class="primary-action" id="savePolarTestBtn" type="button">Saglabāt</button>
         </div>
@@ -853,21 +876,22 @@
     <div id="loadingOverlay" class="loading-overlay" hidden><div class="loading-spinner"></div></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="db.js"></script>
+    <script src="db.js?v=3"></script>
     <script src="auth.js"></script>
     <script src="panels/self-tests.js"></script>
     <script src="panels/polar-tests.js"></script>
-    <script src="panels/health-journal.js"></script>
+    <script src="panels/health-journal.js?v=2"></script>
     <script src="panels/lab-tests.js"></script>
     <script src="panels/restrictions.js"></script>
     <script src="panels/races.js"></script>
-    <script src="panels/profile.js"></script>
+    <script src="panels/profile.js?v=2"></script>
     <script src="panels/stats.js"></script>
     <script src="panels/interval-history.js"></script>
     <script src="panels/diary.js"></script>
     <script src="panels/records.js"></script>
-    <script src="panels/admin.js"></script>
+    <script src="panels/admin.js?v=2"></script>
     <script src="panels/weekly-review.js"></script>
-    <script src="app.js"></script>
+    <script src="panels/ruffier-test.js"></script>
+    <script src="app.js?v=27"></script>
   </body>
 </html>

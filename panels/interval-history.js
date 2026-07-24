@@ -153,7 +153,7 @@ function renderIntervalHistory() {
   const sessions = findSessionsForDistance(athletePlans, intervalHistoryActiveDist);
 
   if (sessions.length === 0) {
-    html += '<div class="interval-empty">— Nav datu</div>';
+    html += "";
   } else {
     html += '<div class="interval-sessions">';
     sessions.forEach(s => {

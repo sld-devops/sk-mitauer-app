@@ -247,7 +247,7 @@ function renderRestrictionCards() {
           </div>
         `;
       }).join("")
-    : '<div class="muted">— Nav ierobežojumu</div>';
+    : "";
 
   const editing = restrictionEditingId ? restrictions.find(x => x.id === restrictionEditingId) : null;
   const todOptions = [

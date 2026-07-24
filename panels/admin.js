@@ -91,7 +91,7 @@ saveNewUserBtn?.addEventListener("click", async () => {
         <p><strong>Lietotājvārds:</strong> <code>${result.username}</code></p>
         <p><strong>Parole:</strong> <code>${result.password}</code></p>
         <button id="copyUserCredsBtn" class="secondary-action" type="button">📋 Kopēt</button>
-        <span id="copyFeedback" style="display:none;color:#16a34a;font-size:0.85rem">Nokopēts!</span>
+        <span id="copyFeedback" style="display:none;color:var(--success);font-size:0.85rem">Nokopēts!</span>
       </div>
     `;
     createUserResult.hidden = false;
