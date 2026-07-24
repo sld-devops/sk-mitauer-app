@@ -82,7 +82,6 @@ function renderRecords() {
       <div class="profile-records" id="profileRecords">
         ${recordsHtml}
         ${customRecords.map((r) => renderRecordRow(r, canEditRecords)).join("")}
-        ${!canEditRecords && activeRole === "coach" && !records.length ? '<div class="profile-record-row"><div class="profile-record-meta"><span class="muted">— Nav pievienotu rekordu</span></div></div>' : ""}
       </div>
       ${canEditRecords ? '<button class="secondary-action panel-add-btn" id="addRecordEntryBtn" type="button">Pievienot</button>' : ""}
     </div>

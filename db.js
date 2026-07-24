@@ -534,6 +534,32 @@ async function getWeekStatuses(athleteIds, weekStartStr) {
   return statuses;
 }
 
+async function getWeekBlockTypesForAthletes(athleteIds, weekStartStr) {
+  if (!athleteIds.length) return {};
+  const startParts = weekStartStr.split("-").map(Number);
+  const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+  const weekStarts = [];
+  for (let w = 0; w < 4; w++) {
+    const dt = new Date(startDate);
+    dt.setDate(dt.getDate() + w * 7);
+    weekStarts.push(isoLocal(dt));
+  }
+
+  const { data } = await supabase
+    .from("week_block_types")
+    .select("athlete_id, week_start, block_type")
+    .in("athlete_id", athleteIds)
+    .in("week_start", weekStarts);
+
+  const result = {};
+  athleteIds.forEach(id => { result[id] = weekStarts.map(() => null); });
+  (data || []).forEach(row => {
+    const idx = weekStarts.indexOf(row.week_start);
+    if (idx !== -1 && result[row.athlete_id]) result[row.athlete_id][idx] = row.block_type;
+  });
+  return result;
+}
+
 function isoLocal(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -753,6 +779,45 @@ async function updateLabTest(id, updates) {
   if (!data || data.length === 0) {
     throw new Error("Saglabāšana neizdevās (iespējams, trūkst tiesību) — izmaiņas netika saglabātas.");
   }
+}
+
+async function getRuffierTests(athleteId) {
+  const { data } = await supabase
+    .from("ruffier_tests")
+    .select("*")
+    .eq("athlete_id", athleteId)
+    .order("date", { ascending: false });
+  return data || [];
+}
+
+async function insertRuffierTest(data) {
+  const { data: result, error } = await supabase
+    .from("ruffier_tests")
+    .insert(data)
+    .select()
+    .single();
+  if (error) throw error;
+  return result;
+}
+
+async function updateRuffierTest(id, updates) {
+  const { data, error } = await supabase
+    .from("ruffier_tests")
+    .update(updates)
+    .eq("id", id)
+    .select();
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error("Saglabāšana neizdevās (iespējams, trūkst tiesību) — izmaiņas netika saglabātas.");
+  }
+}
+
+async function deleteRuffierTest(id) {
+  const { error } = await supabase
+    .from("ruffier_tests")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
 }
 
 async function getNotCompletedAthleteIds() {

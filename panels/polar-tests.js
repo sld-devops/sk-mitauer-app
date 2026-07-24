@@ -47,7 +47,7 @@ function renderPolarTests() {
           ${p.mas_pace ? `<span class="selftest-mas">${escapeHtml(p.mas_pace)}</span>` : ""}
         </div>
       `).join("")
-    : '<div class="muted">— Nav polar testu</div>';
+    : "";
 
   const addBtn = isAthleteView
     ? '<button id="addPolarTestBtn" class="secondary-action panel-add-btn" type="button">Pievienot</button>'

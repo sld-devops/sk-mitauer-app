@@ -35,7 +35,7 @@ function renderHealthJournal() {
   let html = "";
 
   if (!healthEntries.length) {
-    html += `<p class="muted">Nav ierakstu.</p>`;
+    html += "";
   } else {
     html += `<div class="health-list">`;
     healthEntries.forEach(e => {

@@ -71,7 +71,7 @@ function renderDiary() {
             </div>
           </div>
         `).join("")
-      : '<div class="muted">— Nav ierakstu</div>';
+      : "";
     return;
   }
 
@@ -90,7 +90,7 @@ function renderDiary() {
           </div>
         </div>
       `).join("")
-    : '<div class="muted">— Nav ierakstu</div>';
+    : "";
 
   const form = canEdit ? `
     <div class="diary-form">

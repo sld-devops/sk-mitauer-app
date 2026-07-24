@@ -29,6 +29,13 @@ let calendarMode = localStorage.getItem("calendarMode") || (window.matchMedia("(
   }
 })();
 
+// Click outside any <dialog> (on its ::backdrop) closes it, app-wide.
+document.querySelectorAll("dialog").forEach((dialog) => {
+  dialog.addEventListener("click", (e) => {
+    if (e.target === dialog) dialog.close();
+  });
+});
+
 const MIN_WEEK_START = new Date(2026, 5, 1);
 let currentWeekStart = getMonday(new Date());
 let viewMode = "week";
@@ -77,9 +84,22 @@ async function refreshAthleteHealthSet() {
 }
 
 let weekStatuses = {};
+let weekBlockTypesByAthlete = {};
 let panelCollapsed = localStorage.getItem("panelCollapsed") === "true";
 
 if (panelCollapsed) document.querySelector(".layout")?.classList.add("panel-collapsed");
+
+function updateMenuBtnArrow() {
+  const btn = document.getElementById("mobileMenuBtn");
+  if (!btn) return;
+  const panelOpen =
+    window.innerWidth > 1040
+      ? !panelCollapsed
+      : (document.querySelector(".planner-panel")?.classList.contains("open") ?? false);
+  btn.classList.toggle("menu-btn-collapsed", !panelOpen);
+}
+updateMenuBtnArrow();
+window.addEventListener("resize", updateMenuBtnArrow);
 
 const athleteSelect = document.getElementById("athleteSelect");
 const athleteSelectorPanel = document.getElementById("athleteSelectorPanel");
@@ -614,7 +634,10 @@ async function refreshWeekStatuses(athleteIds) {
   const nextWeekMonday = new Date(getMonday(new Date()));
   nextWeekMonday.setDate(nextWeekMonday.getDate() + 7);
   const startStr = formatDateISO(nextWeekMonday);
-  weekStatuses = await getWeekStatuses(athleteIds, startStr);
+  [weekStatuses, weekBlockTypesByAthlete] = await Promise.all([
+    getWeekStatuses(athleteIds, startStr),
+    getWeekBlockTypesForAthletes(athleteIds, startStr),
+  ]);
   const selectedId = getSelectedAthleteId();
   if (selectedId) renderAthleteDropdown();
 }
@@ -650,6 +673,7 @@ async function loadNonTemplateData() {
     polarTestsRes,
     healthEntriesRes,
     labTestsRes,
+    ruffierTestsRes,
     allPlansRes,
     allLogEntriesRes,
   ] = await Promise.all([
@@ -669,6 +693,7 @@ async function loadNonTemplateData() {
     safeGet(getPolarTests(athleteId), []),
     safeGet(getHealthEntries(athleteId), []),
     safeGet(getLabTests(athleteId), []),
+    safeGet(getRuffierTests(athleteId), []),
     safeGet(getAllPlans(athleteId), []),
     safeGet(getAllLogEntries(athleteId), []),
   ]);
@@ -689,6 +714,7 @@ async function loadNonTemplateData() {
   polarTests = polarTestsRes;
   healthEntries = healthEntriesRes;
   labTests = labTestsRes;
+  ruffierTests = ruffierTestsRes;
   allPlans = allPlansRes;
   allLogEntries = allLogEntriesRes;
 
@@ -825,10 +851,13 @@ function renderAthleteDropdown() {
   function weekIndicators(athleteId) {
     const statuses = weekStatuses[athleteId];
     if (!statuses) return '<span class="week-slot week-slot-no-plans"></span><span class="week-slot week-slot-no-plans"></span><span class="week-slot week-slot-no-plans"></span><span class="week-slot week-slot-no-plans"></span>';
+    const blockTypes = weekBlockTypesByAthlete[athleteId] || [];
     const anyFull = statuses.some(Boolean);
     return statuses
-      .map((full) => {
-        return `<span class="week-slot ${full ? "week-slot-done" : ""}${!anyFull ? " week-slot-no-plans" : ""}">${full ? "✓" : ""}</span>`;
+      .map((full, i) => {
+        const blockType = blockTypes[i];
+        const typeClass = full && blockType ? ` week-slot-type-${blockType}` : "";
+        return `<span class="week-slot ${full ? "week-slot-done" : ""}${!anyFull ? " week-slot-no-plans" : ""}${typeClass}">${full ? "✓" : ""}</span>`;
       })
       .join("");
   }
@@ -1519,7 +1548,7 @@ function renderPlanCard(plan) {
         ${todBadge}${movedBadge}
         <span class="plan-type-badge">${plan.custom_icon || badgeForTitle(plan.title)}</span>
         ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
-        ${hasPamatdala ? `<div class="task-card">${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}<textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" placeholder="Trenera komentārs..."></textarea></div>` : `<textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" placeholder="Trenera komentārs..."></textarea>`}
+        ${hasPamatdala ? `<div class="task-card">${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}<textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" placeholder="Trenera komentārs...">${plan.coach_comment || ""}</textarea></div>` : `<textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" placeholder="Trenera komentārs...">${plan.coach_comment || ""}</textarea>`}
         ${logBlock}
         ${notCompleted ? `<div class="not-completed-badge"><span class="not-completed-icon">!</span> Sportists atzīmēja kā neizpildītu</div>${plan.athlete_comment ? `<div class="log-notes not-completed-comment">${plan.athlete_comment}</div>` : ""}` : ""}
         <div class="card-actions"><button class="icon-button" data-edit-plan="${plan.id}" type="button">✏️</button><button class="delete-action" data-delete-plan="${plan.id}" type="button">✕</button></div>
@@ -1531,7 +1560,7 @@ function renderPlanCard(plan) {
 
   const logBlock = planLog
     ? `<div class="log-card log-inline">${planLogData.length ? renderInlineLog(planLogData, paceBoundsMap, plannedIntervalCount) : ""}${feelingBadge}${planLogNotes}</div>`
-    : `<button class="add-day-button log-plan-button" data-log-plan="${plan.id}" type="button">Ierakstīt izpildi</button>`;
+    : `<button class="add-day-button log-plan-button" data-log-plan="${plan.id}" type="button">IERAKSTĪT IZPILDI</button>`;
 
   return `
     <article class="session-card${notCompleted ? " not-completed" : ""}" data-plan-id="${plan.id}">
@@ -1540,8 +1569,8 @@ function renderPlanCard(plan) {
       <span class="plan-type-badge">${plan.custom_icon || badgeForTitle(plan.title)}</span>
       ${notCompleted ? '<span class="not-completed-icon-abs">!</span>' : ""}
       ${hasPamatdala ? `<div class="task-card">${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}${plan.coach_comment ? `<div class="log-notes">${escapeHtml(plan.coach_comment)}</div>` : ""}</div>` : plan.coach_comment ? `<div class="log-notes">${escapeHtml(plan.coach_comment)}</div>` : ""}
-      ${!planLog ? `<label class="checkbox-row"><input type="checkbox" data-cb-plan="${plan.id}" ${notCompleted ? "checked" : ""} /> Treniņš nav izpildīts</label>` : ""}
-      ${notCompleted ? `<div class="comment-label">Sportista komentārs</div><textarea class="inline-comment not-completed-comment" data-comment-plan="${plan.id}" data-comment-type="athlete">${plan.athlete_comment || ""}</textarea>` : ""}
+      ${!planLog ? `<label class="checkbox-row"><input type="checkbox" data-cb-plan="${plan.id}" ${notCompleted ? "checked" : ""} /> Neizpildīts treniņš</label>` : ""}
+      ${notCompleted ? `<div class="comment-label">Kas noticis?</div><textarea class="inline-comment not-completed-comment" data-comment-plan="${plan.id}" data-comment-type="athlete">${plan.athlete_comment || ""}</textarea>` : ""}
       ${logBlock}
       ${planLog ? `<div class="card-actions">${logActions}</div>` : ""}
     </article>
@@ -1676,7 +1705,7 @@ function renderCalendar() {
                     : `<button class="add-day-button rest-day-toggle-btn" data-rest-day="${dateStr}" type="button">🌴 Ieplānot brīvdienu</button>`
                   }`
                   : dayNote?.is_rest_day
-                    ? `<div class="day-rest-text">🌴 Brīvdiena${dayNote?.coach_comment ? "<br>" + escapeHtml(dayNote.coach_comment) : ""}</div><textarea class="rest-day-athlete-comment" data-rest-athlete-comment="${dateStr}" placeholder="Tavs komentārs..." rows="1">${dayNote?.athlete_comment || ""}</textarea>`
+                    ? `<div class="day-rest-text">🌴 Brīvdiena${dayNote?.coach_comment ? "<br>" + escapeHtml(dayNote.coach_comment) : ""}</div><textarea class="rest-day-athlete-comment" data-rest-athlete-comment="${dateStr}" placeholder="Kā pagāja atpūtas diena?" rows="1">${dayNote?.athlete_comment || ""}</textarea>`
                     : `<div class="empty-day">Pašlaik plāns vēl nav sastādīts</div>`
           }
           ${dayLog.filter(l => !l.plan_id).map(renderLogCard).join("")}
@@ -1965,6 +1994,7 @@ function render() {
     renderPolarTests();
     renderHealthJournal();
     renderLabTests();
+    renderRuffierTests();
     renderAdminAthleteList();
   } else {
     calendarGrid.innerHTML = '<p class="empty-state">Nav sportistu. Pievienojiet lietotājus.</p>';
@@ -1994,9 +2024,25 @@ function render() {
   document.getElementById("labTestsPanel").hidden = !hasAthletes;
 }
 
+function resetNewTrainingForm() {
+  const form = document.getElementById("newTrainingForm");
+  if (form) form.reset();
+  if (varSegmentList) varSegmentList.innerHTML = "";
+  renderCustomBuilder();
+  if (trainingBar) {
+    trainingBar.classList.add("collapsed");
+    const toggleBtn = trainingBar.querySelector(".collapse-toggle");
+    if (toggleBtn) {
+      toggleBtn.textContent = "▶";
+      toggleBtn.setAttribute("aria-label", "Rādīt treniņa izvēli");
+    }
+  }
+}
+
 athleteSelect.addEventListener("change", async () => {
   const gen = ++loadGen;
   selectedTemplateId = null;
+  resetNewTrainingForm();
   await loadAllData();
   if (gen !== loadGen) return;
   render();
@@ -2295,6 +2341,17 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
       }
     }
 
+    if (panel.id === "ruffierTestsPanel" && wasCollapsed && !panel.classList.contains("collapsed")) {
+      if (activeRole === "coach") {
+        const athleteId = getSelectedAthleteId();
+        if (athleteId && ruffierTests.length) {
+          markAllRuffierTestsSeen(athleteId, ruffierTests);
+          panel.classList.toggle("has-entries", false);
+          panel.querySelector(".panel-header").dataset.count = "0";
+        }
+      }
+    }
+
     if (panel.id === "raceCalendarPanel" && wasCollapsed && !panel.classList.contains("collapsed")) {
       onRaceCalendarExpand();
     }
@@ -2331,12 +2388,14 @@ function togglePlannerMenu(open) {
   if (!panel || !backdrop) return;
   panel.classList.toggle("open", open);
   backdrop.classList.toggle("open", open);
+  updateMenuBtnArrow();
 }
 
 function togglePanel(collapsed) {
   panelCollapsed = collapsed;
   localStorage.setItem("panelCollapsed", String(collapsed));
   document.querySelector(".layout")?.classList.toggle("panel-collapsed", collapsed);
+  updateMenuBtnArrow();
 }
 
 document.getElementById("mobileMenuBtn")?.addEventListener("click", () => {
@@ -2667,22 +2726,21 @@ document.addEventListener("pointerup", async (e) => {
   }
 });
 
-calendarGrid.addEventListener("keydown", async (event) => {
-  if (event.key !== "Enter" || event.shiftKey) return;
-  const textarea = event.target.closest("textarea");
+async function saveCommentTextarea(textarea, event, silent) {
   if (!textarea) return;
   if (textarea.dataset.saving) return;
   textarea.dataset.saving = "1";
+  clearTimeout(commentAutosaveTimers.get(textarea));
 
   const raceCommentId = textarea.dataset.commentRace;
   if (raceCommentId) {
-    event.preventDefault();
+    event?.preventDefault();
     const value = textarea.value.trim();
     try {
       await updateRace(raceCommentId, { result_comment: value });
       const race = races.find(r => r.id === raceCommentId);
       if (race) race.result_comment = value;
-      render();
+      if (!silent) render();
     } catch (e) {
       alert("Neizdevās saglabāt komentāru: " + (e.message || e));
     }
@@ -2692,14 +2750,14 @@ calendarGrid.addEventListener("keydown", async (event) => {
 
   const planId = textarea.dataset.commentPlan;
   if (planId) {
-    event.preventDefault();
+    event?.preventDefault();
     const type = textarea.dataset.commentType;
     const value = textarea.value.trim();
     try {
       await updatePlan(planId, { [`${type}_comment`]: value });
       const plan = plans.find(p => p.id === planId);
       if (plan) plan[`${type}_comment`] = value;
-      render();
+      if (!silent) render();
     } catch (e) {
       alert("Neizdevās saglabāt komentāru: " + (e.message || e));
     }
@@ -2709,7 +2767,7 @@ calendarGrid.addEventListener("keydown", async (event) => {
 
   const dayDate = textarea.dataset.commentDay;
   if (dayDate) {
-    event.preventDefault();
+    event?.preventDefault();
     const value = textarea.value.trim();
     try {
       await upsertDayNote({
@@ -2720,7 +2778,7 @@ calendarGrid.addEventListener("keydown", async (event) => {
       let note = dayNotes.find(n => n.date === dayDate);
       if (note) note.coach_comment = value;
       else dayNotes.push({ date: dayDate, coach_comment: value, athlete_comment: "" });
-      render();
+      if (!silent) render();
     } catch (e) {
       alert("Neizdevās saglabāt komentāru: " + (e.message || e));
     }
@@ -2730,7 +2788,7 @@ calendarGrid.addEventListener("keydown", async (event) => {
 
   const restDate = textarea.dataset.restAthleteComment;
   if (restDate) {
-    event.preventDefault();
+    event?.preventDefault();
     const value = textarea.value.trim();
     try {
       await upsertDayNote({
@@ -2741,7 +2799,7 @@ calendarGrid.addEventListener("keydown", async (event) => {
       let note = dayNotes.find(n => n.date === restDate);
       if (note) note.athlete_comment = value;
       else dayNotes.push({ date: restDate, athlete_comment: value, coach_comment: "" });
-      render();
+      if (!silent) render();
     } catch (e) {
       alert("Neizdevās saglabāt komentāru: " + (e.message || e));
     }
@@ -2750,6 +2808,34 @@ calendarGrid.addEventListener("keydown", async (event) => {
   }
 
   delete textarea.dataset.saving;
+}
+
+calendarGrid.addEventListener("keydown", async (event) => {
+  if (event.key !== "Enter" || event.shiftKey) return;
+  const textarea = event.target.closest("textarea");
+  if (!textarea) return;
+  await saveCommentTextarea(textarea, event);
+});
+
+calendarGrid.addEventListener("focusout", async (event) => {
+  const textarea = event.target.closest("textarea");
+  if (!textarea) return;
+  if (!(textarea.dataset.commentRace || textarea.dataset.commentPlan || textarea.dataset.commentDay || textarea.dataset.restAthleteComment)) return;
+  await saveCommentTextarea(textarea);
+});
+
+// Autosave while typing (debounced, no re-render) so a comment isn't lost if
+// the user leaves the page without ever tapping/clicking elsewhere first
+// (e.g. on mobile, switching apps or closing the tab directly).
+const commentAutosaveTimers = new WeakMap();
+calendarGrid.addEventListener("input", (event) => {
+  const textarea = event.target.closest("textarea");
+  if (!textarea) return;
+  if (!(textarea.dataset.commentRace || textarea.dataset.commentPlan || textarea.dataset.commentDay || textarea.dataset.restAthleteComment)) return;
+  clearTimeout(commentAutosaveTimers.get(textarea));
+  commentAutosaveTimers.set(textarea, setTimeout(() => {
+    saveCommentTextarea(textarea, null, true);
+  }, 1200));
 });
 
 calendarGrid.addEventListener("change", async (event) => {
@@ -2863,12 +2949,11 @@ function feelingBadgeHtml(feeling, feelingTags) {
     "Viena no veiksmīgākajām dienām pedējā laikā": { bg: "var(--success-bg)", color: "var(--success)" },
     "Jutos pārliecināts un kājas jutās svaigas": { bg: "var(--success-bg)", color: "var(--success-dark)" },
     "Jutu progresu un spēka pieaugumu, esmu priecīgs.": { bg: "var(--success-bg)", color: "var(--success-dark)" },
-    "Slikti — kājas nemaz neklausīja, cīnījos visu treniņu.": { bg: "var(--danger-bg)", color: "var(--danger)" },
-    "Grūti — pabeidzu, bet ar piepūli un zemu motivāciju.": { bg: "var(--warning-bg)", color: "var(--warning-dark)" },
-    "Vidēji — nekas īpašs, parasta diena.": { bg: "var(--surface-alt)", color: "var(--muted)" },
-    "Labi — jutos stabili, viss gāja kā ierasts.": { bg: "var(--info-bg)", color: "var(--info)" },
-    "Ļoti labi — jutos spēcīgs un viegli.": { bg: "var(--olive-bg)", color: "var(--olive-dark)" },
-    "Lieliski — viena no labākajām dienām, pilns enerģijas.": { bg: "var(--success-bg)", color: "var(--success-dark)" },
+    "Slikti — kājas nemaz nevilka, motivācija zema.": { bg: "var(--danger-bg)", color: "var(--danger)" },
+    "Grūti — izpildīju ar piepūli, neīpaši pozitīvi.": { bg: "var(--violet-bg)", color: "var(--violet-dark)" },
+    "Normāli — varēja ripot labāk, bet nebija slikti, jutos pieņemami.": { bg: "var(--info-accent-bg)", color: "var(--info-accent-dark)" },
+    "Ļoti labi — jutos pārliecināts fiziski un psiholoģiski, garīgais labs.": { bg: "var(--warning-bg)", color: "var(--warning-dark)" },
+    "Lieliski — viena no labākajām dienām, pilns enerģijas.": { bg: "var(--lime-bg)", color: "var(--lime-dark)" },
   };
   const all = [];
   if (feeling) all.push(feeling);
@@ -2890,82 +2975,14 @@ function getActivityType(title) {
   return "run";
 }
 
-function getRatingGroup(planTitle, customIcon) {
-  if (customIcon === "🐢") return "easy";
-  if (customIcon === "🛳️") return "easy";
-  if (customIcon === "🚴") return "bike";
-  if (customIcon === "💪") return "gym";
-  if (customIcon === "⚡") return "intervals";
-  if (customIcon === "📈") return "tempo";
-  if (customIcon === "⌛") return "long";
-  const t = (planTitle || "").toLowerCase();
-  if (t.includes("vfs") || t.includes("sfs")) return "gym";
-  if (t === "velo" || t.includes("velo")) return "bike";
-  if (t.includes("intervāl")) return "intervals";
-  if (t.includes("temp")) return "tempo";
-  if (t.includes("garais")) return "long";
-  if (t.includes("vidējas intensitātes")) return "easy";
-  if (t.includes("atjaunojoš") || t.includes("lēn")) return "easy";
-  return "other";
-}
-
 function getRatingHtml(planTitle, customIcon) {
-  const group = getRatingGroup(planTitle, customIcon);
-  const typeOpts = {
-    intervals: [
-      { label: "Tempu nespēju noturēt, nebija iekšās šoreiz", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
-      { label: "Brīžiem temps kritās, ar piepūli noturēju", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning)" },
-      { label: "Izpildīju, bet ne pārliecinoši", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
-      { label: "Spēks un solis jaudīgs, psiholoģiski pārliecinoši!", bg: "var(--success-bg)", border: "var(--success)", color: "var(--success)" },
-    ],
-    tempo: [
-      { label: "Tempu nespēju noturēt, nebija iekšās šoreiz", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
-      { label: "Brīžiem temps kritās, ar piepūli noturēju", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning)" },
-      { label: "Izpildīju, bet ne pārliecinoši", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
-      { label: "Spēks un solis jaudīgs, psiholoģiski pārliecinoši!", bg: "var(--success-bg)", border: "var(--success)", color: "var(--success)" },
-    ],
-    long: [
-      { label: "Slikti — kājas nemaz neklausīja, cīnījos visu treniņu.", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
-      { label: "Grūti — pabeidzu, bet ar piepūli un zemu motivāciju.", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning-dark)" },
-      { label: "Vidēji — nekas īpašs, parasta diena.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
-      { label: "Labi — jutos stabili, viss gāja kā ierasts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
-      { label: "Ļoti labi — jutos spēcīgs un viegli.", bg: "var(--olive-bg)", border: "var(--olive)", color: "var(--olive-dark)" },
-      { label: "Lieliski — viena no labākajām dienām, pilns enerģijas.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
-    ],
-    easy: [
-      { label: "Slikti — kājas nemaz neklausīja, cīnījos visu treniņu.", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
-      { label: "Grūti — pabeidzu, bet ar piepūli un zemu motivāciju.", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning-dark)" },
-      { label: "Vidēji — nekas īpašs, parasta diena.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
-      { label: "Labi — jutos stabili, viss gāja kā ierasts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
-      { label: "Ļoti labi — jutos spēcīgs un viegli.", bg: "var(--olive-bg)", border: "var(--olive)", color: "var(--olive-dark)" },
-      { label: "Lieliski — viena no labākajām dienām, pilns enerģijas.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
-    ],
-    gym: [
-      { label: "Slikti — kājas nemaz neklausīja, cīnījos visu treniņu.", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
-      { label: "Grūti — pabeidzu, bet ar piepūli un zemu motivāciju.", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning-dark)" },
-      { label: "Vidēji — nekas īpašs, parasta diena.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
-      { label: "Labi — jutos stabili, viss gāja kā ierasts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
-      { label: "Ļoti labi — jutos spēcīgs un viegli.", bg: "var(--olive-bg)", border: "var(--olive)", color: "var(--olive-dark)" },
-      { label: "Lieliski — viena no labākajām dienām, pilns enerģijas.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
-    ],
-    bike: [
-      { label: "Slikti — kājas nemaz neklausīja, cīnījos visu treniņu.", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
-      { label: "Grūti — pabeidzu, bet ar piepūli un zemu motivāciju.", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning-dark)" },
-      { label: "Vidēji — nekas īpašs, parasta diena.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
-      { label: "Labi — jutos stabili, viss gāja kā ierasts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
-      { label: "Ļoti labi — jutos spēcīgs un viegli.", bg: "var(--olive-bg)", border: "var(--olive)", color: "var(--olive-dark)" },
-      { label: "Lieliski — viena no labākajām dienām, pilns enerģijas.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
-    ],
-    other: [
-      { label: "Slikti — kājas nemaz neklausīja, cīnījos visu treniņu.", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
-      { label: "Grūti — pabeidzu, bet ar piepūli un zemu motivāciju.", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning-dark)" },
-      { label: "Vidēji — nekas īpašs, parasta diena.", bg: "var(--surface-alt)", border: "var(--muted)", color: "var(--muted)" },
-      { label: "Labi — jutos stabili, viss gāja kā ierasts.", bg: "var(--info-bg)", border: "var(--info)", color: "var(--info)" },
-      { label: "Ļoti labi — jutos spēcīgs un viegli.", bg: "var(--olive-bg)", border: "var(--olive)", color: "var(--olive-dark)" },
-      { label: "Lieliski — viena no labākajām dienām, pilns enerģijas.", bg: "var(--success-bg)", border: "var(--success-dark)", color: "var(--success-dark)" },
-    ],
-  };
-  const items = typeOpts[group] || typeOpts.other;
+  const items = [
+    { label: "Slikti — kājas nemaz nevilka, motivācija zema.", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
+    { label: "Grūti — izpildīju ar piepūli, neīpaši pozitīvi.", bg: "var(--violet-bg)", border: "var(--violet)", color: "var(--violet-dark)" },
+    { label: "Normāli — varēja ripot labāk, bet nebija slikti, jutos pieņemami.", bg: "var(--info-accent-bg)", border: "var(--info-accent)", color: "var(--info-accent-dark)" },
+    { label: "Ļoti labi — jutos pārliecināts fiziski un psiholoģiski, garīgais labs.", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning-dark)" },
+    { label: "Lieliski — viena no labākajām dienām, pilns enerģijas.", bg: "var(--lime-bg)", border: "var(--lime)", color: "var(--lime-dark)" },
+  ];
   let html = `<div class="feeling-tags-group">
     <div class="feeling-tags-label">Pašsajūtas novērtējums</div>`;
   items.forEach((o) => {
@@ -3158,7 +3175,7 @@ function openPlanLogDialog(planId) {
   const existingLog = logEntries.find((l) => l.plan_id === plan.id);
   let html = "";
   if (activeRole !== "coach") {
-    html += `<label class="field-label">Izpildes datums <input type="date" id="logDatePicker" value="${plan.date}" /></label>`;
+    html += `<label class="field-label">Izpildes datums (ir iespējams mainīt) <input type="date" id="logDatePicker" value="${plan.date}" /></label>`;
   }
   html += `<div class="log-plan-block"><h3>${displayTitle(plan.title)}</h3>`;
   const lines = (plan.details || "").split("\n");
@@ -3170,12 +3187,21 @@ function openPlanLogDialog(planId) {
         <div class="log-target">${line}</div>`;
       let globalIdx = 0;
       result.segments.forEach((seg) => {
-        const label = seg.length + (seg.pace ? " @" + seg.pace : "");
         const count = result.isGrouped ? seg.reps : 1;
-        for (let r = 0; r < count; r++) {
+        if (count > 1) {
+          html += `<div class="var-seg-log-group">
+            <div class="log-target">${count}x${escapeHtml(seg.length)}${seg.pace ? "(" + escapeHtml(seg.pace) + ")" : ""}</div>
+            <div class="field-grid">`;
+          for (let r = 0; r < count; r++) {
+            html += `<label>${r + 1}. atkārtojums <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>`;
+            globalIdx++;
+          }
+          html += `</div></div>`;
+        } else {
+          const label = seg.length + (seg.pace ? " @" + seg.pace : "");
           html += `<div class="var-seg-log-row">
-            <span class="var-seg-log-label">${escapeHtml(label)}${count > 1 ? " (" + (r + 1) + "." + ")" : ""}</span>
-            <label>Izp. temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" placeholder="${seg.pace || ""}" /></label>
+            <span class="var-seg-log-label">${escapeHtml(label)}</span>
+            <label>Temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>
           </div>`;
           globalIdx++;
         }
@@ -3189,7 +3215,7 @@ function openPlanLogDialog(planId) {
           <div class="log-target">${line}</div>
           <div class="field-grid">`;
         for (let i = 0; i < count; i++) {
-          html += `<label>${i + 1}. atkārtojums <input class="log-interval-pace" data-log-interval="${i}" placeholder="${extractPace(line)}" /></label>`;
+          html += `<label>${i + 1}. atkārtojums <input class="log-interval-pace" data-log-interval="${i}" /></label>`;
         }
         html += `</div></div>`;
       } else if (line === "Sacensību uzturs" || line === "• Izmantot sacensību uzturu" || line.startsWith("Apavi:") || line.startsWith("• Apavi:")) {
@@ -3198,13 +3224,13 @@ function openPlanLogDialog(planId) {
         </div>`;
       } else if (line.includes(":")) {
         const paceStr = extractPace(line);
-      const paceField = `<label>Izp. vidējais temps <input class="log-actual-pace" placeholder="${paceStr || ""}" /></label>`;
+      const paceField = `<label>Vidējais temps <input class="log-actual-pace" /></label>`;
       const pulseStr = extractPulse(line);
       html += `<div class="log-section-row" data-log-section="${line.split(":")[0]}">
         <div class="log-target">${line}</div>
         <div class="field-grid field-grid-3">
-          <label>Izp. ilgums <input class="log-actual-duration" placeholder="${extractDuration(line)}" /></label>
-          <label>Izp. vidējais pulss <input class="log-actual-pulse" placeholder="${pulseStr || ""}" /></label>
+          <label>Ilgums <input class="log-actual-duration" /></label>
+          <label>Vidējais pulss <input class="log-actual-pulse" /></label>
           ${paceField}
         </div>
       </div>`;
@@ -3212,15 +3238,15 @@ function openPlanLogDialog(planId) {
       html += `<div class="log-section-row" data-log-section="Drill">
         <div class="log-target">Drill</div>
         <div class="field-grid">
-          <label>Izp. ilgums <input class="log-actual-duration" /></label>
+          <label>Ilgums <input class="log-actual-duration" /></label>
         </div>
       </div>`;
     } else {
       const sectionName = line.startsWith("Velo:") ? "Velo" : "Pamatdaļa";
       html += `<div class="log-section-row" data-log-section="${sectionName}">
         <div class="log-target">${line}</div><div class="field-grid">
-          <label>Izp. ilgums <input class="log-actual-duration" placeholder="${extractDuration(line)}" /></label>
-          <label>Izp. vidējais pulss <input class="log-actual-pulse" placeholder="${extractPulse(line)}" /></label>
+          <label>Ilgums <input class="log-actual-duration" /></label>
+          <label>Vidējais pulss <input class="log-actual-pulse" /></label>
         </div>
       </div>`;
     }
@@ -3229,7 +3255,7 @@ function openPlanLogDialog(planId) {
   html += `</div>`;
 
   html += getRatingHtml(plan.title, plan.custom_icon);
-  html += `<div class="comment-label">Sportista komentārs</div><textarea class="inline-comment" id="logAthleteComment" rows="2" placeholder="Ieraksti komentāru..."></textarea>`;
+  html += `<div class="comment-label">Papildus komentāri un piezīmes par treniņa norisi</div><textarea class="inline-comment" id="logAthleteComment" rows="5"></textarea>`;
   logFormContent.innerHTML = html;
   logDialogAddExtraButtons();
 
@@ -3258,7 +3284,6 @@ function openPlanLogDialog(planId) {
   }
 
   attachIntervalPaceValidation();
-  attachPulseValidation();
   const datePicker = document.getElementById("logDatePicker");
   if (datePicker) {
     datePicker.addEventListener("change", () => { logDialogDate = datePicker.value; });
@@ -3289,12 +3314,21 @@ function openLogDialog(dateStr) {
           <div class="log-target">${line}</div>`;
         let globalIdx = 0;
         result.segments.forEach((seg) => {
-          const label = seg.length + (seg.pace ? " @" + seg.pace : "");
           const count = result.isGrouped ? seg.reps : 1;
-          for (let r = 0; r < count; r++) {
+          if (count > 1) {
+            html += `<div class="var-seg-log-group">
+              <div class="log-target">${count}x${escapeHtml(seg.length)}${seg.pace ? "(" + escapeHtml(seg.pace) + ")" : ""}</div>
+              <div class="field-grid">`;
+            for (let r = 0; r < count; r++) {
+              html += `<label>${r + 1}. atkārtojums <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>`;
+              globalIdx++;
+            }
+            html += `</div></div>`;
+          } else {
+            const label = seg.length + (seg.pace ? " @" + seg.pace : "");
             html += `<div class="var-seg-log-row">
-              <span class="var-seg-log-label">${escapeHtml(label)}${count > 1 ? " (" + (r + 1) + "." + ")" : ""}</span>
-              <label>Izp. temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" placeholder="${seg.pace || ""}" /></label>
+              <span class="var-seg-log-label">${escapeHtml(label)}</span>
+              <label>Temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>
             </div>`;
             globalIdx++;
           }
@@ -3308,7 +3342,7 @@ function openLogDialog(dateStr) {
             <div class="log-target">${line}</div>
             <div class="field-grid">`;
           for (let i = 0; i < count; i++) {
-            html += `<label>${i + 1}. atkārtojums <input class="log-interval-pace" data-log-interval="${i}" placeholder="${extractPace(line)}" /></label>`;
+            html += `<label>${i + 1}. atkārtojums <input class="log-interval-pace" data-log-interval="${i}" /></label>`;
           }
           html += `</div></div>`;
         } else if (line === "Sacensību uzturs" || line === "• Izmantot sacensību uzturu" || line.startsWith("Apavi:") || line.startsWith("• Apavi:")) {
@@ -3317,13 +3351,13 @@ function openLogDialog(dateStr) {
           </div>`;
         } else if (line.includes(":")) {
         const paceStr = extractPace(line);
-      const paceField = `<label>Izp. vidējais temps <input class="log-actual-pace" placeholder="${paceStr || ""}" /></label>`;
+      const paceField = `<label>Vidējais temps <input class="log-actual-pace" /></label>`;
         const pulseStr = extractPulse(line);
         html += `<div class="log-section-row" data-log-section="${line.split(":")[0]}">
           <div class="log-target">${line}</div>
           <div class="field-grid">
-            <label>Izp. ilgums <input class="log-actual-duration" placeholder="${extractDuration(line)}" /></label>
-            <label>Izp. vidējais pulss <input class="log-actual-pulse" placeholder="${pulseStr || ""}" /></label>
+            <label>Ilgums <input class="log-actual-duration" /></label>
+            <label>Vidējais pulss <input class="log-actual-pulse" /></label>
             ${paceField}
           </div>
         </div>`;
@@ -3331,7 +3365,7 @@ function openLogDialog(dateStr) {
         html += `<div class="log-section-row" data-log-section="Drill">
           <div class="log-target">Drill</div>
           <div class="field-grid">
-            <label>Izp. ilgums <input class="log-actual-duration" /></label>
+            <label>Ilgums <input class="log-actual-duration" /></label>
           </div>
         </div>`;
       } else {
@@ -3345,7 +3379,7 @@ function openLogDialog(dateStr) {
   });
 
   html += getRatingHtml(dayPlans[0].title, dayPlans[0].custom_icon);
-  html += `<div class="comment-label">Sportista komentārs</div><textarea class="inline-comment" id="logAthleteComment" rows="2" placeholder="Ieraksti komentāru..."></textarea>`;
+  html += `<div class="comment-label">Papildus komentāri un piezīmes par treniņa norisi</div><textarea class="inline-comment" id="logAthleteComment" rows="5"></textarea>`;
   logFormContent.innerHTML = html;
   logDialogAddExtraButtons();
 
@@ -3374,7 +3408,6 @@ function openLogDialog(dateStr) {
   }
 
   attachIntervalPaceValidation();
-  attachPulseValidation();
   logDialog.showModal();
 }
 
@@ -3514,17 +3547,6 @@ function buildPaceBoundsMap(planDetails) {
   });
   return map;
 }
-function attachPulseValidation() {
-  document.querySelectorAll("[data-log-section]").forEach((sectionEl) => {
-    const targetLine = sectionEl.querySelector(".log-target")?.textContent || "";
-    const pulseStr = extractPulse(targetLine);
-    if (!pulseStr) return;
-    const inp = sectionEl.querySelector(".log-actual-pulse");
-    if (!inp) return;
-    inp.placeholder = pulseStr;
-  });
-}
-
 function attachIntervalPaceValidation() {
   document.querySelectorAll("[data-log-section]").forEach((sectionEl) => {
     const targetLine = sectionEl.querySelector(".log-target")?.textContent || "";

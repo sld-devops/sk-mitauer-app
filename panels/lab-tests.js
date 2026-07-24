@@ -73,7 +73,7 @@ function renderLabTests() {
   let html = "";
 
   if (labTests.length === 0) {
-    html += `<p class="muted">Nav izmeklējumu.</p>`;
+    html += "";
   } else {
     html += `<div class="labtest-list">`;
     labTests.forEach(t => {
