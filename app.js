@@ -53,6 +53,7 @@ let currentMonthDate = new Date();
 let monthPlans = [];
 let monthLogEntries = [];
 let monthDayNotes = [];
+let monthSubMode = "plan";
 let weekBlockTypes = [];
 let weeklyReviews = [];
 
@@ -1425,6 +1426,17 @@ function extractMainPart(details) {
   return main.length ? main[0] : lines[0] || "";
 }
 
+function extractLogMainPartText(logData) {
+  const entries = logData || [];
+  const main = entries.find(e => e.section === "Pamatdaļa") || entries[0];
+  if (!main) return "";
+  if (main.intervals && main.intervals.length) {
+    return main.intervals.filter(Boolean).join(", ");
+  }
+  const rawPulse = main.pulse ? main.pulse + (main.pulse.includes("vid.") ? "" : "vid.") : "";
+  return [main.duration, rawPulse, main.pace].filter(Boolean).join("; ");
+}
+
 function formatDetailsForCard(details) {
   if (!details) return "";
   const lines = details.split("\n");
@@ -1475,6 +1487,52 @@ document.addEventListener("click", (e) => {
   btn.classList.add("selected");
 });
 
+function renderLogEntryLines(data, paceBoundsMap, plannedIntervalCount) {
+  return (data || []).map(entry => {
+    let line = `<div class="log-line">`;
+    if (entry.intervals && entry.intervals.length) {
+      const done = entry.intervals.filter(Boolean);
+      const colored = done.map((v, i) => {
+        const spaceIdx = v.indexOf(' ');
+        const paceStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(spaceIdx + 1).trim() : v;
+        const distStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(0, spaceIdx) : '';
+        const p = parseAthleteInput(paceStr);
+        const segBounds = paceBoundsMap?.[`seg${i + 1}`] || paceBoundsMap?.[entry.section];
+        const c = p ? getPaceColor(p, segBounds) : "";
+        const coloredPace = c ? `<span class="pace-text-${c}">${paceStr}</span>` : paceStr;
+        return distStr ? distStr + ' ' + coloredPace : coloredPace;
+      });
+      let display;
+      const hasPlan = !!(paceBoundsMap && Object.keys(paceBoundsMap).length);
+      if (hasPlan && plannedIntervalCount > 0 && done.length > plannedIntervalCount) {
+        const planned = colored.slice(0, plannedIntervalCount);
+        const extras = colored.slice(plannedIntervalCount);
+        display = planned.join(", ") + " + " + extras.join(" + ");
+      } else {
+        display = colored.join(", ");
+      }
+      line += `${entry.section === "Pamatdaļa" ? `<strong>${entry.section}: ${display}</strong>` : `${entry.section}: ${display}`}`;
+    } else {
+      const dur = entry.duration || "";
+      const rawPulse = entry.pulse ? entry.pulse + (entry.pulse.includes("vid.") ? "" : "vid.") : "";
+      const bounds = paceBoundsMap?.[entry.section];
+      let paceHtml = "";
+      if (entry.pace) {
+        const p = parseAthleteInput(entry.pace);
+        const c = p && bounds ? getPaceColor(p, bounds) : "";
+        paceHtml = c ? `<span class="pace-text-${c}">${entry.pace}</span>` : entry.pace;
+      }
+      let pulseHtml = "";
+      if (rawPulse) {
+        pulseHtml = "; " + entry.pulse + "vid.";
+      }
+      line += `${entry.section === "Pamatdaļa" ? `<strong>${entry.section}: ${dur}${pulseHtml}${paceHtml ? "; " + paceHtml : ""}</strong>` : `${entry.section}: ${dur}${pulseHtml}${paceHtml ? "; " + paceHtml : ""}`}`;
+    }
+    line += `</div>`;
+    return line;
+  }).join("");
+}
+
 function renderPlanCard(plan) {
   const isCoach = activeRole === "coach";
   const coachDisabled = !isCoach ? "disabled" : "";
@@ -1486,52 +1544,6 @@ function renderPlanCard(plan) {
   const planLogData = planLog?.log_data || [];
   const hasPamatdala = plan.details && plan.details.includes("Pamatdaļa:");
 
-  function renderInlineLog(data, paceBoundsMap, plannedIntervalCount) {
-    return data.map(entry => {
-      let line = `<div class="log-line">`;
-      if (entry.intervals && entry.intervals.length) {
-        const done = entry.intervals.filter(Boolean);
-        const colored = done.map((v, i) => {
-          const spaceIdx = v.indexOf(' ');
-          const paceStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(spaceIdx + 1).trim() : v;
-          const distStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(0, spaceIdx) : '';
-          const p = parseAthleteInput(paceStr);
-          const segBounds = paceBoundsMap?.[`seg${i + 1}`] || paceBoundsMap?.[entry.section];
-          const c = p ? getPaceColor(p, segBounds) : "";
-          const coloredPace = c ? `<span class="pace-text-${c}">${paceStr}</span>` : paceStr;
-          return distStr ? distStr + ' ' + coloredPace : coloredPace;
-        });
-        let display;
-        const hasPlan = !!(paceBoundsMap && Object.keys(paceBoundsMap).length);
-        if (hasPlan && plannedIntervalCount > 0 && done.length > plannedIntervalCount) {
-          const planned = colored.slice(0, plannedIntervalCount);
-          const extras = colored.slice(plannedIntervalCount);
-          display = planned.join(", ") + " + " + extras.join(" + ");
-        } else {
-          display = colored.join(", ");
-        }
-        line += `${entry.section === "Pamatdaļa" ? `<strong>${entry.section}: ${display}</strong>` : `${entry.section}: ${display}`}`;
-      } else {
-        const dur = entry.duration || "";
-        const rawPulse = entry.pulse ? entry.pulse + (entry.pulse.includes("vid.") ? "" : "vid.") : "";
-        const bounds = paceBoundsMap?.[entry.section];
-        let paceHtml = "";
-        if (entry.pace) {
-          const p = parseAthleteInput(entry.pace);
-          const c = p && bounds ? getPaceColor(p, bounds) : "";
-          paceHtml = c ? `<span class="pace-text-${c}">${entry.pace}</span>` : entry.pace;
-        }
-        let pulseHtml = "";
-        if (rawPulse) {
-          pulseHtml = "; " + entry.pulse + "vid.";
-        }
-        line += `${entry.section === "Pamatdaļa" ? `<strong>${entry.section}: ${dur}${pulseHtml}${paceHtml ? "; " + paceHtml : ""}</strong>` : `${entry.section}: ${dur}${pulseHtml}${paceHtml ? "; " + paceHtml : ""}`}`;
-      }
-      line += `</div>`;
-      return line;
-    }).join("");
-  }
-
   const paceBoundsMap = buildPaceBoundsMap(plan.details);
   const plannedIntervalCount = getPlannedIntervalCount(plan.details);
   const feelingBadge = planLog?.feeling || planLog?.feeling_tags ? feelingBadgeHtml(planLog.feeling, planLog.feeling_tags) : "";
@@ -1539,7 +1551,7 @@ function renderPlanCard(plan) {
 
   if (isCoach) {
     const logBlock = planLog
-      ? `<div class="log-card log-inline">${planLogData.length ? renderInlineLog(planLogData, paceBoundsMap, plannedIntervalCount) : ""}${feelingBadge}${planLogNotes}</div>`
+      ? `<div class="log-card log-inline">${planLogData.length ? renderLogEntryLines(planLogData, paceBoundsMap, plannedIntervalCount) : ""}${feelingBadge}${planLogNotes}</div>`
       : "";
 
     return `
@@ -1559,7 +1571,7 @@ function renderPlanCard(plan) {
   const logActions = planLog ? `<div class="log-actions"><button class="edit-log-btn" data-log-plan="${plan.id}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${planLog.id}" type="button">✕</button></div>` : "";
 
   const logBlock = planLog
-    ? `<div class="log-card log-inline">${planLogData.length ? renderInlineLog(planLogData, paceBoundsMap, plannedIntervalCount) : ""}${feelingBadge}${planLogNotes}</div>`
+    ? `<div class="log-card log-inline">${planLogData.length ? renderLogEntryLines(planLogData, paceBoundsMap, plannedIntervalCount) : ""}${feelingBadge}${planLogNotes}</div>`
     : `<button class="add-day-button log-plan-button" data-log-plan="${plan.id}" type="button">IERAKSTĪT IZPILDI</button>`;
 
   return `
@@ -1583,51 +1595,7 @@ function renderLogCard(log) {
   const plan = log.plan_id ? plans.find(p => p.id === log.plan_id) : null;
   const paceBoundsMap = buildPaceBoundsMap(plan?.details);
   const plannedIntervalCount = getPlannedIntervalCount(plan?.details);
-  const items = data.length
-    ? data.map((entry) => {
-      let line = `<div class="log-line">`;
-      if (entry.intervals && entry.intervals.length) {
-        const done = entry.intervals.filter(Boolean);
-        const colored = done.map((v, i) => {
-          const spaceIdx = v.indexOf(' ');
-          const paceStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(spaceIdx + 1).trim() : v;
-          const distStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(0, spaceIdx) : '';
-          const p = parseAthleteInput(paceStr);
-          const segBounds = paceBoundsMap?.[`seg${i + 1}`] || paceBoundsMap?.[entry.section];
-          const c = p ? getPaceColor(p, segBounds) : "";
-          const coloredPace = c ? `<span class="pace-text-${c}">${paceStr}</span>` : paceStr;
-          return distStr ? distStr + ' ' + coloredPace : coloredPace;
-        });
-        let display;
-        const hasPlan = !!(paceBoundsMap && Object.keys(paceBoundsMap).length);
-        if (hasPlan && plannedIntervalCount > 0 && done.length > plannedIntervalCount) {
-          const planned = colored.slice(0, plannedIntervalCount);
-          const extras = colored.slice(plannedIntervalCount);
-          display = planned.join(", ") + " + " + extras.join(" + ");
-        } else {
-          display = colored.join(", ");
-        }
-        line += `${entry.section === "Pamatdaļa" ? `<strong>${entry.section}: ${display}</strong>` : `${entry.section}: ${display}`}`;
-      } else {
-        const dur = entry.duration || "";
-        const rawPulse = entry.pulse ? entry.pulse + (entry.pulse.includes("vid.") ? "" : "vid.") : "";
-        const bounds = paceBoundsMap[entry.section];
-        let paceHtml = "";
-        if (entry.pace) {
-          const p = parseAthleteInput(entry.pace);
-          const c = p && bounds ? getPaceColor(p, bounds) : "";
-          paceHtml = c ? `<span class="pace-text-${c}">${entry.pace}</span>` : entry.pace;
-        }
-        let pulseHtml = "";
-        if (rawPulse) {
-          pulseHtml = "; " + entry.pulse + "vid.";
-        }
-        line += `${entry.section === "Pamatdaļa" ? `<strong>${entry.section}: ${dur}${pulseHtml}${paceHtml ? "; " + paceHtml : ""}</strong>` : `${entry.section}: ${dur}${pulseHtml}${paceHtml ? "; " + paceHtml : ""}`}`;
-      }
-      line += `</div>`;
-      return line;
-    }).join("")
-    : "";
+  const items = data.length ? renderLogEntryLines(data, paceBoundsMap, plannedIntervalCount) : "";
   const feelingBadge = log?.feeling || log?.feeling_tags ? feelingBadgeHtml(log.feeling, log.feeling_tags) : "";
   const logNotes = log?.notes ? `<div class="log-notes">${log.notes}</div>` : "";
   const athleteIsOwner = (activeRole === "athlete") && currentUser.id === getSelectedAthleteId();
@@ -1835,6 +1803,9 @@ function renderMonthViewInline() {
   const label = document.getElementById("monthViewTitleInline");
   if (!grid) return;
   label.textContent = getMonthNameLV(currentMonthDate);
+  document.querySelectorAll("[data-month-mode]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.monthMode === monthSubMode);
+  });
 
   const monthStart = getMonthStart(currentMonthDate);
   const monthEnd = getMonthEnd(currentMonthDate);
@@ -1893,14 +1864,43 @@ function renderMonthViewInline() {
       `;
       }).join("");
 
-      const racesHtml = dayRaces.map((r) => `
+      const doneHtml = dayLog.map((l) => {
+        const plan = l.plan_id ? dayPlans.find((p) => p.id === l.plan_id) : null;
+        const paceBoundsMap = buildPaceBoundsMap(plan?.details);
+        const plannedIntervalCount = getPlannedIntervalCount(plan?.details);
+        const logData = l.log_data || [];
+        const titleHtml = plan ? `<strong>${displayTitle(plan.title)}</strong>` : "";
+        const feelingBadge = l.feeling || l.feeling_tags ? feelingBadgeHtml(l.feeling, l.feeling_tags) : "";
+        const logNotes = l.notes ? `<div class="log-notes">${l.notes}</div>` : "";
+        return `
+        <div class="month-plan month-log">
+          <span class="month-type-badge">${plan ? (plan.custom_icon || badgeForTitle(plan.title)) : "📝"}</span>
+          <div class="month-plan-summary">
+            ${titleHtml}
+            <span>${extractLogMainPartText(logData) || "—"}</span>
+          </div>
+          <div class="month-plan-full">
+            ${titleHtml}
+            ${renderLogEntryLines(logData, paceBoundsMap, plannedIntervalCount)}
+            ${feelingBadge}
+            ${logNotes}
+          </div>
+        </div>
+      `;
+      }).join("");
+
+      const racesHtml = dayRaces.map((r) => {
+        const hasResult = !!r.result_time;
+        return `
         <div class="month-race">
           <span>🏁</span>
           <span class="month-race-name">${r.name}</span>
           ${r.location ? `<span class="month-race-location">${r.location}</span>` : ""}
           ${r.distance ? `<strong class="month-race-dist">${r.distance}</strong>` : ""}
+          ${monthSubMode === "done" && hasResult ? `<span class="month-race-result">✅ ${r.result_time}${r.result_pace ? " (" + r.result_pace.replace(/\/km\s*$/i, "") + "/km)" : ""}</span>` : ""}
         </div>
-      `).join("");
+      `;
+      }).join("");
 
       cells.push(`
         <div class="month-day-cell ${isOtherMonth ? "other-month" : ""}${isToday ? " today" : ""}${fullyRestricted ? " restricted-day" : ""}${cellBlockType ? " week-block-" + cellBlockType : ""}" data-date="${dateStr}">
@@ -1911,7 +1911,7 @@ function renderMonthViewInline() {
           ${dayHealth ? `<div class="month-health-text" role="button" tabindex="0">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
           ${isRestDay && !dayPlans.length && !dayRaces.length ? `<div class="day-rest-text">🌴 Brīvdiena</div>` : ""}
           ${racesHtml}
-          ${plansHtml}
+          ${monthSubMode === "done" ? doneHtml : plansHtml}
         </div>
       `);
     }
@@ -2191,6 +2191,13 @@ document.getElementById("calendarModeToggle").addEventListener("click", () => {
 });
 
 document.getElementById("calendarModeToggle").textContent = calendarMode === "mobile" ? "🖥️ Datora izskats" : "📱 Mobilais izskats";
+
+document.querySelectorAll("[data-month-mode]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    monthSubMode = btn.dataset.monthMode;
+    renderMonthViewInline();
+  });
+});
 
 document.querySelectorAll("[data-view]").forEach((btn) => {
   btn.addEventListener("click", async () => {
@@ -3486,7 +3493,7 @@ function parsePaceBounds(paceStr) {
   }
   if (minTotal === undefined) return null;
   const center = (minTotal + maxTotal) / 2;
-  const warnOff = Math.max(1, Math.round(center * 0.03));
+  const warnOff = Math.max(1, Math.round(center * 0.03), Math.ceil((maxTotal - minTotal) / 2));
   let greenMin, greenMax;
   if (minTotal !== maxTotal) {
     greenMin = minTotal;

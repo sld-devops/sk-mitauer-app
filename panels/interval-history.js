@@ -66,46 +66,13 @@ function renderIntervalHistoryCard(session) {
 
   let logBlock = "";
   if (log) {
-    const pamatLog = planLogData.find(e => e.section === "Pamatdaļa");
-    let inlineHtml = "";
-    if (pamatLog) {
-      if (pamatLog.intervals && pamatLog.intervals.length) {
-        const done = pamatLog.intervals.filter(Boolean);
-        const colored = done.map((v, i) => {
-          const spaceIdx = v.indexOf(" ");
-          const paceStr = (spaceIdx > -1 && spaceIdx < v.length - 1)
-            ? v.substring(spaceIdx + 1).trim() : v;
-          const distStr = (spaceIdx > -1 && spaceIdx < v.length - 1)
-            ? v.substring(0, spaceIdx) : "";
-          const p = parseAthleteInput(paceStr);
-          const segBounds = paceBoundsMap?.[`seg${i + 1}`] || paceBoundsMap?.Pamatdaļa;
-          const c = p ? getPaceColor(p, segBounds) : "";
-          const coloredPace = c
-            ? `<span class="pace-text-${c}">${paceStr}</span>` : paceStr;
-          return distStr ? distStr + " " + coloredPace : coloredPace;
-        });
-        inlineHtml = `<strong>Pamatdaļa: ${colored.join(", ")}</strong>`;
-      } else if (pamatLog.pace || pamatLog.duration || pamatLog.pulse) {
-        const dur = pamatLog.duration || "";
-        const rawPulse = pamatLog.pulse
-          ? pamatLog.pulse + (pamatLog.pulse.includes("vid.") ? "" : "vid.")
-          : "";
-        const bounds = paceBoundsMap?.Pamatdaļa;
-        let paceHtml = "";
-        if (pamatLog.pace) {
-          const p = parseAthleteInput(pamatLog.pace);
-          const c = p && bounds ? getPaceColor(p, bounds) : "";
-          paceHtml = c
-            ? `<span class="pace-text-${c}">${pamatLog.pace}</span>`
-            : pamatLog.pace;
-        }
-        inlineHtml = `<strong>Pamatdaļa: ${dur}${rawPulse ? "; " + rawPulse : ""}${paceHtml ? "; " + paceHtml : ""}</strong>`;
-      }
-    }
+    const plannedIntervalCount = getPlannedIntervalCount(plan.details);
+    const pamatData = planLogData.filter(e => e.section === "Pamatdaļa");
+    const inlineHtml = pamatData.length ? renderLogEntryLines(pamatData, paceBoundsMap, plannedIntervalCount) : "";
     if (inlineHtml || feelingBadge || logNotes) {
       logBlock = `
         <div class="log-card log-inline">
-          ${inlineHtml ? `<div class="log-line">${inlineHtml}</div>` : ""}
+          ${inlineHtml}
           ${feelingBadge}
           ${logNotes}
         </div>`;

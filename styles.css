@@ -411,6 +411,7 @@ h4 {
 
 #athleteSelectorPanel .panel-body {
   padding: 0 10px 8px;
+  overflow: visible;
 }
 
 #athleteSelectorPanel .panel-header-row h2 {
@@ -3472,6 +3473,20 @@ textarea:disabled {
   display: block;
 }
 
+.month-plan.month-log {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+}
+
+.month-mode-tabs {
+  padding: 2px;
+}
+
+.month-mode-tabs button {
+  padding: 4px 10px;
+  font-size: 0.82rem;
+}
+
 .month-race {
   align-items: baseline;
   background: var(--race);
@@ -3499,6 +3514,15 @@ textarea:disabled {
 .month-race-dist {
   color: var(--ink);
   font-weight: 800;
+}
+
+.month-race-result {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: 4px;
+  color: var(--ink);
+  font-weight: 700;
+  padding: 1px 6px;
 }
 
 @media (max-width: 1040px) {
