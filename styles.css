@@ -5,7 +5,7 @@
   --line: #d9dee7;
   --panel: #eef7d9;
   --page: linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.3) 100%),
-    var(--page-bg-image, url("images/bg-training.jpg?v=3"));
+    var(--page-bg-image);
   --surface: #eef7d9;
   --surface-alt: #e0efc0;
   --surface-hover: #d3e8a3;
@@ -849,9 +849,9 @@ h4 {
 .toolbar > div:first-child {
   grid-column: 1;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
 .toolbar h2 {
   font-size: 1.35rem;
@@ -3457,7 +3457,7 @@ textarea:disabled {
   display: block;
 }
 
-.month-plan span {
+.month-plan span:not([class*="pace-text-"]) {
   color: #000;
 }
 
@@ -3479,12 +3479,7 @@ textarea:disabled {
 }
 
 .month-mode-tabs {
-  padding: 2px;
-}
-
-.month-mode-tabs button {
-  padding: 4px 10px;
-  font-size: 0.82rem;
+  margin-left: 0;
 }
 
 .month-race {

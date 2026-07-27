@@ -10,6 +10,8 @@ It replaces a Google Sheets workflow the coach previously used to plan training 
 
 The project owner is not a programmer and cannot review JavaScript diffs themselves — they rely on Claude to self-verify correctness and to explain changes in plain, non-technical language (in Latvian). This is their first project working with any code agent, so err on the side of caution, small steps, and clear explanations over assumed technical fluency.
 
+**Plan Mode output must stay short and non-technical.** No large code blocks, no quoted diffs, no long multi-paragraph "Context" essays. Describe what will change in a few plain-language sentences (what the user will see/notice), not how it will be implemented internally.
+
 ## Commands
 
 There is no package.json, npm, linter, formatter, or CI. The only "command" is opening the app:

@@ -1426,15 +1426,39 @@ function extractMainPart(details) {
   return main.length ? main[0] : lines[0] || "";
 }
 
-function extractLogMainPartText(logData) {
+function extractLogMainPartHtml(logData, paceBoundsMap, plannedIntervalCount) {
   const entries = logData || [];
   const main = entries.find(e => e.section === "Pamatdaļa") || entries[0];
   if (!main) return "";
   if (main.intervals && main.intervals.length) {
-    return main.intervals.filter(Boolean).join(", ");
+    const done = main.intervals.filter(Boolean);
+    const colored = done.map((v, i) => {
+      const spaceIdx = v.indexOf(' ');
+      const paceStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(spaceIdx + 1).trim() : v;
+      const distStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(0, spaceIdx) : '';
+      const p = parseAthleteInput(paceStr);
+      const segBounds = paceBoundsMap?.[`seg${i + 1}`] || paceBoundsMap?.[main.section];
+      const c = p ? getPaceColor(p, segBounds) : "";
+      const coloredPace = c ? `<span class="pace-text-${c}">${paceStr}</span>` : paceStr;
+      return distStr ? distStr + ' ' + coloredPace : coloredPace;
+    });
+    const hasPlan = !!(paceBoundsMap && Object.keys(paceBoundsMap).length);
+    if (hasPlan && plannedIntervalCount > 0 && done.length > plannedIntervalCount) {
+      const planned = colored.slice(0, plannedIntervalCount);
+      const extras = colored.slice(plannedIntervalCount);
+      return planned.join(", ") + " + " + extras.join(" + ");
+    }
+    return colored.join(", ");
   }
   const rawPulse = main.pulse ? main.pulse + (main.pulse.includes("vid.") ? "" : "vid.") : "";
-  return [main.duration, rawPulse, main.pace].filter(Boolean).join("; ");
+  const bounds = paceBoundsMap?.[main.section];
+  let paceHtml = "";
+  if (main.pace) {
+    const p = parseAthleteInput(main.pace);
+    const c = p && bounds ? getPaceColor(p, bounds) : "";
+    paceHtml = c ? `<span class="pace-text-${c}">${main.pace}</span>` : main.pace;
+  }
+  return [main.duration, rawPulse, paceHtml].filter(Boolean).join("; ");
 }
 
 function formatDetailsForCard(details) {
@@ -1877,7 +1901,7 @@ function renderMonthViewInline() {
           <span class="month-type-badge">${plan ? (plan.custom_icon || badgeForTitle(plan.title)) : "📝"}</span>
           <div class="month-plan-summary">
             ${titleHtml}
-            <span>${extractLogMainPartText(logData) || "—"}</span>
+            <span>${extractLogMainPartHtml(logData, paceBoundsMap, plannedIntervalCount) || "—"}</span>
           </div>
           <div class="month-plan-full">
             ${titleHtml}
