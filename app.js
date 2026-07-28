@@ -319,25 +319,26 @@ function getGeneratedTraining() {
   return { title, details: lines.join("\n") };
 }
 
+function epFormatPart(label, durId, pulseId, paceId, additionalId) {
+  const getVal = id => document.getElementById(id).value.trim();
+  const dur = getVal(durId);
+  if (!dur) return "";
+  const pulseStr = getVal(pulseId);
+  const paceStr = paceId ? getVal(paceId) : "";
+  const additionalStr = additionalId ? getVal(additionalId) : "";
+  let result = `${label}: ${dur}`;
+  if (pulseStr) result += `; ${pulseStr}`;
+  if (paceStr) result += `; ${paceStr}`;
+  if (additionalStr) result += `; ${additionalStr}`;
+  return result;
+}
+
 function getEditPlanTraining() {
   const type = document.getElementById("epType").value;
 
   if (type === OTHER_RUN_TYPE) {
     const getVal = id => document.getElementById(id).value.trim();
     const getBool = id => document.getElementById(id).checked;
-
-    function epFormatPart(label, durId, pulseId, paceId, additionalId) {
-      const dur = getVal(durId);
-      if (!dur) return "";
-      const pulseStr = getVal(pulseId);
-      const paceStr = paceId ? getVal(paceId) : "";
-      const additionalStr = additionalId ? getVal(additionalId) : "";
-      let result = `${label}: ${dur}`;
-      if (pulseStr) result += `; ${pulseStr}`;
-      if (paceStr) result += `; ${paceStr}`;
-      if (additionalStr) result += `; ${additionalStr}`;
-      return result;
-    }
 
     const warmup = epFormatPart("Iesildīšanās", "epWarmupDuration", "epWarmupPulse", null, "epWarmupAdditional");
     const drills = getBool("epIncludeDrills") ? "Drill" : "";
@@ -361,19 +362,6 @@ function getEditPlanTraining() {
 
   const getVal = id => document.getElementById(id).value.trim();
   const getBool = id => document.getElementById(id).checked;
-
-  function epFormatPart(label, durId, pulseId, paceId, additionalId) {
-    const dur = getVal(durId);
-    if (!dur) return "";
-    const pulseStr = getVal(pulseId);
-    const paceStr = paceId ? getVal(paceId) : "";
-    const additionalStr = additionalId ? getVal(additionalId) : "";
-    let result = `${label}: ${dur}`;
-    if (pulseStr) result += `; ${pulseStr}`;
-    if (paceStr) result += `; ${paceStr}`;
-    if (additionalStr) result += `; ${additionalStr}`;
-    return result;
-  }
 
   const warmup = isEasyOrLong
     ? (getBool("epIncludeWarmup") ? epFormatPart("Iesildīšanās", "epWarmupDuration", "epWarmupPulse", null, "epWarmupAdditional") : "")
@@ -1511,7 +1499,8 @@ document.addEventListener("click", (e) => {
   btn.classList.add("selected");
 });
 
-function renderLogEntryLines(data, paceBoundsMap, plannedIntervalCount) {
+function renderLogEntryLines(data, paceBoundsMap, plannedIntervalCount, planDetails) {
+  const plannedMainPart = planDetails ? getPlannedMainPartSummary(planDetails) : "";
   return (data || []).map(entry => {
     let line = `<div class="log-line">`;
     if (entry.intervals && entry.intervals.length) {
@@ -1535,7 +1524,8 @@ function renderLogEntryLines(data, paceBoundsMap, plannedIntervalCount) {
       } else {
         display = colored.join(", ");
       }
-      line += `${entry.section === "Pamatdaļa" ? `<strong>${entry.section}: ${display}</strong>` : `${entry.section}: ${display}`}`;
+      const mainPartPrefix = entry.section === "Pamatdaļa" && plannedMainPart ? `${plannedMainPart} ` : "";
+      line += `${entry.section === "Pamatdaļa" ? `<strong>${entry.section}: ${mainPartPrefix}${display}</strong>` : `${entry.section}: ${display}`}`;
     } else {
       const dur = entry.duration || "";
       const rawPulse = entry.pulse ? entry.pulse + (entry.pulse.includes("vid.") ? "" : "vid.") : "";
@@ -1905,7 +1895,7 @@ function renderMonthViewInline() {
           </div>
           <div class="month-plan-full">
             ${titleHtml}
-            ${renderLogEntryLines(logData, paceBoundsMap, plannedIntervalCount)}
+            ${renderLogEntryLines(logData, paceBoundsMap, plannedIntervalCount, plan?.details)}
             ${feelingBadge}
             ${logNotes}
           </div>
@@ -1963,6 +1953,7 @@ function render() {
   const currentBlockType = blockTypeEntry?.block_type || "";
   document.querySelectorAll('input[name="weekBlockType"]').forEach(r => {
     r.checked = r.value === currentBlockType;
+    r.disabled = activeRole !== "coach";
   });
   weekLabel.className = currentBlockType ? "wbt-label-" + currentBlockType : "";
 
@@ -1986,7 +1977,8 @@ function render() {
   document.getElementById("copyWeekDivider").hidden = activeRole !== "coach" || viewMode !== "week";
   const isCurrentWeek = formatDateISO(currentWeekStart) === formatDateISO(getMonday(new Date()));
   trainingBar.hidden = activeRole !== "coach" || !hasAthletes;
-  document.getElementById("weekBlockTypeSelect").hidden = activeRole !== "coach" || viewMode !== "week";
+  document.getElementById("weekBlockTypeSelect").hidden = viewMode !== "week";
+  document.getElementById("weekBlockTypeSelect").classList.toggle("readonly-wbt", activeRole !== "coach");
 
   renderAthleteDropdown();
   renderTemplates();
@@ -1999,8 +1991,11 @@ function render() {
     document.getElementById("weekView").hidden = viewMode !== "week";
     document.getElementById("monthView").hidden = viewMode !== "month";
     document.getElementById("weeklySummary").hidden = viewMode !== "week";
+    document.getElementById("monthModeTabs").hidden = viewMode !== "month";
     weekLabel.hidden = viewMode !== "week";
-    document.getElementById("weekViewNav").hidden = viewMode !== "week";
+    document.getElementById("monthViewTitleInline").hidden = viewMode !== "month";
+    document.getElementById("weekNavRow").hidden = viewMode !== "week";
+    document.getElementById("monthNavRowInline").hidden = viewMode !== "month";
     if (viewMode === "week") {
       renderCalendar();
     } else {
@@ -2128,11 +2123,15 @@ document.querySelectorAll('input[name="weekBlockType"]').forEach(radio => {
     const athleteId = getSelectedAthleteId();
     if (!athleteId) return;
     const weekStartStr = formatDateISO(currentWeekStart);
-    await upsertWeekBlockType({
-      athlete_id: athleteId,
-      week_start: weekStartStr,
-      block_type: "",
-    });
+    try {
+      await upsertWeekBlockType({
+        athlete_id: athleteId,
+        week_start: weekStartStr,
+        block_type: "",
+      });
+    } catch (e) {
+      alert(e.message || "Saglabāšana neizdevās (iespējams, trūkst tiesību) — izmaiņas netika saglabātas.");
+    }
     await loadNonTemplateData();
   });
 
@@ -2141,11 +2140,15 @@ document.querySelectorAll('input[name="weekBlockType"]').forEach(radio => {
     const athleteId = getSelectedAthleteId();
     if (!athleteId) return;
     const weekStartStr = formatDateISO(currentWeekStart);
-    await upsertWeekBlockType({
-      athlete_id: athleteId,
-      week_start: weekStartStr,
-      block_type: radio.value,
-    });
+    try {
+      await upsertWeekBlockType({
+        athlete_id: athleteId,
+        week_start: weekStartStr,
+        block_type: radio.value,
+      });
+    } catch (e) {
+      alert(e.message || "Saglabāšana neizdevās (iespējams, trūkst tiesību) — izmaiņas netika saglabātas.");
+    }
     await loadNonTemplateData();
   });
 });
@@ -2417,6 +2420,7 @@ function togglePlannerMenu(open) {
   const panel = document.querySelector(".planner-panel");
   const backdrop = document.getElementById("plannerBackdrop");
   if (!panel || !backdrop) return;
+  updateMobileHeaderHeight();
   panel.classList.toggle("open", open);
   backdrop.classList.toggle("open", open);
   updateMenuBtnArrow();
@@ -3465,6 +3469,21 @@ function extractPace(line) {
   if (rangeMatch) return rangeMatch[1];
   const singleMatch = s.match(/(\d+:\d{2})\b/);
   if (singleMatch) return singleMatch[1];
+  return "";
+}
+
+function getPlannedMainPartSummary(details) {
+  if (!details) return "";
+  const lines = details.split("\n");
+  for (const line of lines) {
+    if (!line.includes("Pamatdaļa:")) continue;
+    if (isVarIntervalLine(line)) {
+      const { segments } = parseSegmentsFromVarLine(line);
+      return segments.map(s => `${s.reps}x${s.length}`).join(" + ");
+    }
+    const m = line.match(/Pamatdaļa:\s*(\d+)x(\S+)/);
+    if (m) return `${m[1]}x${m[2]}`;
+  }
   return "";
 }
 

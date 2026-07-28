@@ -20,6 +20,7 @@ let currentProfile = null;
 function showApp() {
   authViewEl.hidden = true;
   appEl.hidden = false;
+  updateMobileHeaderHeight();
 }
 
 function showAuth() {

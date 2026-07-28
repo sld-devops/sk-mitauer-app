@@ -55,7 +55,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=117" />
+    <link rel="stylesheet" href="styles.css?v=123" />
   </head>
   <body>
     <div id="authView">
@@ -153,6 +153,39 @@
             </div>
           </section>
 
+          <section class="panel collapsible collapsed" id="healthJournalPanel">
+            <div class="panel-header">
+              <div class="panel-header-text">
+                <h2>Veselības žurnāls</h2>
+                <span class="panel-subtitle">Sāpes, trauma, slimība, pārslodze u.c.</span>
+              </div>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt veselības žurnālu">▶</button>
+            </div>
+            <div class="panel-body" id="healthJournalBody"></div>
+          </section>
+
+          <section class="panel collapsible collapsed" id="diaryPanel">
+            <div class="panel-header">
+              <div class="panel-header-text">
+                <h2>Dienasgrāmata</h2>
+                <span class="panel-subtitle">Dzīves un ikdienas svarīgas piezīmes, kas var ietekmēt treniņprocesu</span>
+              </div>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt dienasgrāmatu">▶</button>
+            </div>
+            <div class="panel-body" id="diaryBody"></div>
+          </section>
+
+          <section class="panel collapsible collapsed" id="restrictionsPanel">
+            <div class="panel-header">
+              <div class="panel-header-text">
+                <h2>Ierobežojumi</h2>
+                <span class="panel-subtitle">Diena/periods, kad personīgu iemeslu dēļ treniņus nevarēs veikt</span>
+              </div>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt ierobežojumus">▶</button>
+            </div>
+            <div class="panel-body" id="restrictionsBody"></div>
+          </section>
+
           <section class="panel collapsible collapsed" id="hrZonesPanel">
             <div class="panel-header">
               <h2>Sirdsritma darba zonas</h2>
@@ -191,15 +224,12 @@
             <div class="panel-body" id="intervalHistoryBody"></div>
           </section>
 
-          <section class="panel collapsible collapsed" id="healthJournalPanel">
+          <section class="panel collapsible collapsed" id="recordsPanel">
             <div class="panel-header">
-              <div class="panel-header-text">
-                <h2>Veselības žurnāls</h2>
-                <span class="panel-subtitle">Sāpes, trauma, slimība, pārslodze u.c.</span>
-              </div>
-              <button class="collapse-toggle" type="button" aria-label="Rādīt veselības žurnālu">▶</button>
+              <h2>Personīgie rekordi</h2>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt rekordus">▶</button>
             </div>
-            <div class="panel-body" id="healthJournalBody"></div>
+            <div class="panel-body" id="recordsBody"></div>
           </section>
 
           <section class="panel collapsible collapsed" id="labTestsPanel">
@@ -211,36 +241,6 @@
               <button class="collapse-toggle" type="button" aria-label="Rādīt laboratoriskos izmeklējumus">▶</button>
             </div>
             <div class="panel-body" id="labTestsBody"></div>
-          </section>
-
-          <section class="panel collapsible collapsed" id="restrictionsPanel">
-            <div class="panel-header">
-              <div class="panel-header-text">
-                <h2>Ierobežojumi</h2>
-                <span class="panel-subtitle">Diena/periods, kad personīgu iemeslu dēļ treniņus nevarēs veikt</span>
-              </div>
-              <button class="collapse-toggle" type="button" aria-label="Rādīt ierobežojumus">▶</button>
-            </div>
-            <div class="panel-body" id="restrictionsBody"></div>
-          </section>
-
-          <section class="panel collapsible collapsed" id="diaryPanel">
-            <div class="panel-header">
-              <div class="panel-header-text">
-                <h2>Dienasgrāmata</h2>
-                <span class="panel-subtitle">Dzīves un ikdienas svarīgas piezīmes, kas var ietekmēt treniņprocesu</span>
-              </div>
-              <button class="collapse-toggle" type="button" aria-label="Rādīt dienasgrāmatu">▶</button>
-            </div>
-            <div class="panel-body" id="diaryBody"></div>
-          </section>
-
-          <section class="panel collapsible collapsed" id="recordsPanel">
-            <div class="panel-header">
-              <h2>Personīgie rekordi</h2>
-              <button class="collapse-toggle" type="button" aria-label="Rādīt rekordus">▶</button>
-            </div>
-            <div class="panel-body" id="recordsBody"></div>
           </section>
 
           <section class="panel collapsible collapsed" id="selfTestsPanel">
@@ -461,6 +461,7 @@
               <button class="collapse-toggle" type="button" aria-label="Rādīt sacensību kalendāru">▶</button>
             </div>
             <div class="panel-body">
+              <button id="openRaceBtn" class="secondary-action" type="button">🏁 Pievienot sacensības</button>
               <div class="choice-tabs race-tabs">
                 <button class="active" data-race-tab="upcoming" type="button">Gaidāmās</button>
                 <button data-race-tab="past" type="button">Notikušās</button>
@@ -469,10 +470,9 @@
             </div>
           </div>
 
-          <button id="openRaceBtn" class="secondary-action" type="button">🏁 Pievienot sacensības</button>
-
           <div class="week-label-row">
             <h2 id="weekLabel"></h2>
+            <h2 id="monthViewTitleInline" class="month-view-title" hidden></h2>
             <div class="week-block-type-select" id="weekBlockTypeSelect">
               <label class="wbt-option wbt-load"><input type="radio" name="weekBlockType" value="load"> Slodze</label>
               <span class="week-nav-divider" aria-hidden="true"></span>
@@ -480,14 +480,20 @@
               <span class="week-nav-divider" aria-hidden="true"></span>
               <label class="wbt-option wbt-rest"><input type="radio" name="weekBlockType" value="rest"> Atpūta</label>
             </div>
-            <div class="view-tabs">
-              <button class="active" data-view="week" type="button">Nedēļas plāns</button>
-              <button data-view="month" type="button">Mēneša plāns</button>
+            <div class="view-mode-tabs-group">
+              <div class="view-tabs month-mode-tabs" id="monthModeTabs" hidden>
+                <button class="active" data-month-mode="plan" type="button">Plāns</button>
+                <button data-month-mode="done" type="button">Izpilde</button>
+              </div>
+              <div class="view-tabs">
+                <button class="active" data-view="week" type="button">Nedēļas plāns</button>
+                <button data-view="month" type="button">Mēneša plāns</button>
+              </div>
             </div>
           </div>
 
           <div class="week-nav" id="weekViewNav">
-            <div class="week-nav-row">
+            <div class="week-nav-row" id="weekNavRow">
               <button id="weekPrev" class="secondary-action" type="button">Iepriekšējā nedēļa</button>
               <span class="week-nav-divider" aria-hidden="true"></span>
               <button id="weekNext" class="secondary-action" type="button">Nākamā nedēļa</button>
@@ -496,6 +502,11 @@
               <span class="week-nav-divider" id="copyWeekDivider" aria-hidden="true"></span>
               <button id="copyPrevWeekBtn" class="secondary-action" type="button" hidden>Nokopēt iepriekšējās nedēļas plānu</button>
             </div>
+            <div class="week-nav-row" id="monthNavRowInline" hidden>
+              <button id="monthPrevInline" class="secondary-action" type="button">Iepriekšējais mēnesis</button>
+              <button id="monthNextInline" class="secondary-action" type="button">Nākamais mēnesis</button>
+              <button id="monthCurrent" class="secondary-action" type="button">Uz šo mēnesi</button>
+            </div>
           </div>
 
           <div id="weekView">
@@ -503,22 +514,6 @@
           </div>
 
           <div id="monthView" hidden>
-            <div class="toolbar">
-              <div>
-                <div class="view-tabs month-mode-tabs">
-                  <button class="active" data-month-mode="plan" type="button">Plāns</button>
-                  <button data-month-mode="done" type="button">Izpilde</button>
-                </div>
-                <h2 id="monthViewTitleInline"></h2>
-              </div>
-              <div class="week-nav">
-                <div class="week-nav-row">
-                  <button id="monthPrevInline" class="secondary-action" type="button">Iepriekšējais mēnesis</button>
-                  <button id="monthNextInline" class="secondary-action" type="button">Nākamais mēnesis</button>
-                  <button id="monthCurrent" class="secondary-action" type="button">Uz šo mēnesi</button>
-                </div>
-              </div>
-            </div>
             <div id="monthGridInline"></div>
           </div>
 
@@ -899,7 +894,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="db.js?v=3"></script>
-    <script src="auth.js"></script>
+    <script src="auth.js?v=2"></script>
     <script src="panels/self-tests.js"></script>
     <script src="panels/polar-tests.js"></script>
     <script src="panels/health-journal.js?v=2"></script>
@@ -914,6 +909,6 @@
     <script src="panels/admin.js?v=2"></script>
     <script src="panels/weekly-review.js"></script>
     <script src="panels/ruffier-test.js"></script>
-    <script src="app.js?v=28"></script>
+    <script src="app.js?v=31"></script>
   </body>
 </html>

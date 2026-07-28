@@ -97,7 +97,7 @@ function renderDiary() {
       <div class="diary-form-row">
         <label>Datums <input id="newDiaryDate" type="date" class="diary-input" value="${formatDateISO(new Date())}" /></label>
       </div>
-      <textarea id="newDiaryContent" class="diary-input" rows="2" placeholder="Raksti šeit..."></textarea>
+      <textarea id="newDiaryContent" class="diary-input" rows="2"></textarea>
       <button id="addDiaryBtn" class="secondary-action panel-add-btn" type="button">Pievienot</button>
     </div>
   ` : "";
