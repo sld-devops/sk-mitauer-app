@@ -5,7 +5,10 @@ const days = [
 
 let selectedTemplateId = null;
 let activeRole = "athlete";
+// "desktop" = horizontal layout (days side by side), "mobile" = vertical layout (days stacked).
+// Week view and month view each remember their own choice.
 let calendarMode = localStorage.getItem("calendarMode") || (window.matchMedia("(max-width: 1040px)").matches ? "mobile" : "desktop");
+let monthCalendarMode = localStorage.getItem("monthCalendarMode") || (window.matchMedia("(max-width: 1040px)").matches ? "mobile" : "desktop");
 
 // check for existing session on load
 (async () => {
@@ -88,7 +91,7 @@ let weekStatuses = {};
 let weekBlockTypesByAthlete = {};
 let panelCollapsed = localStorage.getItem("panelCollapsed") === "true";
 
-if (panelCollapsed) document.querySelector(".layout")?.classList.add("panel-collapsed");
+if (panelCollapsed) document.querySelector(".app-body")?.classList.add("panel-collapsed");
 
 function updateMenuBtnArrow() {
   const btn = document.getElementById("mobileMenuBtn");
@@ -1524,7 +1527,8 @@ function renderLogEntryLines(data, paceBoundsMap, plannedIntervalCount, planDeta
       } else {
         display = colored.join(", ");
       }
-      const mainPartPrefix = entry.section === "Pamatdaļa" && plannedMainPart ? `${plannedMainPart} ` : "";
+      // The executed times always start on their own line, below the planned task.
+      const mainPartPrefix = entry.section === "Pamatdaļa" && plannedMainPart ? `${plannedMainPart}<br>` : "";
       line += `${entry.section === "Pamatdaļa" ? `<strong>${entry.section}: ${mainPartPrefix}${display}</strong>` : `${entry.section}: ${display}`}`;
     } else {
       const dur = entry.duration || "";
@@ -1827,7 +1831,9 @@ function renderMonthViewInline() {
   const todayStr = formatDateISO(today);
 
   const dayHeaders = ["P", "O", "T", "C", "Pk", "S", "Sv"];
-  const cells = [];
+  // One entry per calendar week (its separator + 7 day cells), kept grouped so the
+  // vertical layout can split the month into two side-by-side columns.
+  const weekBlocks = [];
 
   const startDay = monthStart.getDay();
   const padStart = (startDay + 6) % 7;
@@ -1839,6 +1845,11 @@ function renderMonthViewInline() {
   const rows = Math.ceil(totalCells / 7);
 
   for (let row = 0; row < rows; row++) {
+    const rowStart = new Date(firstCell);
+    rowStart.setDate(firstCell.getDate() + row * 7);
+    // Only shown in the vertical layout (hidden by CSS in the grid layout, so it
+    // cannot shift the 7-column alignment).
+    const cells = [`<div class="month-week-sep">${getWeekLabel(rowStart)}</div>`];
     for (let col = 0; col < 7; col++) {
       const d = new Date(firstCell);
       d.setDate(firstCell.getDate() + row * 7 + col);
@@ -1919,7 +1930,7 @@ function renderMonthViewInline() {
       cells.push(`
         <div class="month-day-cell ${isOtherMonth ? "other-month" : ""}${isToday ? " today" : ""}${fullyRestricted ? " restricted-day" : ""}${cellBlockType ? " week-block-" + cellBlockType : ""}" data-date="${dateStr}">
           <div class="month-day-num">
-            ${d.getDate()}.
+            <span class="month-day-name">${days[col]}</span>${d.getDate()}.
           </div>
           ${fullyRestricted ? `<div class="month-restriction-text" role="button" tabindex="0">🚫 ${escapeHtml(dayRestrictionReason)}</div>` : ""}
           ${dayHealth ? `<div class="month-health-text" role="button" tabindex="0">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
@@ -1929,12 +1940,23 @@ function renderMonthViewInline() {
         </div>
       `);
     }
+    weekBlocks.push(cells.join(""));
   }
 
+  const isVertical = monthCalendarMode === "mobile";
+  // Vertical layout puts the first half of the month in a left column and the rest
+  // in a right one (~2 weeks each), so it is neither page-wide nor one long list.
+  // On a phone the CSS collapses these two columns back into one, which still reads
+  // in date order because the left column holds the earlier weeks.
+  const half = Math.ceil(weekBlocks.length / 2);
+  const body = isVertical
+    ? `<div class="month-col">${weekBlocks.slice(0, half).join("")}</div><div class="month-col">${weekBlocks.slice(half).join("")}</div>`
+    : weekBlocks.join("");
+
   grid.innerHTML = `
-    <div class="month-grid">
+    <div class="month-grid${isVertical ? " month-vertical" : ""}">
       ${dayHeaders.map((h) => `<div class="month-day-header">${h}</div>`).join("")}
-      ${cells.join("")}
+      ${body}
     </div>
   `;
 }
@@ -1942,6 +1964,16 @@ function renderMonthViewInline() {
 function renderViewTabs() {
   document.querySelectorAll("[data-view]").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.view === viewMode);
+  });
+  renderLayoutTabs();
+}
+
+// The layout toggle is shared between both views, but reflects/edits the setting
+// of whichever view is currently active.
+function renderLayoutTabs() {
+  const active = viewMode === "month" ? monthCalendarMode : calendarMode;
+  document.querySelectorAll("[data-layout]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.layout === active);
   });
 }
 
@@ -2210,14 +2242,22 @@ document.getElementById("exerciseLibraryBtn")?.addEventListener("click", () => {
   window.open("https://drive.google.com/drive/folders/1OcKdRXjzMxTxAfFYTJLDGfwoCYW8w9R2?usp=drive_link", "_blank");
 });
 
-document.getElementById("calendarModeToggle").addEventListener("click", () => {
-  calendarMode = calendarMode === "desktop" ? "mobile" : "desktop";
-  localStorage.setItem("calendarMode", calendarMode);
-  document.getElementById("calendarModeToggle").textContent = calendarMode === "mobile" ? "🖥️ Datora izskats" : "📱 Mobilais izskats";
-  renderCalendar();
+document.querySelectorAll("[data-layout]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const mode = btn.dataset.layout;
+    if (viewMode === "month") {
+      monthCalendarMode = mode;
+      localStorage.setItem("monthCalendarMode", mode);
+      renderMonthViewInline();
+    } else {
+      calendarMode = mode;
+      localStorage.setItem("calendarMode", mode);
+      renderCalendar();
+    }
+    renderLayoutTabs();
+    updateMobileHeaderHeight();
+  });
 });
-
-document.getElementById("calendarModeToggle").textContent = calendarMode === "mobile" ? "🖥️ Datora izskats" : "📱 Mobilais izskats";
 
 document.querySelectorAll("[data-month-mode]").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -2414,6 +2454,9 @@ if (typeof ResizeObserver !== "undefined") {
 }
 window.addEventListener("resize", updateMobileHeaderHeight);
 updateMobileHeaderHeight();
+if (document.fonts?.ready) {
+  document.fonts.ready.then(updateMobileHeaderHeight);
+}
 
 // Hamburger menu (mobile)
 function togglePlannerMenu(open) {
@@ -2424,12 +2467,20 @@ function togglePlannerMenu(open) {
   panel.classList.toggle("open", open);
   backdrop.classList.toggle("open", open);
   updateMenuBtnArrow();
+  if (open) {
+    // Reset both: the panel itself is an overflow:hidden scroll container, so it
+    // can silently strand content out of view with no scrollbar to fix it.
+    panel.scrollTop = 0;
+    const scrollEl = panel.querySelector(".planner-panel__scroll");
+    if (scrollEl) scrollEl.scrollTop = 0;
+    requestAnimationFrame(updateMobileHeaderHeight);
+  }
 }
 
 function togglePanel(collapsed) {
   panelCollapsed = collapsed;
   localStorage.setItem("panelCollapsed", String(collapsed));
-  document.querySelector(".layout")?.classList.toggle("panel-collapsed", collapsed);
+  document.querySelector(".app-body")?.classList.toggle("panel-collapsed", collapsed);
   updateMenuBtnArrow();
 }
 

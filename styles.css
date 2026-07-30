@@ -304,13 +304,18 @@ h4 {
   box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12);
 }
 
-.layout {
+.app-body {
   display: grid;
   gap: 20px;
   grid-template-columns: 300px minmax(0, 1fr);
   align-items: stretch;
   padding: 20px;
   position: relative;
+}
+
+.layout {
+  position: relative;
+  min-width: 0;
 }
 
 .planner-panel {
@@ -341,10 +346,10 @@ h4 {
 }
 
 @media (min-width: 1041px) {
-  .layout.panel-collapsed {
+  .app-body.panel-collapsed {
     grid-template-columns: 0 1fr;
   }
-  .layout.panel-collapsed .planner-panel {
+  .app-body.panel-collapsed .planner-panel {
     overflow: hidden;
     min-width: 0;
     width: 0;
@@ -938,6 +943,9 @@ h4 {
 .week-block-type-select {
   display: flex;
   flex-direction: row;
+  /* Three options plus two dividers overflow a phone-width row otherwise, and the
+     last one ("Atpūta") gets cut off at the edge with no way to reach it. */
+  flex-wrap: wrap;
   gap: 6px;
   align-items: flex-start;
 }
@@ -1307,7 +1315,11 @@ h4 {
 
 .view-mode-tabs-group {
   display: flex;
+  /* Month view shows three toggles at once (layout, plan/done, week/month) —
+     without wrapping, the last one runs off the edge on a phone. */
+  flex-wrap: wrap;
   gap: 16px;
+  justify-content: flex-end;
   margin-left: auto;
 }
 
@@ -3432,6 +3444,79 @@ textarea:disabled {
   margin-bottom: 4px;
 }
 
+/* Day name inside a cell — only needed in the vertical layout, since the grid
+   layout already names the days in its column headers. */
+.month-day-name {
+  display: none;
+}
+
+/* Week separator — only shown in the vertical layout. It lives inside the grid,
+   so in the grid layout it must be removed from flow entirely (display: none),
+   not just made invisible, or it would shift the 7-column alignment. */
+.month-week-sep {
+  display: none;
+}
+
+/* ---- Vertical month layout ---- */
+.month-grid.month-vertical {
+  gap: 2px 16px;
+  grid-template-columns: 1fr 1fr;
+  overflow-x: visible;
+}
+
+/* Each column holds whole weeks, built in app.js — the left one gets the earlier
+   half of the month, so collapsing to a single column still reads in date order. */
+.month-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Column headers and the greyed-out neighbouring-month days exist only to keep
+   the 7-column grid aligned — in a single-column list they are just noise. */
+.month-vertical .month-day-header,
+.month-vertical .month-day-cell.other-month {
+  display: none;
+}
+
+/* Rows shrink to their content, so an empty day is one thin line instead of a
+   130px-tall empty box — this is what keeps the month list a sane length. */
+.month-vertical .month-day-cell {
+  min-height: 0;
+  overflow: visible;
+  padding: 6px 10px;
+}
+
+.month-vertical .month-day-num {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.month-vertical .month-day-name {
+  display: inline;
+}
+
+.month-vertical .month-week-sep {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 0.75rem;
+  font-weight: 800;
+  gap: 8px;
+  margin-top: 10px;
+  text-transform: uppercase;
+}
+
+.month-vertical .month-week-sep::after {
+  background: var(--line);
+  content: "";
+  flex: 1;
+  height: 1px;
+}
+
 .month-dot {
   font-size: 0.85rem;
   margin-left: 2px;
@@ -3579,23 +3664,28 @@ textarea:disabled {
     padding-right: 34px;
   }
 
-  .month-plan-summary strong,
-  .month-plan-summary span {
+  /* Direct children only: this puts the title and the description on separate
+     lines. Without the child combinator it also caught every nested pace span,
+     which broke a list of interval times onto one line each. */
+  .month-plan-summary > strong,
+  .month-plan-summary > span {
     display: block;
     overflow-wrap: break-word;
   }
 
-  .layout {
+  .app-body {
     grid-template-columns: 1fr;
   }
 
   .planner-panel {
-    background: var(--panel);
-    bottom: 0;
+    box-sizing: border-box;
+    height: 100vh;
+    height: 100dvh;
     left: 0;
     overflow: hidden;
+    padding-top: var(--mobile-header-height, 60px);
     position: fixed;
-    top: var(--mobile-header-height, 60px);
+    top: 0;
     transform: translateX(-100%);
     transition: transform 0.25s ease;
     width: 320px;
@@ -4517,7 +4607,7 @@ textarea:disabled {
     flex-basis: 100%;
   }
 
-  .layout {
+  .app-body {
     padding: 8px;
   }
 
@@ -4584,6 +4674,99 @@ textarea:disabled {
   .view-tabs button {
     padding: 8px 12px;
     font-size: 0.85rem;
+  }
+
+  .view-mode-tabs-group {
+    gap: 8px;
+  }
+
+  /* Reclaim the ~44px the dividers cost, so all three week types still fit on one
+     line at 320px instead of wrapping. */
+  #weekBlockTypeSelect .week-nav-divider {
+    display: none;
+  }
+
+  .wbt-option {
+    padding: 6px 10px;
+  }
+
+  /* Two columns would be ~200px wide on a phone — too narrow to read a training
+     description, so the vertical month falls back to a single column here. */
+  .month-grid.month-vertical {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Buttons carry a short alternative label for the narrowest phones (see below). */
+.label-short {
+  display: none;
+}
+
+/* ---- Narrow phones (iPhone SE 320px, common Android 360px, iPhone SE2 375px) ----
+   At these widths the header plus the four toolbar rows pushed the calendar ~420px
+   down the page — three quarters of a 568px-tall screen before a single training
+   was visible. Everything here is about reclaiming that vertical space; phones from
+   390px up (iPhone 14 and newer, most current Androids) keep the normal sizing. */
+@media (max-width: 380px) {
+  .app-header {
+    padding: 8px 10px;
+    row-gap: 6px;
+  }
+
+  .eyebrow {
+    font-size: 0.78rem;
+    margin-bottom: 0;
+  }
+
+  .app-header h1 {
+    font-size: 1.15rem;
+  }
+
+  .app-header .secondary-action {
+    font-size: 0.78rem;
+    padding: 6px 8px;
+  }
+
+  /* "VFS/SFS/Iesildīšanās/Drill bibliotēka" needs two lines and a row of its own
+     here; the short label keeps it to one line beside the other buttons. */
+  .label-full {
+    display: none;
+  }
+
+  .label-short {
+    display: inline;
+  }
+
+  .week-label-row {
+    gap: 8px;
+    margin-top: 8px;
+    padding: 0 10px;
+  }
+
+  #weekLabel,
+  .month-view-title {
+    font-size: 1.1rem;
+  }
+
+  #weekViewNav {
+    margin: 6px 0;
+    padding: 0 10px;
+  }
+
+  .week-nav-row button {
+    font-size: 0.75rem;
+    padding: 5px 7px;
+  }
+
+  .view-tabs button {
+    font-size: 0.78rem;
+    padding: 6px 9px;
+  }
+
+  .wbt-option {
+    font-size: 0.78rem;
+    min-height: 30px;
+    padding: 5px 8px;
   }
 }
 

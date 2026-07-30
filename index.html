@@ -55,7 +55,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=123" />
+    <link rel="stylesheet" href="styles.css?v=130" />
   </head>
   <body>
     <div id="authView">
@@ -96,18 +96,17 @@
             <p class="eyebrow">Toma Komasa</p>
             <h1>SPORTISTU PORTĀLS</h1>
           </div>
-          <button id="exerciseLibraryBtn" class="secondary-action" type="button">VFS/SFS/Iesildīšanās/Drill bibliotēka</button>
+          <button id="exerciseLibraryBtn" class="secondary-action" type="button"><span class="label-full">VFS/SFS/Iesildīšanās/Drill bibliotēka</span><span class="label-short">Bibliotēka</span></button>
         </div>
         <div class="header-right">
           <button id="changePasswordBtn" class="secondary-action" type="button">Mainīt paroli</button>
-          <button id="calendarModeToggle" class="secondary-action" type="button">📱 Mobilais izskats</button>
           <button id="logoutBtn" class="secondary-action" type="button">Iziet</button>
         </div>
       </header>
 
-      <main class="layout">
-        <div id="plannerBackdrop"></div>
-        <aside class="planner-panel">
+      <div id="plannerBackdrop"></div>
+      <div class="app-body">
+      <aside class="planner-panel">
           <div class="planner-panel__scroll">
           <section class="panel collapsible collapsed" id="adminPanel" hidden>
             <div class="panel-header">
@@ -277,8 +276,9 @@
           </section>
 
           </div>
-        </aside>
+      </aside>
 
+      <main class="layout">
         <section class="calendar-shell">
           <div id="trainingBar" class="training-bar">
             <div class="training-bar-header">
@@ -481,6 +481,10 @@
               <label class="wbt-option wbt-rest"><input type="radio" name="weekBlockType" value="rest"> Atpūta</label>
             </div>
             <div class="view-mode-tabs-group">
+              <div class="view-tabs layout-mode-tabs" id="layoutModeTabs">
+                <button class="active" data-layout="desktop" type="button">Horizontāls</button>
+                <button data-layout="mobile" type="button">Vertikāls</button>
+              </div>
               <div class="view-tabs month-mode-tabs" id="monthModeTabs" hidden>
                 <button class="active" data-month-mode="plan" type="button">Plāns</button>
                 <button data-month-mode="done" type="button">Izpilde</button>
@@ -531,6 +535,7 @@
 
         </section>
       </main>
+      </div>
     </div>
 
 
@@ -909,6 +914,6 @@
     <script src="panels/admin.js?v=2"></script>
     <script src="panels/weekly-review.js"></script>
     <script src="panels/ruffier-test.js"></script>
-    <script src="app.js?v=31"></script>
+    <script src="app.js?v=37"></script>
   </body>
 </html>
