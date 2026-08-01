@@ -1,15 +1,31 @@
-const INTERVAL_DISTANCES = [200, 300, 400, 800, 1000];
-let intervalHistoryActiveDist = 200;
+// Distance tabs are derived per athlete from their own completed interval
+// sessions, so nothing is hardcoded here. Anything outside this range is a
+// duration or a typo, not an interval length (e.g. "3min" -> 3).
+const MIN_INTERVAL_METERS = 50;
+const MAX_INTERVAL_METERS = 20000;
+const MAX_INTERVAL_SESSIONS = 3;
+
+let intervalHistoryActiveDist = null;
 
 function parseDistanceMeters(str) {
-  str = (str || "").trim().toLowerCase();
-  let m = str.match(/^(\d+)\s*m$/);
-  if (m) return parseInt(m[1]);
+  str = (str || "").trim().toLowerCase().replace(",", ".");
+  let m = str.match(/^(\d+(?:\.\d+)?)\s*m$/);
+  if (m) return Math.round(parseFloat(m[1]));
   m = str.match(/^(\d+(?:\.\d+)?)\s*km$/);
   if (m) return Math.round(parseFloat(m[1]) * 1000);
-  m = str.match(/^(\d+)$/);
-  if (m) return parseInt(m[1]);
+  m = str.match(/^(\d+(?:\.\d+)?)$/);
+  if (m) return Math.round(parseFloat(m[1]));
   return null;
+}
+
+function isPlausibleIntervalDistance(meters) {
+  return meters !== null && meters >= MIN_INTERVAL_METERS && meters <= MAX_INTERVAL_METERS;
+}
+
+function formatIntervalDistLabel(meters) {
+  if (meters < 1000) return meters + "m";
+  const km = meters / 1000;
+  return (Number.isInteger(km) ? String(km) : km.toFixed(1).replace(".", ",")) + "km";
 }
 
 function extractIntervalDistances(details) {
@@ -21,33 +37,42 @@ function extractIntervalDistances(details) {
       const result = parseSegmentsFromVarLine(line);
       result.segments.forEach(seg => {
         const d = parseDistanceMeters(seg.length);
-        if (d) distances.push(d);
+        if (isPlausibleIntervalDistance(d)) distances.push(d);
       });
     } else {
-      const m = line.match(/Pamatdaļa:\s*(\d+)x(\S+)/);
+      // Tolerates "6x400m", "6x400 m", "6x1,5km" and a bare "6x400".
+      const m = line.match(/Pamatdaļa:\s*\d+\s*x\s*([\d.,]+\s*km\b|[\d.,]+\s*m\b|[\d.,]+)/i);
       if (m) {
-        const d = parseDistanceMeters(m[2]);
-        if (d) distances.push(d);
+        const d = parseDistanceMeters(m[1]);
+        if (isPlausibleIntervalDistance(d)) distances.push(d);
       }
     }
   });
   return distances;
 }
 
-function findSessionsForDistance(athletePlans, targetMeters) {
+// One pass over the athlete's history -> Map of distance (meters) to its most
+// recent sessions. A distance only appears once the athlete has actually logged
+// that session, so every tab is guaranteed to have at least one card.
+function buildIntervalHistoryMap() {
   const today = formatDateISO(new Date());
-  const found = [];
-  for (const plan of athletePlans) {
-    if (found.length >= 3) break;
+  const logByPlanId = new Map();
+  allLogEntries.forEach(l => {
+    if (!logByPlanId.has(l.plan_id)) logByPlanId.set(l.plan_id, l);
+  });
+
+  const map = new Map();
+  for (const plan of allPlans) {
     if (plan.date > today) continue;
-    if (!allLogEntries.some(l => l.plan_id === plan.id)) continue;
-    const dists = extractIntervalDistances(plan.details);
-    if (dists.includes(targetMeters)) {
-      const log = allLogEntries.find(l => l.plan_id === plan.id);
-      found.push({ plan, log });
-    }
+    const log = logByPlanId.get(plan.id);
+    if (!log) continue;
+    new Set(extractIntervalDistances(plan.details)).forEach(d => {
+      if (!map.has(d)) map.set(d, []);
+      const sessions = map.get(d);
+      if (sessions.length < MAX_INTERVAL_SESSIONS) sessions.push({ plan, log });
+    });
   }
-  return found;
+  return map;
 }
 
 function renderIntervalHistoryCard(session) {
@@ -107,27 +132,29 @@ function renderIntervalHistory() {
     return;
   }
 
+  const historyMap = buildIntervalHistoryMap();
+  const distances = [...historyMap.keys()].sort((a, b) => a - b);
+
+  if (distances.length === 0) {
+    body.innerHTML = '<p class="interval-empty">Nav neviena intervālu treniņa</p>';
+    return;
+  }
+
+  // The previously selected distance may not exist for this athlete.
+  if (!distances.includes(intervalHistoryActiveDist)) intervalHistoryActiveDist = distances[0];
+
   let html = '<div class="interval-tabs">';
-  INTERVAL_DISTANCES.forEach(d => {
-    const label = d >= 1000 ? d / 1000 + "km" : d + "m";
+  distances.forEach(d => {
     const active = d === intervalHistoryActiveDist ? " active" : "";
-    html += `<button class="interval-tab${active}" data-dist="${d}">${label}</button>`;
+    html += `<button class="interval-tab${active}" data-dist="${d}">${formatIntervalDistLabel(d)}</button>`;
   });
   html += "</div>";
 
-  const athletePlans = allPlans;
-
-  const sessions = findSessionsForDistance(athletePlans, intervalHistoryActiveDist);
-
-  if (sessions.length === 0) {
-    html += "";
-  } else {
-    html += '<div class="interval-sessions">';
-    sessions.forEach(s => {
-      html += renderIntervalHistoryCard(s);
-    });
-    html += "</div>";
-  }
+  html += '<div class="interval-sessions">';
+  historyMap.get(intervalHistoryActiveDist).forEach(s => {
+    html += renderIntervalHistoryCard(s);
+  });
+  html += "</div>";
 
   body.innerHTML = html;
 
