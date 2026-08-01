@@ -3473,8 +3473,13 @@ textarea:disabled {
   padding: 6px 8px;
 }
 
+/* Days from the neighbouring month, kept so every row is a whole Monday-Sunday
+   week. They carry real training data, so they are dimmed enough to read as
+   "not this month" but still legible — not the near-invisible 0.35 they had
+   back when these cells were always empty spacers. */
 .month-day-cell.other-month {
-  opacity: 0.35;
+  background: rgba(0, 0, 0, 0.035);
+  opacity: 0.7;
 }
 
 .month-day-cell.today {
@@ -3525,10 +3530,11 @@ textarea:disabled {
   min-width: 0;
 }
 
-/* Column headers and the greyed-out neighbouring-month days exist only to keep
-   the 7-column grid aligned — in a single-column list they are just noise. */
-.month-vertical .month-day-header,
-.month-vertical .month-day-cell.other-month {
+/* Column headers only exist to label the 7-column grid — in a single-column
+   list they are just noise. The neighbouring-month days are kept visible here
+   (they used to be hidden), so a week that straddles two months still shows all
+   seven of its days. */
+.month-vertical .month-day-header {
   display: none;
 }
 
