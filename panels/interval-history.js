@@ -219,7 +219,14 @@ function renderIntervalHistory() {
 
     html += '<div class="interval-sessions">';
     map.get(activeKey).forEach(s => {
-      html += renderIntervalHistoryCard(s);
+      // One session with unexpected data must not blank the whole panel -
+      // without this the body stays empty and the panel looks like it refuses
+      // to open at all.
+      try {
+        html += renderIntervalHistoryCard(s);
+      } catch (err) {
+        console.error("Intervālu vēsture: neizdevās uzzīmēt " + s.plan.date, err);
+      }
     });
     html += "</div>";
   }

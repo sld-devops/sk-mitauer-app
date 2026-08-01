@@ -3899,7 +3899,10 @@ textarea:disabled {
 .interval-mode-tabs {
   margin-bottom: 8px;
 }
-.interval-mode-tabs button {
+/* Needs the doubled class: the plain `.view-tabs button` rules inside the
+   narrow-screen media queries come later in this file and would otherwise
+   win on equal specificity and undo the compact sizing. */
+.view-tabs.interval-mode-tabs button {
   font-family: inherit;
   font-size: 0.8rem;
   padding: 5px 8px;
