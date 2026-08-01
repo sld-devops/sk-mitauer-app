@@ -3895,6 +3895,16 @@ textarea:disabled {
 #intervalHistoryPanel:not(.collapsed) .panel-body {
   max-height: 4000px;
 }
+/* Compact version of the shared segmented control for the narrow sidebar. */
+.interval-mode-tabs {
+  margin-bottom: 8px;
+}
+.interval-mode-tabs button {
+  font-family: inherit;
+  font-size: 0.8rem;
+  padding: 5px 8px;
+}
+
 .interval-tabs {
   display: flex;
   flex-wrap: wrap;
