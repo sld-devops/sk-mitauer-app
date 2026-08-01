@@ -596,6 +596,21 @@ function getMonthEnd(date) {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0);
 }
 
+// The month view always draws whole Monday-Sunday weeks, so the first and last
+// row can reach into the neighbouring months. Data has to be fetched for that
+// wider range, not just the calendar month, or those days render empty.
+function getMonthGridStart(date) {
+  const d = getMonthStart(date);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d;
+}
+
+function getMonthGridEnd(date) {
+  const d = getMonthEnd(date);
+  d.setDate(d.getDate() + ((7 - d.getDay()) % 7));
+  return d;
+}
+
 const monthNamesLV = [
   "Janvāris", "Februāris", "Marts", "Aprīlis", "Maijs", "Jūnijs",
   "Jūlijs", "Augusts", "Septembris", "Oktobris", "Novembris", "Decembris",
@@ -737,10 +752,8 @@ async function loadNonTemplateData() {
   }
 
   if (viewMode === "month") {
-    const monthStart = getMonthStart(currentMonthDate);
-    const monthEnd = getMonthEnd(currentMonthDate);
-    const ms = formatDateISO(monthStart);
-    const me = formatDateISO(monthEnd);
+    const ms = formatDateISO(getMonthGridStart(currentMonthDate));
+    const me = formatDateISO(getMonthGridEnd(currentMonthDate));
     const [mp, mr, ml, md] = await Promise.all([
       safeGet(getPlans(athleteId, ms, me), []),
       safeGet(getRacesForWeek(athleteId, ms, me), []),
@@ -2273,10 +2286,8 @@ document.querySelectorAll("[data-view]").forEach((btn) => {
       currentMonthDate = new Date(currentWeekStart);
       const athleteId = getSelectedAthleteId();
       if (athleteId) {
-        const monthStart = getMonthStart(currentMonthDate);
-        const monthEnd = getMonthEnd(currentMonthDate);
-        const ms = formatDateISO(monthStart);
-        const me = formatDateISO(monthEnd);
+        const ms = formatDateISO(getMonthGridStart(currentMonthDate));
+        const me = formatDateISO(getMonthGridEnd(currentMonthDate));
         try { monthPlans = await getPlans(athleteId, ms, me); } catch (e) { monthPlans = []; }
         try { monthRaces = await getRacesForWeek(athleteId, ms, me); } catch (e) { monthRaces = []; }
         try { monthLogEntries = await getLogEntries(athleteId, ms, me); } catch (e) { monthLogEntries = []; }
@@ -2295,10 +2306,8 @@ document.getElementById("monthPrevInline")?.addEventListener("click", async () =
   currentMonthDate = newDate;
   const athleteId = getSelectedAthleteId();
   if (athleteId) {
-    const monthStart2 = getMonthStart(currentMonthDate);
-    const monthEnd = getMonthEnd(currentMonthDate);
-    const ms = formatDateISO(monthStart2);
-    const me = formatDateISO(monthEnd);
+    const ms = formatDateISO(getMonthGridStart(currentMonthDate));
+    const me = formatDateISO(getMonthGridEnd(currentMonthDate));
     try { monthPlans = await getPlans(athleteId, ms, me); } catch (e) { monthPlans = []; }
     try { monthRaces = await getRacesForWeek(athleteId, ms, me); } catch (e) { monthRaces = []; }
     try { monthLogEntries = await getLogEntries(athleteId, ms, me); } catch (e) { monthLogEntries = []; }
@@ -2311,10 +2320,8 @@ document.getElementById("monthNextInline")?.addEventListener("click", async () =
   currentMonthDate.setMonth(currentMonthDate.getMonth() + 1);
   const athleteId = getSelectedAthleteId();
   if (athleteId) {
-    const monthStart = getMonthStart(currentMonthDate);
-    const monthEnd = getMonthEnd(currentMonthDate);
-    const ms = formatDateISO(monthStart);
-    const me = formatDateISO(monthEnd);
+    const ms = formatDateISO(getMonthGridStart(currentMonthDate));
+    const me = formatDateISO(getMonthGridEnd(currentMonthDate));
     try { monthPlans = await getPlans(athleteId, ms, me); } catch (e) { monthPlans = []; }
     try { monthRaces = await getRacesForWeek(athleteId, ms, me); } catch (e) { monthRaces = []; }
     try { monthLogEntries = await getLogEntries(athleteId, ms, me); } catch (e) { monthLogEntries = []; }
@@ -2327,8 +2334,8 @@ document.getElementById("monthCurrent")?.addEventListener("click", async () => {
   currentMonthDate = new Date();
   const athleteId = getSelectedAthleteId();
   if (athleteId) {
-    const ms = formatDateISO(getMonthStart(currentMonthDate));
-    const me = formatDateISO(getMonthEnd(currentMonthDate));
+    const ms = formatDateISO(getMonthGridStart(currentMonthDate));
+    const me = formatDateISO(getMonthGridEnd(currentMonthDate));
     try { monthPlans = await getPlans(athleteId, ms, me); } catch (e) { monthPlans = []; }
     try { monthRaces = await getRacesForWeek(athleteId, ms, me); } catch (e) { monthRaces = []; }
     try { monthLogEntries = await getLogEntries(athleteId, ms, me); } catch (e) { monthLogEntries = []; }
