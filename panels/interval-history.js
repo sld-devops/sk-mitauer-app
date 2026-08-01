@@ -5,7 +5,7 @@
 // the two kinds from being confused (e.g. "3min" must not become 3 metres).
 const MIN_INTERVAL_METERS = 50;
 const MAX_INTERVAL_METERS = 20000;
-const MIN_INTERVAL_SECONDS = 15;
+const MIN_INTERVAL_SECONDS = 10;
 const MAX_INTERVAL_SECONDS = 3600;
 const MAX_INTERVAL_SESSIONS = 5;
 
