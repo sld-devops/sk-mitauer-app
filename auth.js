@@ -41,6 +41,23 @@ function showError(msg) {
   authErrorEl.hidden = false;
 }
 
+// Supabase reports auth failures in English. Match the ones a user can actually
+// hit here and fall back to a generic Latvian line for anything else, so the
+// login screen never shows raw English.
+function loginErrorLV(error) {
+  const raw = (error?.message || "").toLowerCase();
+  if (raw.includes("invalid login credentials")) {
+    return "Nepareizs lietotājvārds (vards.uzvards) un/vai parole.";
+  }
+  if (raw.includes("too many requests") || raw.includes("rate limit")) {
+    return "Par daudz mēģinājumu. Pamēģini vēlreiz pēc brīža.";
+  }
+  if (raw.includes("failed to fetch") || raw.includes("network")) {
+    return "Nav savienojuma ar serveri. Pārbaudi interneta savienojumu.";
+  }
+  return "Pieslēgšanās neizdevās. Pamēģini vēlreiz.";
+}
+
 async function login() {
   const username = usernameInput.value.toLowerCase().trim();
   const password = passwordInput.value;
@@ -57,7 +74,7 @@ async function login() {
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error || !data?.user) {
-    showError(error?.message || "Pieslēgšanās neizdevās");
+    showError(loginErrorLV(error));
     return;
   }
 
