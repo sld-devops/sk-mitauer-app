@@ -5,7 +5,7 @@
   --line: #d9dee7;
   --panel: #eef7d9;
   --page: linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.3) 100%),
-    var(--page-bg-image, url("images/bg-training.jpg?v=3"));
+    var(--page-bg-image);
   --surface: #eef7d9;
   --surface-alt: #e0efc0;
   --surface-hover: #d3e8a3;
@@ -186,26 +186,52 @@ button {
 /* ---- Header ---- */
 .app-header {
   align-items: center;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.05) 100%),
-    url("images/header-banner.jpg?v=2");
-  background-size: cover;
-  background-position: center 40%;
-  mask-image: linear-gradient(180deg, black 0%, black 55%, transparent 100%);
-  -webkit-mask-image: linear-gradient(180deg, black 0%, black 55%, transparent 100%);
   display: flex;
   justify-content: space-between;
-  padding: 22px 16px 46px;
+  padding: 18px 16px 24px;
   position: relative;
   z-index: 1;
   overflow: hidden;
   gap: 8px;
 }
 
+.app-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.05) 100%),
+    url("images/header-banner.jpg?v=3");
+  background-size: cover;
+  background-position: center 40%;
+  /* Eased fade-out. A plain two-stop gradient has a kink where the ramp starts,
+     and the banner's dark streaks make that kink read as a horizontal line
+     across the header; these stops approximate an S-curve so there is no edge. */
+  --header-fade: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 1) 22%,
+    rgba(0, 0, 0, 0.985) 33%,
+    rgba(0, 0, 0, 0.94) 44%,
+    rgba(0, 0, 0, 0.86) 53%,
+    rgba(0, 0, 0, 0.73) 62%,
+    rgba(0, 0, 0, 0.57) 70%,
+    rgba(0, 0, 0, 0.4) 78%,
+    rgba(0, 0, 0, 0.24) 85%,
+    rgba(0, 0, 0, 0.12) 91%,
+    rgba(0, 0, 0, 0.04) 96%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  mask-image: var(--header-fade);
+  -webkit-mask-image: var(--header-fade);
+  z-index: 0;
+}
+
 .header-left {
   align-items: center;
   display: flex;
   position: relative;
+  z-index: 1;
 }
 
 .header-titles {
@@ -225,6 +251,8 @@ button {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .eyebrow {
@@ -247,6 +275,14 @@ h1 {
   font-weight: 900;
   letter-spacing: 0.01em;
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.85), 0 0 3px rgba(255, 255, 255, 0.7);
+}
+
+/* Scoped to the header on purpose: the bare `.eyebrow` / `h1` rules above are
+   shared with the login card and the calendar, which sit on other backgrounds
+   and keep their white glow. Same dark halo as #weekLabel, a little stronger. */
+.header-titles .eyebrow,
+.header-titles h1 {
+  text-shadow: 0 0 12px rgba(0, 0, 0, 0.55);
 }
 
 h2,
@@ -294,13 +330,20 @@ h4 {
   box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12);
 }
 
-.layout {
+.app-body {
   display: grid;
   gap: 20px;
   grid-template-columns: 300px minmax(0, 1fr);
   align-items: stretch;
-  padding: 20px;
+  /* Less on top: it sits directly under the header's own bottom padding, and
+     the two together left a band of empty background under the title. */
+  padding: 10px 20px 20px;
   position: relative;
+}
+
+.layout {
+  position: relative;
+  min-width: 0;
 }
 
 .planner-panel {
@@ -331,10 +374,10 @@ h4 {
 }
 
 @media (min-width: 1041px) {
-  .layout.panel-collapsed {
+  .app-body.panel-collapsed {
     grid-template-columns: 0 1fr;
   }
-  .layout.panel-collapsed .planner-panel {
+  .app-body.panel-collapsed .planner-panel {
     overflow: hidden;
     min-width: 0;
     width: 0;
@@ -411,6 +454,7 @@ h4 {
 
 #athleteSelectorPanel .panel-body {
   padding: 0 10px 8px;
+  overflow: visible;
 }
 
 #athleteSelectorPanel .panel-header-row h2 {
@@ -837,25 +881,14 @@ h4 {
   color: var(--ink);
 }
 
-.toolbar {
-  align-items: center;
-  border-bottom: 1px solid var(--line);
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 16px;
-  padding: 12px 16px;
+.month-view-title {
+  color: var(--ink);
+  font-size: calc(1.35rem + 2px);
+  margin: 0;
+  padding: 0;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.45);
 }
-.toolbar > div:first-child {
-  grid-column: 1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.toolbar h2 {
-  font-size: 1.35rem;
-  margin-bottom: 0;
-}
+
 .week-nav {
   grid-column: 3;
   justify-self: end;
@@ -910,11 +943,7 @@ h4 {
 }
 
 #openRaceBtn {
-  margin: 10px 0 0 16px;
-}
-
-#monthView .week-nav {
-  flex-direction: row;
+  margin: 10px 0;
 }
 
 .week-nav-row {
@@ -942,6 +971,9 @@ h4 {
 .week-block-type-select {
   display: flex;
   flex-direction: row;
+  /* Three options plus two dividers overflow a phone-width row otherwise, and the
+     last one ("Atpūta") gets cut off at the edge with no way to reach it. */
+  flex-wrap: wrap;
   gap: 6px;
   align-items: flex-start;
 }
@@ -964,6 +996,14 @@ h4 {
 
 .wbt-option input {
   margin: 0;
+}
+
+.week-block-type-select.readonly-wbt {
+  pointer-events: none;
+}
+
+.week-block-type-select.readonly-wbt .wbt-option {
+  cursor: default;
 }
 
 .wbt-load { color: var(--ink); }
@@ -1301,12 +1341,21 @@ h4 {
   position: relative;
 }
 
+.view-mode-tabs-group {
+  display: flex;
+  /* Month view shows three toggles at once (layout, plan/done, week/month) —
+     without wrapping, the last one runs off the edge on a phone. */
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
 .view-tabs {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
   display: flex;
-  margin-left: auto;
   padding: 4px;
 }
 
@@ -1687,6 +1736,13 @@ label {
   margin-top: 10px;
 }
 
+/* Without this the last row of inputs sits flush against the bottom of the
+   panel. Same 6px .zone-row gives every row in the pace/HR panel; it collapses
+   with the 10px above, so the spacing between rows is unchanged. */
+.profile-section .field-grid {
+  margin-bottom: 6px;
+}
+
 .generated-preview {
   background: #fff;
   border: 1px solid var(--line);
@@ -1785,7 +1841,7 @@ label {
 }
 
 .day-column.today .day-date {
-  font-weight: 700;
+  font-weight: 800;
   color: var(--accent);
 }
 
@@ -1799,7 +1855,7 @@ label {
 }
 
 .day-date {
-  font-weight: 400;
+  font-weight: 800;
   text-transform: none;
 }
 
@@ -2404,9 +2460,9 @@ label {
   color: var(--success);
 }
 .log-interval-pace.pace-slow {
-  background: var(--info-bg);
-  border-color: var(--info);
-  color: var(--info);
+  background: var(--info-accent-bg);
+  border-color: var(--info-accent);
+  color: var(--info-accent);
 }
 .log-interval-pace.pace-warn {
   background: var(--warning-bg);
@@ -2427,9 +2483,9 @@ label {
   color: var(--success);
 }
 .log-actual-pace.pace-slow {
-  background: var(--info-bg);
-  border-color: var(--info);
-  color: var(--info);
+  background: var(--info-accent-bg);
+  border-color: var(--info-accent);
+  color: var(--info-accent);
 }
 .log-actual-pace.pace-warn {
   background: var(--warning-bg);
@@ -2471,7 +2527,7 @@ label {
 
 .pace-text-fast { color: var(--danger); font-weight: 700; }
 .pace-text-good { color: var(--success); font-weight: 700; }
-.pace-text-slow { color: var(--info); font-weight: 700; }
+.pace-text-slow { color: var(--info-accent); font-weight: 700; }
 .pace-text-warn { color: var(--warning); font-weight: 700; }
 
 .log-actual-pulse { width: 160px; }
@@ -3423,6 +3479,79 @@ textarea:disabled {
   margin-bottom: 4px;
 }
 
+/* Day name inside a cell — only needed in the vertical layout, since the grid
+   layout already names the days in its column headers. */
+.month-day-name {
+  display: none;
+}
+
+/* Week separator — only shown in the vertical layout. It lives inside the grid,
+   so in the grid layout it must be removed from flow entirely (display: none),
+   not just made invisible, or it would shift the 7-column alignment. */
+.month-week-sep {
+  display: none;
+}
+
+/* ---- Vertical month layout ---- */
+.month-grid.month-vertical {
+  gap: 2px 16px;
+  grid-template-columns: 1fr 1fr;
+  overflow-x: visible;
+}
+
+/* Each column holds whole weeks, built in app.js — the left one gets the earlier
+   half of the month, so collapsing to a single column still reads in date order. */
+.month-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Column headers and the greyed-out neighbouring-month days exist only to keep
+   the 7-column grid aligned — in a single-column list they are just noise. */
+.month-vertical .month-day-header,
+.month-vertical .month-day-cell.other-month {
+  display: none;
+}
+
+/* Rows shrink to their content, so an empty day is one thin line instead of a
+   130px-tall empty box — this is what keeps the month list a sane length. */
+.month-vertical .month-day-cell {
+  min-height: 0;
+  overflow: visible;
+  padding: 6px 10px;
+}
+
+.month-vertical .month-day-num {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.month-vertical .month-day-name {
+  display: inline;
+}
+
+.month-vertical .month-week-sep {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 0.75rem;
+  font-weight: 800;
+  gap: 8px;
+  margin-top: 10px;
+  text-transform: uppercase;
+}
+
+.month-vertical .month-week-sep::after {
+  background: var(--line);
+  content: "";
+  flex: 1;
+  height: 1px;
+}
+
 .month-dot {
   font-size: 0.85rem;
   margin-left: 2px;
@@ -3456,7 +3585,11 @@ textarea:disabled {
   display: block;
 }
 
-.month-plan span {
+.month-plan strong + br {
+  display: none;
+}
+
+.month-plan span:not([class*="pace-text-"]) {
   color: #000;
 }
 
@@ -3470,6 +3603,11 @@ textarea:disabled {
 
 .month-plan.expanded .month-plan-full {
   display: block;
+}
+
+.month-plan.month-log {
+  background: var(--success-bg);
+  border-color: var(--success-border);
 }
 
 .month-race {
@@ -3499,6 +3637,15 @@ textarea:disabled {
 .month-race-dist {
   color: var(--ink);
   font-weight: 800;
+}
+
+.month-race-result {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: 4px;
+  color: var(--ink);
+  font-weight: 700;
+  padding: 1px 6px;
 }
 
 @media (max-width: 1040px) {
@@ -3552,23 +3699,28 @@ textarea:disabled {
     padding-right: 34px;
   }
 
-  .month-plan-summary strong,
-  .month-plan-summary span {
+  /* Direct children only: this puts the title and the description on separate
+     lines. Without the child combinator it also caught every nested pace span,
+     which broke a list of interval times onto one line each. */
+  .month-plan-summary > strong,
+  .month-plan-summary > span {
     display: block;
     overflow-wrap: break-word;
   }
 
-  .layout {
+  .app-body {
     grid-template-columns: 1fr;
   }
 
   .planner-panel {
-    background: var(--panel);
-    bottom: 0;
+    box-sizing: border-box;
+    height: 100vh;
+    height: 100dvh;
     left: 0;
     overflow: hidden;
+    padding-top: var(--mobile-header-height, 60px);
     position: fixed;
-    top: var(--mobile-header-height, 60px);
+    top: 0;
     transform: translateX(-100%);
     transition: transform 0.25s ease;
     width: 320px;
@@ -3773,14 +3925,34 @@ textarea:disabled {
 }
 
 /* ---- Interval history ---- */
+/* Five full session cards can approach 2000px, the shared .panel-body collapse
+   cap, which would silently clip the last card. */
+#intervalHistoryPanel:not(.collapsed) .panel-body {
+  max-height: 4000px;
+}
+/* Compact version of the shared segmented control for the narrow sidebar. */
+.interval-mode-tabs {
+  margin-bottom: 8px;
+}
+/* Needs the doubled class: the plain `.view-tabs button` rules inside the
+   narrow-screen media queries come later in this file and would otherwise
+   win on equal specificity and undo the compact sizing. */
+.view-tabs.interval-mode-tabs button {
+  font-family: inherit;
+  font-size: 0.8rem;
+  padding: 5px 8px;
+}
+
 .interval-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 8px;
 }
 .interval-tab {
-  flex: 1;
-  padding: 4px 0;
+  flex: 1 1 46px;
+  min-width: 46px;
+  padding: 4px 6px;
   font-size: 0.75rem;
   font-weight: 600;
   text-align: center;
@@ -4470,14 +4642,6 @@ textarea:disabled {
 }
 
 @media (max-width: 720px) {
-  .toolbar {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    padding: 10px 12px;
-  }
-
   .week-nav {
     align-items: stretch;
   }
@@ -4498,7 +4662,7 @@ textarea:disabled {
     flex-basis: 100%;
   }
 
-  .layout {
+  .app-body {
     padding: 8px;
   }
 
@@ -4565,6 +4729,99 @@ textarea:disabled {
   .view-tabs button {
     padding: 8px 12px;
     font-size: 0.85rem;
+  }
+
+  .view-mode-tabs-group {
+    gap: 8px;
+  }
+
+  /* Reclaim the ~44px the dividers cost, so all three week types still fit on one
+     line at 320px instead of wrapping. */
+  #weekBlockTypeSelect .week-nav-divider {
+    display: none;
+  }
+
+  .wbt-option {
+    padding: 6px 10px;
+  }
+
+  /* Two columns would be ~200px wide on a phone — too narrow to read a training
+     description, so the vertical month falls back to a single column here. */
+  .month-grid.month-vertical {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Buttons carry a short alternative label for the narrowest phones (see below). */
+.label-short {
+  display: none;
+}
+
+/* ---- Narrow phones (iPhone SE 320px, common Android 360px, iPhone SE2 375px) ----
+   At these widths the header plus the four toolbar rows pushed the calendar ~420px
+   down the page — three quarters of a 568px-tall screen before a single training
+   was visible. Everything here is about reclaiming that vertical space; phones from
+   390px up (iPhone 14 and newer, most current Androids) keep the normal sizing. */
+@media (max-width: 380px) {
+  .app-header {
+    padding: 8px 10px;
+    row-gap: 6px;
+  }
+
+  .eyebrow {
+    font-size: 0.78rem;
+    margin-bottom: 0;
+  }
+
+  .app-header h1 {
+    font-size: 1.15rem;
+  }
+
+  .app-header .secondary-action {
+    font-size: 0.78rem;
+    padding: 6px 8px;
+  }
+
+  /* "VFS/SFS/Iesildīšanās/Drill bibliotēka" needs two lines and a row of its own
+     here; the short label keeps it to one line beside the other buttons. */
+  .label-full {
+    display: none;
+  }
+
+  .label-short {
+    display: inline;
+  }
+
+  .week-label-row {
+    gap: 8px;
+    margin-top: 8px;
+    padding: 0 10px;
+  }
+
+  #weekLabel,
+  .month-view-title {
+    font-size: 1.1rem;
+  }
+
+  #weekViewNav {
+    margin: 6px 0;
+    padding: 0 10px;
+  }
+
+  .week-nav-row button {
+    font-size: 0.75rem;
+    padding: 5px 7px;
+  }
+
+  .view-tabs button {
+    font-size: 0.78rem;
+    padding: 6px 9px;
+  }
+
+  .wbt-option {
+    font-size: 0.78rem;
+    min-height: 30px;
+    padding: 5px 8px;
   }
 }
 

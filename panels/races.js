@@ -154,7 +154,7 @@ function renderRaceTabFromRaces(allRaces, tab) {
   const races = tab === "upcoming" ? upcoming : past;
   const content = document.getElementById("raceCalendarContent");
   if (!races.length) {
-    content.innerHTML = '<p class="muted">Nav sacensību.</p>';
+    content.innerHTML = "";
     return;
   }
   const isAthleteOwner = (activeRole === "athlete") && currentUser.id === athleteId;
