@@ -3,7 +3,7 @@
 // duration or a typo, not an interval length (e.g. "3min" -> 3).
 const MIN_INTERVAL_METERS = 50;
 const MAX_INTERVAL_METERS = 20000;
-const MAX_INTERVAL_SESSIONS = 3;
+const MAX_INTERVAL_SESSIONS = 5;
 
 let intervalHistoryActiveDist = null;
 

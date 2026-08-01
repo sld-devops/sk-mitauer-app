@@ -3890,6 +3890,11 @@ textarea:disabled {
 }
 
 /* ---- Interval history ---- */
+/* Five full session cards can approach 2000px, the shared .panel-body collapse
+   cap, which would silently clip the last card. */
+#intervalHistoryPanel:not(.collapsed) .panel-body {
+  max-height: 4000px;
+}
 .interval-tabs {
   display: flex;
   flex-wrap: wrap;
