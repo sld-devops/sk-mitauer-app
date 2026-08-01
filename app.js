@@ -6,9 +6,8 @@ const days = [
 let selectedTemplateId = null;
 let activeRole = "athlete";
 // "desktop" = horizontal layout (days side by side), "mobile" = vertical layout (days stacked).
-// Week view and month view each remember their own choice.
+// Week view only — the month view is always a 7-column grid, so it has no such choice.
 let calendarMode = localStorage.getItem("calendarMode") || (window.matchMedia("(max-width: 1040px)").matches ? "mobile" : "desktop");
-let monthCalendarMode = localStorage.getItem("monthCalendarMode") || (window.matchMedia("(max-width: 1040px)").matches ? "mobile" : "desktop");
 
 // check for existing session on load
 (async () => {
@@ -1844,9 +1843,7 @@ function renderMonthViewInline() {
   const todayStr = formatDateISO(today);
 
   const dayHeaders = ["P", "O", "T", "C", "Pk", "S", "Sv"];
-  // One entry per calendar week (its separator + 7 day cells), kept grouped so the
-  // vertical layout can split the month into two side-by-side columns.
-  const weekBlocks = [];
+  const cells = [];
 
   const startDay = monthStart.getDay();
   const padStart = (startDay + 6) % 7;
@@ -1858,11 +1855,6 @@ function renderMonthViewInline() {
   const rows = Math.ceil(totalCells / 7);
 
   for (let row = 0; row < rows; row++) {
-    const rowStart = new Date(firstCell);
-    rowStart.setDate(firstCell.getDate() + row * 7);
-    // Only shown in the vertical layout (hidden by CSS in the grid layout, so it
-    // cannot shift the 7-column alignment).
-    const cells = [`<div class="month-week-sep">${getWeekLabel(rowStart)}</div>`];
     for (let col = 0; col < 7; col++) {
       const d = new Date(firstCell);
       d.setDate(firstCell.getDate() + row * 7 + col);
@@ -1942,9 +1934,7 @@ function renderMonthViewInline() {
 
       cells.push(`
         <div class="month-day-cell ${isOtherMonth ? "other-month" : ""}${isToday ? " today" : ""}${fullyRestricted ? " restricted-day" : ""}${cellBlockType ? " week-block-" + cellBlockType : ""}" data-date="${dateStr}">
-          <div class="month-day-num">
-            <span class="month-day-name">${days[col]}</span>${d.getDate()}.
-          </div>
+          <div class="month-day-num">${d.getDate()}.</div>
           ${fullyRestricted ? `<div class="month-restriction-text" role="button" tabindex="0">🚫 ${escapeHtml(dayRestrictionReason)}</div>` : ""}
           ${dayHealth ? `<div class="month-health-text" role="button" tabindex="0">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
           ${isRestDay && !dayPlans.length && !dayRaces.length ? `<div class="day-rest-text">🌴 Brīvdiena</div>` : ""}
@@ -1953,23 +1943,12 @@ function renderMonthViewInline() {
         </div>
       `);
     }
-    weekBlocks.push(cells.join(""));
   }
 
-  const isVertical = monthCalendarMode === "mobile";
-  // Vertical layout puts the first half of the month in a left column and the rest
-  // in a right one (~2 weeks each), so it is neither page-wide nor one long list.
-  // On a phone the CSS collapses these two columns back into one, which still reads
-  // in date order because the left column holds the earlier weeks.
-  const half = Math.ceil(weekBlocks.length / 2);
-  const body = isVertical
-    ? `<div class="month-col">${weekBlocks.slice(0, half).join("")}</div><div class="month-col">${weekBlocks.slice(half).join("")}</div>`
-    : weekBlocks.join("");
-
   grid.innerHTML = `
-    <div class="month-grid${isVertical ? " month-vertical" : ""}">
+    <div class="month-grid">
       ${dayHeaders.map((h) => `<div class="month-day-header">${h}</div>`).join("")}
-      ${body}
+      ${cells.join("")}
     </div>
   `;
 }
@@ -1981,12 +1960,14 @@ function renderViewTabs() {
   renderLayoutTabs();
 }
 
-// The layout toggle is shared between both views, but reflects/edits the setting
-// of whichever view is currently active.
+// The layout toggle belongs to the week view only — the month view is always a
+// 7-column grid, so the whole toggle is hidden there rather than left showing a
+// choice that does nothing.
 function renderLayoutTabs() {
-  const active = viewMode === "month" ? monthCalendarMode : calendarMode;
+  const tabs = document.getElementById("layoutModeTabs");
+  if (tabs) tabs.hidden = viewMode === "month";
   document.querySelectorAll("[data-layout]").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.layout === active);
+    btn.classList.toggle("active", btn.dataset.layout === calendarMode);
   });
 }
 
@@ -2257,16 +2238,9 @@ document.getElementById("exerciseLibraryBtn")?.addEventListener("click", () => {
 
 document.querySelectorAll("[data-layout]").forEach((btn) => {
   btn.addEventListener("click", () => {
-    const mode = btn.dataset.layout;
-    if (viewMode === "month") {
-      monthCalendarMode = mode;
-      localStorage.setItem("monthCalendarMode", mode);
-      renderMonthViewInline();
-    } else {
-      calendarMode = mode;
-      localStorage.setItem("calendarMode", mode);
-      renderCalendar();
-    }
+    calendarMode = btn.dataset.layout;
+    localStorage.setItem("calendarMode", calendarMode);
+    renderCalendar();
     renderLayoutTabs();
     updateMobileHeaderHeight();
   });

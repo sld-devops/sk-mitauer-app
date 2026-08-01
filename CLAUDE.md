@@ -115,6 +115,20 @@ When building or restyling a list-style panel body in the sidebar (the narrow ~3
 - **Never commit or push to `main`** — all work happens on `feature` (or another working branch); the user merges to `main` themselves to trigger the Netlify deploy.
 - Keep explanations simple and non-technical when talking to the user, and respond in Latvian (per the user's stated preference).
 
+### Verifying in a headless browser (screenshots included)
+
+The owner has standing permission for Claude to take screenshots of the app during testing **and to read them back** — reading a screenshot you just captured is part of the normal verify step, not something to ask about each time. Look at the picture; do not stop at "the script ran without errors". For anything visual (layout, spacing, colour, whether an element is on screen at all), the screenshot *is* the evidence — several bugs this repo has hit were invisible to DOM/computed-style probes and obvious in the image.
+
+The working recipe, refined over several sessions:
+
+- **Stage a copy, don't test in place.** Copy `index.html`, `styles.css`, `db.js`, `auth.js`, `app.js`, `panels/`, `images/` into a scratch dir **under `~/.cache/`** — snap chromium cannot read `/tmp/claude-.../scratchpad`, so a page staged there loads as a blank screen.
+- **Stub Supabase.** In the staged `index.html`, replace the `<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">` tag with an inline `window.supabase` stub exposing `createClient()` (returning itself), `auth.getSession/onAuthStateChange/signInWithPassword/signOut/updateUser`, and a chainable `from()` whose `then()` resolves `{ data: [], error: null }`. `db.js` does `window.supabase = window.supabase.createClient(...)`, so the stub must be defined *before* it. This keeps tests off the live database entirely.
+- **Drive it with a probe script** appended after `app.js`: unhide `#appView`, set the globals the feature needs (`currentUser`, `currentProfile`, `activeRole`, `athletes`, `athleteSelect.value`, the relevant `month*`/`plans`/`restrictions`/… arrays), then call the real `render*()` function. Note `renderProfile()` reads `currentUser.id` and `profile.role`, so those must be set or `render()` throws.
+- **`--dump-dom` gives no computed styles**, so a probe must write its findings into a `<pre id="...">` in the page and the shell extracts that element from the dumped DOM. Add `* { transition: none !important }` when reading values that animate.
+- **Screenshot with `--screenshot=` plus a wide `--window-size`**, then crop/downscale with PIL (Pillow is available; imagemagick and ffmpeg are not) and open the result with the Read tool. Below 1040px `.planner-panel` becomes an off-canvas fixed drawer, so sidebar-panel screenshots need a wide viewport or the sidebar comes out blank. Chromium also clamps `--window-size` width to ~500px minimum, so a "375px phone" screenshot is really ~500px.
+- Playwright's bundled chromium is broken here (missing `libnspr4.so`) — use the system `chromium` binary with `--headless --no-sandbox --disable-gpu --virtual-time-budget=<ms>`.
+- **Delete the staged directory when done.**
+
 ### Splitting `app.js` into smaller files (in progress)
 
 The owner agrees the single ~6100-line `app.js` is itself a source of the recurring damage and wants it split into smaller, focused files (still plain `<script>` tags, no bundler/build step needed) — but has delegated the *how* entirely to Claude, since they can't evaluate JS structure themselves.

@@ -3501,80 +3501,6 @@ textarea:disabled {
   margin-bottom: 4px;
 }
 
-/* Day name inside a cell — only needed in the vertical layout, since the grid
-   layout already names the days in its column headers. */
-.month-day-name {
-  display: none;
-}
-
-/* Week separator — only shown in the vertical layout. It lives inside the grid,
-   so in the grid layout it must be removed from flow entirely (display: none),
-   not just made invisible, or it would shift the 7-column alignment. */
-.month-week-sep {
-  display: none;
-}
-
-/* ---- Vertical month layout ---- */
-.month-grid.month-vertical {
-  gap: 2px 16px;
-  grid-template-columns: 1fr 1fr;
-  overflow-x: visible;
-}
-
-/* Each column holds whole weeks, built in app.js — the left one gets the earlier
-   half of the month, so collapsing to a single column still reads in date order. */
-.month-col {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-/* Column headers only exist to label the 7-column grid — in a single-column
-   list they are just noise. The neighbouring-month days are kept visible here
-   (they used to be hidden), so a week that straddles two months still shows all
-   seven of its days. */
-.month-vertical .month-day-header {
-  display: none;
-}
-
-/* Rows shrink to their content, so an empty day is one thin line instead of a
-   130px-tall empty box — this is what keeps the month list a sane length. */
-.month-vertical .month-day-cell {
-  min-height: 0;
-  overflow: visible;
-  padding: 6px 10px;
-}
-
-.month-vertical .month-day-num {
-  align-items: baseline;
-  display: flex;
-  gap: 8px;
-  margin-bottom: 2px;
-}
-
-.month-vertical .month-day-name {
-  display: inline;
-}
-
-.month-vertical .month-week-sep {
-  align-items: center;
-  color: var(--muted);
-  display: flex;
-  font-size: 0.75rem;
-  font-weight: 800;
-  gap: 8px;
-  margin-top: 10px;
-  text-transform: uppercase;
-}
-
-.month-vertical .month-week-sep::after {
-  background: var(--line);
-  content: "";
-  flex: 1;
-  height: 1px;
-}
-
 .month-dot {
   font-size: 0.85rem;
   margin-left: 2px;
@@ -4795,12 +4721,6 @@ textarea:disabled {
 
   .wbt-option {
     padding: 6px 10px;
-  }
-
-  /* Two columns would be ~200px wide on a phone — too narrow to read a training
-     description, so the vertical month falls back to a single column here. */
-  .month-grid.month-vertical {
-    grid-template-columns: 1fr;
   }
 }
 
