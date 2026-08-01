@@ -2425,9 +2425,9 @@ label {
   color: var(--success);
 }
 .log-interval-pace.pace-slow {
-  background: var(--info-bg);
-  border-color: var(--info);
-  color: var(--info);
+  background: var(--info-accent-bg);
+  border-color: var(--info-accent);
+  color: var(--info-accent);
 }
 .log-interval-pace.pace-warn {
   background: var(--warning-bg);
@@ -2448,9 +2448,9 @@ label {
   color: var(--success);
 }
 .log-actual-pace.pace-slow {
-  background: var(--info-bg);
-  border-color: var(--info);
-  color: var(--info);
+  background: var(--info-accent-bg);
+  border-color: var(--info-accent);
+  color: var(--info-accent);
 }
 .log-actual-pace.pace-warn {
   background: var(--warning-bg);
@@ -2492,7 +2492,7 @@ label {
 
 .pace-text-fast { color: var(--danger); font-weight: 700; }
 .pace-text-good { color: var(--success); font-weight: 700; }
-.pace-text-slow { color: var(--info); font-weight: 700; }
+.pace-text-slow { color: var(--info-accent); font-weight: 700; }
 .pace-text-warn { color: var(--warning); font-weight: 700; }
 
 .log-actual-pulse { width: 160px; }
