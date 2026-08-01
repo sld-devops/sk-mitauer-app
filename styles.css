@@ -1736,6 +1736,13 @@ label {
   margin-top: 10px;
 }
 
+/* Without this the last row of inputs sits flush against the bottom of the
+   panel. Same 6px .zone-row gives every row in the pace/HR panel; it collapses
+   with the 10px above, so the spacing between rows is unchanged. */
+.profile-section .field-grid {
+  margin-bottom: 6px;
+}
+
 .generated-preview {
   background: #fff;
   border: 1px solid var(--line);
