@@ -1,5 +1,37 @@
 const profileCard = document.getElementById("profileCard");
 const urlEditState = { garmin: false, strava: false, spreadsheet: false };
+
+// Pace/HR is edited by both the coach and the athlete, so each side gets a
+// badge when the *other* one changed it. Who-and-when rides along inside the
+// existing pace_hr_map JSON under "_meta" rather than in new profile columns;
+// renderPaceHrMap only ever reads the fixed HR keys, so the extra key is inert.
+// "Seen" is per-browser, like every other panel badge: athlete id -> the last
+// edit timestamp this browser has already looked at.
+let seenPaceHrEdits = {};
+
+function loadSeenPaceHrEdits() {
+  try {
+    seenPaceHrEdits = JSON.parse(localStorage.getItem("seenPaceHrEdits")) || {};
+  } catch (e) {
+    seenPaceHrEdits = {};
+  }
+}
+
+function saveSeenPaceHrEdits() {
+  localStorage.setItem("seenPaceHrEdits", JSON.stringify(seenPaceHrEdits));
+}
+
+function isPaceHrEditSeen(athleteId, editedAt) {
+  return seenPaceHrEdits[athleteId] === editedAt;
+}
+
+function markPaceHrEditSeen(athleteId, editedAt) {
+  if (!athleteId || !editedAt) return;
+  seenPaceHrEdits[athleteId] = editedAt;
+  saveSeenPaceHrEdits();
+}
+
+loadSeenPaceHrEdits();
 profileCard.addEventListener("click", (e) => {
   const btn = e.target.closest(".url-edit-btn");
   if (!btn) return;
@@ -130,8 +162,10 @@ function renderPaceHrMap() {
     ? athletes.find((a) => a.id === athleteId) || currentProfile
     : currentProfile;
   const paceHrMap = profile.pace_hr_map || {};
-  const canEdit = !isCoach();
-  const disabled = canEdit ? "" : "disabled";
+  const meta = paceHrMap._meta || {};
+  const myRole = isCoach() ? "coach" : "athlete";
+  const editedByOther = !!(meta.at && meta.by && meta.by !== myRole);
+  const unseen = editedByOther && !isPaceHrEditSeen(profile.id, meta.at);
 
   const hrValues = ["125", "135", "145", "155", "165"];
   const zoneRowsHtml = hrValues
@@ -140,22 +174,37 @@ function renderPaceHrMap() {
       return `
         <div class="zone-row">
           <span class="zone-num">${hr}</span>
-          <input class="zone-no" value="${entry.no || ""}" placeholder="no" ${disabled} />
-          <input class="zone-lidz" value="${entry.lidz || ""}" placeholder="līdz" ${disabled} />
+          <input class="zone-no" value="${entry.no || ""}" placeholder="no" />
+          <input class="zone-lidz" value="${entry.lidz || ""}" placeholder="līdz" />
         </div>
       `;
     })
     .join("");
 
+  // Local time on purpose - the stored stamp is UTC, and slicing its date off
+  // would show the previous day for anything edited late in the evening here.
+  let noteHtml = "";
+  if (meta.at) {
+    const d = new Date(meta.at);
+    const when = `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}. ${
+      String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    const who = meta.by === "coach" ? "Treneris" : "Sportists";
+    noteHtml = `<p class="pace-hr-note${unseen ? " is-new" : ""}">${who} laboja ${when}</p>`;
+  }
+
   document.getElementById("paceHrBody").innerHTML = `
     <div class="profile-section" id="paceHrFields">${zoneRowsHtml}</div>
+    ${noteHtml}
   `;
 
-  if (canEdit) {
-    document.querySelectorAll("#paceHrFields .zone-no, #paceHrFields .zone-lidz").forEach(el => {
-      el.addEventListener("change", savePaceHrMap);
-    });
-  }
+  const panel = document.getElementById("paceHrPanel");
+  panel.classList.toggle("has-entries", unseen);
+  const header = panel.querySelector(".panel-header");
+  if (header) header.dataset.count = unseen ? "1" : "0";
+
+  document.querySelectorAll("#paceHrFields .zone-no, #paceHrFields .zone-lidz").forEach(el => {
+    el.addEventListener("change", savePaceHrMap);
+  });
 }
 
 function getViewedProfile() {
@@ -245,8 +294,13 @@ async function savePaceHrMap() {
       paceHrMap[hr] = { no, lidz };
     }
   });
+  // Stamp who saved it, so the other side can be told there is something new.
+  const editedAt = new Date().toISOString();
+  paceHrMap._meta = { by: isCoach() ? "coach" : "athlete", at: editedAt };
   try {
     await updateProfile(profile.id, { pace_hr_map: paceHrMap });
+    // Our own edit must never come back to us as a notification.
+    markPaceHrEditSeen(profile.id, editedAt);
     if (profile.id === currentUser.id) {
       currentProfile = await getProfile(currentUser.id);
     }
@@ -255,5 +309,6 @@ async function savePaceHrMap() {
     render();
   } catch (e) {
     console.error(e);
+    alert("Saglabāšana neizdevās (iespējams, trūkst tiesību).");
   }
 }

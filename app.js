@@ -2426,6 +2426,18 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
       }
     }
 
+    // Not gated on the coach like the panels above: pace/HR is edited by both
+    // sides, so both need their badge cleared when they look at it.
+    if (panel.id === "paceHrPanel" && wasCollapsed && !panel.classList.contains("collapsed")) {
+      const profile = getViewedProfile();
+      const editedAt = profile?.pace_hr_map?._meta?.at;
+      if (profile && editedAt) {
+        markPaceHrEditSeen(profile.id, editedAt);
+        panel.classList.toggle("has-entries", false);
+        panel.querySelector(".panel-header").dataset.count = "0";
+      }
+    }
+
     if (panel.id === "raceCalendarPanel" && wasCollapsed && !panel.classList.contains("collapsed")) {
       onRaceCalendarExpand();
     }
