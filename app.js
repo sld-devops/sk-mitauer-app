@@ -1646,29 +1646,99 @@ function extractMainPart(details) {
   return main.length ? main[0] : lines[0] || "";
 }
 
-function extractLogMainPartHtml(logData, paceBoundsMap, plannedIntervalCount) {
+// How the plan groups its intervals, e.g. 6x400m + 4x200m -> [6, 4]. Used to
+// break the executed times into the same blocks and average each one on its
+// own; a plain 6x400m is a single block of 6.
+function getPlannedIntervalBlocks(planDetails) {
+  if (!planDetails) return [];
+  for (const line of planDetails.split("\n")) {
+    if (!line.includes("Pamatdaļa:")) continue;
+    if (isVarIntervalLine(line)) {
+      const result = parseSegmentsFromVarLine(line);
+      return result.segments.map((seg) => (result.isGrouped ? seg.reps : 1));
+    }
+    const m = line.match(/Pamatdaļa:\s*(\d+)x(\S+)/);
+    if (m) return [parseInt(m[1])];
+  }
+  return [];
+}
+
+// The athlete writes either bare seconds ("72.5") or mm:ss ("5:30"), so the
+// average comes back in whichever style was used. One value is not an
+// average, so a lone interval gets nothing.
+function averageIntervalTime(paceStrings) {
+  const seconds = [];
+  let anyClock = false;
+  paceStrings.forEach((raw) => {
+    const s = String(raw || "").trim();
+    if (/^\d+:\d+$/.test(s)) anyClock = true;
+    const p = parseAthleteInput(s);
+    if (p) seconds.push(p.m * 60 + p.s);
+  });
+  if (seconds.length < 2) return "";
+  const avg = seconds.reduce((a, b) => a + b, 0) / seconds.length;
+  if (anyClock) {
+    const total = Math.round(avg);
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+  }
+  return String(Math.round(avg * 10) / 10);
+}
+
+// Builds the "76.5, 77.5, ... (vid. 74.6) + 31.5, 33.1, ... (vid. 32.3)" line:
+// each planned block on its own, joined with " + ", extras beyond the plan
+// appended the way they always were.
+function buildIntervalDisplayHtml(done, paceBoundsMap, section, plannedIntervalCount, planDetails) {
+  const colored = [];
+  const paces = [];
+  done.forEach((v, i) => {
+    const spaceIdx = v.indexOf(' ');
+    const paceStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(spaceIdx + 1).trim() : v;
+    const distStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(0, spaceIdx) : '';
+    const p = parseAthleteInput(paceStr);
+    const segBounds = paceBoundsMap?.[`seg${i + 1}`] || paceBoundsMap?.[section];
+    const c = p ? getPaceColor(p, segBounds) : "";
+    const coloredPace = c ? `<span class="pace-text-${c}">${paceStr}</span>` : paceStr;
+    colored.push(distStr ? distStr + ' ' + coloredPace : coloredPace);
+    paces.push(paceStr);
+  });
+
+  const hasPlan = !!(paceBoundsMap && Object.keys(paceBoundsMap).length);
+  const plannedCount = hasPlan && plannedIntervalCount > 0
+    ? Math.min(done.length, plannedIntervalCount)
+    : done.length;
+
+  const blockPart = (from, to) => {
+    const avg = averageIntervalTime(paces.slice(from, to));
+    return colored.slice(from, to).join(", ")
+      + (avg ? ` <span class="interval-avg">(vid. ${avg})</span>` : "");
+  };
+
+  const sizes = getPlannedIntervalBlocks(planDetails);
+  const parts = [];
+  let idx = 0;
+  sizes.forEach((size) => {
+    if (idx >= plannedCount) return;
+    const take = Math.min(size, plannedCount - idx);
+    parts.push(blockPart(idx, idx + take));
+    idx += take;
+  });
+  // No plan to group by, or the plan's blocks ran out before the times did.
+  if (idx < plannedCount) parts.push(blockPart(idx, plannedCount));
+
+  let display = parts.join(" + ");
+  if (done.length > plannedCount) {
+    display += " + " + colored.slice(plannedCount).join(" + ");
+  }
+  return display;
+}
+
+function extractLogMainPartHtml(logData, paceBoundsMap, plannedIntervalCount, planDetails) {
   const entries = logData || [];
   const main = entries.find(e => e.section === "Pamatdaļa") || entries[0];
   if (!main) return "";
   if (main.intervals && main.intervals.length) {
     const done = main.intervals.filter(Boolean);
-    const colored = done.map((v, i) => {
-      const spaceIdx = v.indexOf(' ');
-      const paceStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(spaceIdx + 1).trim() : v;
-      const distStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(0, spaceIdx) : '';
-      const p = parseAthleteInput(paceStr);
-      const segBounds = paceBoundsMap?.[`seg${i + 1}`] || paceBoundsMap?.[main.section];
-      const c = p ? getPaceColor(p, segBounds) : "";
-      const coloredPace = c ? `<span class="pace-text-${c}">${paceStr}</span>` : paceStr;
-      return distStr ? distStr + ' ' + coloredPace : coloredPace;
-    });
-    const hasPlan = !!(paceBoundsMap && Object.keys(paceBoundsMap).length);
-    if (hasPlan && plannedIntervalCount > 0 && done.length > plannedIntervalCount) {
-      const planned = colored.slice(0, plannedIntervalCount);
-      const extras = colored.slice(plannedIntervalCount);
-      return planned.join(", ") + " + " + extras.join(" + ");
-    }
-    return colored.join(", ");
+    return buildIntervalDisplayHtml(done, paceBoundsMap, main.section, plannedIntervalCount, planDetails);
   }
   const rawPulse = main.pulse ? main.pulse + (main.pulse.includes("vid.") ? "" : "vid.") : "";
   const bounds = paceBoundsMap?.[main.section];
@@ -1731,31 +1801,16 @@ document.addEventListener("click", (e) => {
   btn.classList.add("selected");
 });
 
-function renderLogEntryLines(data, paceBoundsMap, plannedIntervalCount, planDetails) {
-  const plannedMainPart = planDetails ? getPlannedMainPartSummary(planDetails) : "";
+// showPlannedPrefix puts the planned task ("6x400m + 4x200m") above the
+// executed times; only the month-view detail asks for it. planDetails is
+// passed everywhere, because block-by-block averaging needs it regardless.
+function renderLogEntryLines(data, paceBoundsMap, plannedIntervalCount, planDetails, showPlannedPrefix) {
+  const plannedMainPart = showPlannedPrefix && planDetails ? getPlannedMainPartSummary(planDetails) : "";
   return (data || []).map(entry => {
     let line = `<div class="log-line">`;
     if (entry.intervals && entry.intervals.length) {
       const done = entry.intervals.filter(Boolean);
-      const colored = done.map((v, i) => {
-        const spaceIdx = v.indexOf(' ');
-        const paceStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(spaceIdx + 1).trim() : v;
-        const distStr = spaceIdx > -1 && spaceIdx < v.length - 1 ? v.substring(0, spaceIdx) : '';
-        const p = parseAthleteInput(paceStr);
-        const segBounds = paceBoundsMap?.[`seg${i + 1}`] || paceBoundsMap?.[entry.section];
-        const c = p ? getPaceColor(p, segBounds) : "";
-        const coloredPace = c ? `<span class="pace-text-${c}">${paceStr}</span>` : paceStr;
-        return distStr ? distStr + ' ' + coloredPace : coloredPace;
-      });
-      let display;
-      const hasPlan = !!(paceBoundsMap && Object.keys(paceBoundsMap).length);
-      if (hasPlan && plannedIntervalCount > 0 && done.length > plannedIntervalCount) {
-        const planned = colored.slice(0, plannedIntervalCount);
-        const extras = colored.slice(plannedIntervalCount);
-        display = planned.join(", ") + " + " + extras.join(" + ");
-      } else {
-        display = colored.join(", ");
-      }
+      const display = buildIntervalDisplayHtml(done, paceBoundsMap, entry.section, plannedIntervalCount, planDetails);
       // The executed times always start on their own line, below the planned task.
       const mainPartPrefix = entry.section === "Pamatdaļa" && plannedMainPart ? `${plannedMainPart}<br>` : "";
       line += `${entry.section === "Pamatdaļa" ? `<strong>${entry.section}: ${mainPartPrefix}${display}</strong>` : `${entry.section}: ${display}`}`;
@@ -1798,7 +1853,7 @@ function renderPlanCard(plan) {
 
   if (isCoach) {
     const logBlock = planLog
-      ? `<div class="log-card log-inline">${planLogData.length ? renderLogEntryLines(planLogData, paceBoundsMap, plannedIntervalCount) : ""}${feelingBadge}${planLogNotes}</div>`
+      ? `<div class="log-card log-inline">${planLogData.length ? renderLogEntryLines(planLogData, paceBoundsMap, plannedIntervalCount, plan.details) : ""}${feelingBadge}${planLogNotes}</div>`
       : "";
 
     return `
@@ -1818,7 +1873,7 @@ function renderPlanCard(plan) {
   const logActions = planLog ? `<div class="log-actions"><button class="edit-log-btn" data-log-plan="${plan.id}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${planLog.id}" type="button">✕</button></div>` : "";
 
   const logBlock = planLog
-    ? `<div class="log-card log-inline">${planLogData.length ? renderLogEntryLines(planLogData, paceBoundsMap, plannedIntervalCount) : ""}${feelingBadge}${planLogNotes}</div>`
+    ? `<div class="log-card log-inline">${planLogData.length ? renderLogEntryLines(planLogData, paceBoundsMap, plannedIntervalCount, plan.details) : ""}${feelingBadge}${planLogNotes}</div>`
     : `<button class="add-day-button log-plan-button" data-log-plan="${plan.id}" type="button">IERAKSTĪT IZPILDI</button>`;
 
   return `
@@ -1842,7 +1897,7 @@ function renderLogCard(log) {
   const plan = log.plan_id ? plans.find(p => p.id === log.plan_id) : null;
   const paceBoundsMap = buildPaceBoundsMap(plan?.details);
   const plannedIntervalCount = getPlannedIntervalCount(plan?.details);
-  const items = data.length ? renderLogEntryLines(data, paceBoundsMap, plannedIntervalCount) : "";
+  const items = data.length ? renderLogEntryLines(data, paceBoundsMap, plannedIntervalCount, plan?.details) : "";
   const feelingBadge = log?.feeling || log?.feeling_tags ? feelingBadgeHtml(log.feeling, log.feeling_tags) : "";
   const logNotes = log?.notes ? `<div class="log-notes">${log.notes}</div>` : "";
   const athleteIsOwner = (activeRole === "athlete") && currentUser.id === getSelectedAthleteId();
@@ -2124,11 +2179,11 @@ function renderMonthViewInline() {
           <span class="month-type-badge">${plan ? (plan.custom_icon || badgeForTitle(plan.title)) : "📝"}</span>
           <div class="month-plan-summary">
             ${titleHtml}
-            <span>${extractLogMainPartHtml(logData, paceBoundsMap, plannedIntervalCount) || "—"}</span>
+            <span>${extractLogMainPartHtml(logData, paceBoundsMap, plannedIntervalCount, plan?.details) || "—"}</span>
           </div>
           <div class="month-plan-full">
             ${titleHtml}
-            ${renderLogEntryLines(logData, paceBoundsMap, plannedIntervalCount, plan?.details)}
+            ${renderLogEntryLines(logData, paceBoundsMap, plannedIntervalCount, plan?.details, true)}
             ${feelingBadge}
             ${logNotes}
           </div>

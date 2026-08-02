@@ -136,7 +136,7 @@ function renderIntervalHistoryCard(session) {
   if (log) {
     const plannedIntervalCount = getPlannedIntervalCount(plan.details);
     const pamatData = planLogData.filter(e => e.section === "Pamatdaļa");
-    const inlineHtml = pamatData.length ? renderLogEntryLines(pamatData, paceBoundsMap, plannedIntervalCount) : "";
+    const inlineHtml = pamatData.length ? renderLogEntryLines(pamatData, paceBoundsMap, plannedIntervalCount, plan.details) : "";
     if (inlineHtml || feelingBadge || logNotes) {
       logBlock = `
         <div class="log-card log-inline">

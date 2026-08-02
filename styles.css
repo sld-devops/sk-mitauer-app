@@ -2653,6 +2653,10 @@ label {
 .pace-text-slow { color: var(--info-accent); font-weight: 700; }
 .pace-text-warn { color: var(--warning); font-weight: 700; }
 
+/* Auto-computed block average - deliberately quieter than the times it
+   summarises, so it reads as a note rather than another interval. */
+.interval-avg { color: var(--muted); font-weight: 600; white-space: nowrap; }
+
 .log-actual-pulse { width: 160px; }
 .log-actual-duration { width: 90px; }
 
