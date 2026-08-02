@@ -86,10 +86,20 @@ A collapsible panel (`#frequentPanel`) in the main column just below the trainin
 
 - **Nothing new is stored.** `hr_zones` still holds only `{ no, lidz }` per zone plus `max_hr`; the percent is recomputed from `max_hr` on every render. `saveHrZones()` was left untouched — it reads `.zone-no`/`.zone-lidz` only, so `.zone-pct` is invisible to it. The owner can't run migrations, so a derived column is the only option that doesn't need a schema change (same reasoning as `pace_hr_map._meta`).
 - **Live recalculation rides on `input`, saving still rides on `change`.** Writing an input's `.value` from script fires no `input` event, so the percent↔pulse handlers cannot bounce off each other. Don't switch either side to dispatching synthetic events.
-- **`.zone-row`/`.zone-num`/`.zone-no`/`.zone-lidz` are shared with the pace/HR panel** (`renderPaceHrMap`, same file), which must stay plain white with two inputs. Every colour rule is therefore scoped under `#hrZonesBody` — never restyle the bare `.zone-*` classes.
+- **`.zone-row`/`.zone-num`/`.zone-no`/`.zone-lidz` are shared with the pace/HR panel** (`renderPaceHrMap`, same file). Every *static* colour rule is therefore scoped under `#hrZonesBody` — never restyle the bare `.zone-*` classes. The pace/HR panel does get colour, but computed per row (see below), applied as an inline `style`.
 - **The colour rules must stay *after* `#hrZoneFields input[disabled]`** in `styles.css`. Both selectors are specificity (1,1,1), so source order is what makes zone colours survive into the athlete's read-only view.
 - Colours are fixed per zone (1 grey, 2 light blue, 3 yellow, 4 orange, 5 red, "Maks." row violet) via `zone-c1`…`zone-c5`/`zone-max` classes. When `max_hr` is empty the percent boxes render blank and a `.zone-hint` line explains why — typing a percent with no max HR is a deliberate no-op, not a crash.
 - **Thresholds ("Sliekšņvērtības", `renderThresholds()`) reuse the same palette as gradients**, one row per threshold via `thr-a`/`thr-b`/`thr-c`: aerobic blends zone 2→3, anaerobic 3→4, lactate 4→5, so the three rows climb blue→red the same way the zones above them do. Same scoping rule — everything sits under `#thresholdsBody`, because `.field-grid` is used all over the app. Panel order in the sidebar is deliberately zones → pace/HR → thresholds (moved 2026-08-02).
+
+### The zone palette lives in `:root`, because JS reads it too
+
+`--zone1-tint/-line/-text` … `--zone6-*` in `styles.css` are the single source of truth for the HR colour scale (`zone6` = "above zone 5" / max HR violet). Don't hardcode those hexes anywhere — `zoneToken()` in `panels/profile.js` reads them back with `getComputedStyle(document.documentElement)` (memoised in `zoneTokenCache`), so a hex written straight into JS or into another rule would silently drift.
+
+**"Temps pret sirdsritmu" tints each row by where that pulse actually falls in the athlete's zones** (added 2026-08-02). `locateHrZone(pulse, hrZones)` returns `{ index, progress }` — which zone, and how far through it (0 at the lower bound, 1 at the upper) — and `hrZoneTintStyle()` turns that into `linear-gradient(120deg, own 0%, own ${(1-progress)*100}%, next 100%)`. A pulse just inside zone 3 is ~85% yellow with the tail sliding into orange; one near the top of zone 3 is almost entirely orange. Border and number colour follow whichever zone occupies more than half the box.
+
+- **Zones are read from `profile.hr_zones`, which the coach may not have filled in.** `locateHrZone` returns `null` when no zone has a usable `no`+`lidz` pair, and the rows then render exactly as they did before — plain white, no inline style. Keep that fallback; the panel is used by athletes whose zones were never entered.
+- Values outside every zone clamp to the nearest end (below zone 1 → start of zone 1, above zone 5 → end of zone 5), and a pulse landing in a gap the coach left between two zones is treated as the top of the highest zone below it. None of these can throw.
+- The tint refreshes because `saveHrZones()` calls `render()`, which re-runs `renderPaceHrMap()`. Live typing in the zones panel does *not* restain pace/HR until the save lands — that's fine, not a bug to chase.
 
 ### Sidebar panels are locked until a coach picks an athlete
 

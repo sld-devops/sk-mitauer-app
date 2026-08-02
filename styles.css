@@ -59,6 +59,28 @@
   --rest-dark: #386560;
   --rest-bg: #eaf3f2;
   --rest-border: #c7ddd9;
+
+  /* HR zone palette. Also read from JS (panels/profile.js) to tint the
+     pace/HR rows, so these are the single source of truth - don't hardcode
+     zone colours anywhere else. Index 6 is "above zone 5" / max HR. */
+  --zone1-tint: #f2f3f5;
+  --zone1-line: #c3cad4;
+  --zone1-text: #5b6472;
+  --zone2-tint: #e9f2fd;
+  --zone2-line: #93c0f0;
+  --zone2-text: #2563eb;
+  --zone3-tint: #fdf6dc;
+  --zone3-line: #e2c85f;
+  --zone3-text: #a1730a;
+  --zone4-tint: #fdeedd;
+  --zone4-line: #f0b47a;
+  --zone4-text: #c2620c;
+  --zone5-tint: #fdeaea;
+  --zone5-line: #eb9f9f;
+  --zone5-text: #c02c2c;
+  --zone6-tint: #f3ecfd;
+  --zone6-line: #c0aef8;
+  --zone6-text: #7c3aed;
 }
 
 html {
@@ -3354,12 +3376,12 @@ label {
   margin: 8px 0 0;
 }
 
-#hrZonesBody .zone-c1 .zone-num { color: #5b6472; }
-#hrZonesBody .zone-c2 .zone-num { color: #2563eb; }
-#hrZonesBody .zone-c3 .zone-num { color: #a1730a; }
-#hrZonesBody .zone-c4 .zone-num { color: #c2620c; }
-#hrZonesBody .zone-c5 .zone-num { color: #c02c2c; }
-#hrZonesBody .zone-max .zone-num { color: #7c3aed; }
+#hrZonesBody .zone-c1 .zone-num { color: var(--zone1-text); }
+#hrZonesBody .zone-c2 .zone-num { color: var(--zone2-text); }
+#hrZonesBody .zone-c3 .zone-num { color: var(--zone3-text); }
+#hrZonesBody .zone-c4 .zone-num { color: var(--zone4-text); }
+#hrZonesBody .zone-c5 .zone-num { color: var(--zone5-text); }
+#hrZonesBody .zone-max .zone-num { color: var(--zone6-text); }
 
 /* A sidebar panel a coach cannot open yet, because no athlete is selected. */
 .panel-locked .panel-header {
@@ -3374,20 +3396,20 @@ label {
 /* ---- Threshold gradients (thresholds panel only) ----
    Each row blends the two HR zone tints it sits between, so the three rows
    climb blue -> yellow -> orange -> red the same way the zones above do. */
-#thresholdsBody .thr-a input { background: linear-gradient(120deg, #e9f2fd 0%, #fdf6dc 100%); border-color: #b6cbe2; }
-#thresholdsBody .thr-b input { background: linear-gradient(120deg, #fdf6dc 0%, #fdeedd 100%); border-color: #e2c88a; }
-#thresholdsBody .thr-c input { background: linear-gradient(120deg, #fdeedd 0%, #fdeaea 100%); border-color: #eeb193; }
+#thresholdsBody .thr-a input { background: linear-gradient(120deg, var(--zone2-tint) 0%, var(--zone3-tint) 100%); border-color: #b6cbe2; }
+#thresholdsBody .thr-b input { background: linear-gradient(120deg, var(--zone3-tint) 0%, var(--zone4-tint) 100%); border-color: #e2c88a; }
+#thresholdsBody .thr-c input { background: linear-gradient(120deg, var(--zone4-tint) 0%, var(--zone5-tint) 100%); border-color: #eeb193; }
 
-#thresholdsBody .thr-a > label { color: #2563eb; }
-#thresholdsBody .thr-b > label { color: #a1730a; }
-#thresholdsBody .thr-c > label { color: #c02c2c; }
+#thresholdsBody .thr-a > label { color: var(--zone2-text); }
+#thresholdsBody .thr-b > label { color: var(--zone3-text); }
+#thresholdsBody .thr-c > label { color: var(--zone5-text); }
 
-#hrZonesBody .zone-c1 input { background: #f2f3f5; border-color: #c3cad4; }
-#hrZonesBody .zone-c2 input { background: #e9f2fd; border-color: #93c0f0; }
-#hrZonesBody .zone-c3 input { background: #fdf6dc; border-color: #e2c85f; }
-#hrZonesBody .zone-c4 input { background: #fdeedd; border-color: #f0b47a; }
-#hrZonesBody .zone-c5 input { background: #fdeaea; border-color: #eb9f9f; }
-#hrZonesBody .zone-max input { background: #f3ecfd; border-color: #c0aef8; }
+#hrZonesBody .zone-c1 input { background: var(--zone1-tint); border-color: var(--zone1-line); }
+#hrZonesBody .zone-c2 input { background: var(--zone2-tint); border-color: var(--zone2-line); }
+#hrZonesBody .zone-c3 input { background: var(--zone3-tint); border-color: var(--zone3-line); }
+#hrZonesBody .zone-c4 input { background: var(--zone4-tint); border-color: var(--zone4-line); }
+#hrZonesBody .zone-c5 input { background: var(--zone5-tint); border-color: var(--zone5-line); }
+#hrZonesBody .zone-max input { background: var(--zone6-tint); border-color: var(--zone6-line); }
 
 /* ---- Dialog animations ---- */
 @keyframes dialog-in {
