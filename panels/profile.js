@@ -309,7 +309,7 @@ function renderPaceHrMap() {
   const editedByOther = !!(meta.at && meta.by && meta.by !== myRole);
   const unseen = editedByOther && !isPaceHrEditSeen(profile.id, meta.at);
 
-  const hrValues = ["125", "135", "145", "155", "165"];
+  const hrValues = ["120", "130", "140", "150", "160", "170", "180"];
   const zoneRowsHtml = hrValues
     .map((hr) => {
       const entry = paceHrMap[hr] || {};
@@ -428,7 +428,17 @@ async function saveThresholds() {
 
 async function savePaceHrMap() {
   const profile = getViewedProfile();
+  const stored = profile.pace_hr_map || {};
   const paceHrMap = {};
+  // The list of pulse rows has changed once already (125/135/145/155/165 ->
+  // 120/130/.../180). Carry forward any stored pulse that no longer has a row
+  // so an unrelated save never quietly deletes numbers the coach entered.
+  const shown = new Set(
+    [...document.querySelectorAll("#paceHrFields .zone-num")].map((el) => el.textContent.trim())
+  );
+  Object.keys(stored).forEach((key) => {
+    if (key !== "_meta" && !shown.has(key)) paceHrMap[key] = stored[key];
+  });
   document.querySelectorAll("#paceHrFields .zone-row").forEach((row) => {
     const hr = row.querySelector(".zone-num")?.textContent?.trim() || "";
     const no = row.querySelector(".zone-no")?.value?.trim() || "";

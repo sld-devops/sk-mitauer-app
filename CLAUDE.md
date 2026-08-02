@@ -100,6 +100,7 @@ A collapsible panel (`#frequentPanel`) in the main column just below the trainin
 - **Zones are read from `profile.hr_zones`, which the coach may not have filled in.** `locateHrZone` returns `null` when no zone has a usable `no`+`lidz` pair, and the rows then render exactly as they did before — plain white, no inline style. Keep that fallback; the panel is used by athletes whose zones were never entered.
 - Values outside every zone clamp to the nearest end (below zone 1 → start of zone 1, above zone 5 → end of zone 5), and a pulse landing in a gap the coach left between two zones is treated as the top of the highest zone below it. None of these can throw.
 - The tint refreshes because `saveHrZones()` calls `render()`, which re-runs `renderPaceHrMap()`. Live typing in the zones panel does *not* restain pace/HR until the save lands — that's fine, not a bug to chase.
+- **The pulse rows changed once already** — `125/135/145/155/165` → `120/130/140/150/160/170/180` on 2026-08-02. Because `savePaceHrMap()` rebuilds the whole object from the DOM, changing `hrValues` would otherwise delete every stored pulse that lost its row on the *next unrelated save*. It now carries forward stored keys that aren't currently rendered (skipping `_meta`), so old numbers survive invisibly. Keep that carry-forward if you ever change the list again.
 
 ### Sidebar panels are locked until a coach picks an athlete
 
