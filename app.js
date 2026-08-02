@@ -1598,12 +1598,16 @@ function loadTemplateToForm(template) {
           const restMatch = rest.match(/caur\s+(.+)$/);
           if (restMatch) setVal("restDuration", restMatch[1]);
         } else {
-          const durMatch = rest.match(/^(\d+)\s*(?:['′]|min)/);
-          if (durMatch) setVal("mainDuration", durMatch[1] + " min");
-          const pulseMatch = rest.match(/(\d+-\d+)/);
-          if (pulseMatch) setVal("mainPulse", pulseMatch[1]);
-          const paceMatch = rest.match(/;\s*(\d+:\d+\/\w+)$/);
-          if (paceMatch) setVal("tempoPace", paceMatch[1]);
+          // formatPart() writes this line as "duration; pulse; pace", so read
+          // the fields back by position — the same way the warmup and cooldown
+          // lines above are read. Sniffing the text with regexes instead lost
+          // every duration that was not minutes ("10 km", "2h", "20-26km",
+          // "Koptrenins"), and read "90-120 min" as a pulse range with no
+          // duration at all.
+          const parts = rest.split(";").map((p) => p.trim());
+          setVal("mainDuration", parts[0] || "");
+          if (parts[1]) setVal("mainPulse", parts[1]);
+          if (parts[2]) setVal("tempoPace", parts[2]);
         }
       }
     }
