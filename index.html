@@ -55,7 +55,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=151" />
+    <link rel="stylesheet" href="styles.css?v=152" />
   </head>
   <body>
     <div id="authView">
@@ -695,7 +695,7 @@
         <div class="generated-preview" id="epPreview"></div>
 
         <div class="dialog-actions split-actions">
-          <button value="cancel" type="submit">Atcelt</button>
+          <button class="cancel-action" value="cancel" type="submit">Atcelt</button>
           <button class="primary-action" id="saveEditPlanBtn" type="button">Saglabāt izmaiņas</button>
         </div>
       </form>
@@ -705,7 +705,7 @@
       <form method="dialog">
         <div id="logFormContent"></div>
         <div class="dialog-actions">
-          <button value="cancel" type="submit">Atcelt</button>
+          <button class="cancel-action" value="cancel" type="submit">Atcelt</button>
           <button class="primary-action" id="saveLogBtn" type="button">Saglabāt</button>
         </div>
       </form>
@@ -740,7 +740,7 @@
           <label>Mērķa laiks <input id="raceTargetTime" /></label>
         </div>
         <div class="dialog-actions split-actions">
-          <button value="cancel" type="submit">Atcelt</button>
+          <button class="cancel-action" value="cancel" type="submit">Atcelt</button>
           <button class="delete-action" id="deleteRaceBtn" type="button" hidden>Dzēst</button>
           <button class="primary-action" id="saveRaceBtn" type="button">Saglabāt</button>
         </div>
@@ -760,7 +760,7 @@
           <textarea id="raceResultComment" rows="3" placeholder="Kā noritēja sacensības?"></textarea>
         </label>
         <div class="dialog-actions">
-          <button value="cancel" type="submit">Atcelt</button>
+          <button class="cancel-action" value="cancel" type="submit">Atcelt</button>
           <button class="primary-action" id="saveRaceResultBtn" type="button">Saglabāt</button>
         </div>
       </form>
@@ -785,7 +785,7 @@
         <label>Sacensības <input id="recordCompetition" placeholder="Piem. Rīgas Rimi Maratons" /></label>
         <label>Datums <input id="recordDate" type="date" /></label>
         <div class="dialog-actions split-actions">
-          <button value="cancel" type="submit">Atcelt</button>
+          <button class="cancel-action" value="cancel" type="submit">Atcelt</button>
           <button class="delete-action" id="deleteRecordBtn" type="button" hidden>Dzēst</button>
           <button class="primary-action" id="saveRecordBtn" type="button">Saglabāt</button>
         </div>
@@ -808,7 +808,7 @@
         </label>
         <div id="passwordError" class="auth-error" hidden></div>
         <div class="dialog-actions">
-          <button value="cancel" type="submit">Atcelt</button>
+          <button class="cancel-action" value="cancel" type="submit">Atcelt</button>
           <button class="primary-action" id="savePasswordBtn" type="button">Saglabāt</button>
         </div>
       </form>
@@ -825,7 +825,7 @@
         <div id="createUserResult" hidden></div>
         <div id="createUserError" class="auth-error" hidden></div>
         <div class="dialog-actions">
-          <button type="button" id="cancelCreateUserBtn">Atcelt</button>
+          <button class="cancel-action" type="button" id="cancelCreateUserBtn">Atcelt</button>
           <button class="primary-action" id="saveNewUserBtn" type="button">Izveidot</button>
         </div>
       </form>
@@ -839,7 +839,7 @@
         <div id="deleteUserConfirmBody"></div>
         <div id="deleteUserError" class="auth-error" hidden></div>
         <div class="dialog-actions">
-          <button value="cancel" type="submit">Atcelt</button>
+          <button class="cancel-action" value="cancel" type="submit">Atcelt</button>
           <button class="delete-action" id="confirmDeleteUserBtn" type="button">Dzēst</button>
         </div>
       </form>
@@ -859,7 +859,7 @@
         <label>Mazais paleciens izklupienā (15cm), labā kāja priekšā (reizes) <input id="stPalLab" type="number" min="0" /></label>
         <label>Mazais paleciens izklupienā (15cm), kreisā kāja priekšā (reizes) <input id="stPalKreis" type="number" min="0" /></label>
         <div class="dialog-actions split-actions">
-          <button value="cancel" type="submit">Atcelt</button>
+          <button class="cancel-action" value="cancel" type="submit">Atcelt</button>
           <button class="delete-action" id="deleteSelfTestBtn" type="button" hidden>Dzēst</button>
           <button class="primary-action" id="saveSelfTestBtn" type="button">Saglabāt</button>
         </div>
@@ -875,7 +875,7 @@
         <label>Laktāts uzreiz pēc (mmol/L) <input id="ptLactAfter" type="number" step="0.1" min="0" /></label>
         <label>Laktāts 5 min pēc (mmol/L) <input id="ptLact5" type="number" step="0.1" min="0" /></label>
         <div class="dialog-actions split-actions">
-          <button value="cancel" type="submit">Atcelt</button>
+          <button class="cancel-action" value="cancel" type="submit">Atcelt</button>
           <button class="delete-action" id="deletePolarTestBtn" type="button" hidden>Dzēst</button>
           <button class="primary-action" id="savePolarTestBtn" type="button">Saglabāt</button>
         </div>
@@ -912,9 +912,9 @@
     <script src="auth.js?v=3"></script>
     <script src="panels/self-tests.js"></script>
     <script src="panels/polar-tests.js"></script>
-    <script src="panels/health-journal.js?v=2"></script>
-    <script src="panels/lab-tests.js"></script>
-    <script src="panels/restrictions.js"></script>
+    <script src="panels/health-journal.js?v=3"></script>
+    <script src="panels/lab-tests.js?v=2"></script>
+    <script src="panels/restrictions.js?v=2"></script>
     <script src="panels/races.js"></script>
     <script src="panels/profile.js?v=7"></script>
     <script src="panels/stats.js"></script>
@@ -923,7 +923,7 @@
     <script src="panels/records.js"></script>
     <script src="panels/admin.js?v=2"></script>
     <script src="panels/weekly-review.js"></script>
-    <script src="panels/ruffier-test.js"></script>
+    <script src="panels/ruffier-test.js?v=2"></script>
     <script src="app.js?v=48"></script>
   </body>
 </html>

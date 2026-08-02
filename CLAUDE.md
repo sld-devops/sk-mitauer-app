@@ -156,6 +156,14 @@ Seven sidebar panels (Restrictions, Health journal, Diary, Records, Self-tests, 
 
 **Why `.panel-header` and not `.collapse-toggle`:** the badge used to be attached to the small ▶/▼ toggle button. As of 2026-07-14, `.planner-panel .collapse-toggle { display: none; }` intentionally hides that button (the whole panel header is clickable instead — see the `"Panel header click (whole area toggles, not just arrow)"` listener in `app.js`). A `display: none` element cannot render pseudo-elements, so a badge attached to a hidden element can never show, no matter how correct the has-entries computation is. If you ever see a badge silently fail to appear, check whether its anchor element got hidden by an unrelated CSS change before assuming the JS logic is wrong.
 
+### "Atcelt" is always `.cancel-action` — the save button in grey
+
+Added 2026-08-02 at the owner's request: a cancel button must be the *same* button as the save button sitting next to it — same radius, weight, padding and hover lift — differing only in colour (grey `#d6d9de` instead of `--lime`). Before this, dialog cancels had **no class at all** and rendered as thin default buttons next to a big lime "Saglabāt".
+
+- Every "Atcelt" in the app carries `cancel-action`: the ten `<button value="cancel" type="submit">` in `index.html`'s dialogs, and the four inline panel forms (`panels/restrictions.js`, `health-journal.js`, `lab-tests.js`, `ruffier-test.js`).
+- **In a sidebar panel, add `panel-add-btn` alongside it** (`class="cancel-action panel-add-btn"`). The rule is "cancel looks like the save button *in that same place*", and in a sidebar panel the save button is deliberately the compact `.secondary-action panel-add-btn`, not the big lime one — so a full-size grey cancel there would be bigger than the save it belongs to.
+- `.cancel-action` is listed in the shared geometry rule next to `.primary-action`/`.secondary-action` in `styles.css`; keep it there rather than restating radius/weight/padding.
+
 ### Sidebar panel visual conventions (rows, buttons, sizing)
 
 When building or restyling a list-style panel body in the sidebar (the narrow ~300px column), follow the pattern refined in `panels/lab-tests.js` / the `.labtest-*` rules in `styles.css` (added 2026-07-15) as the reference implementation, rather than inventing new spacing/sizing from scratch:
