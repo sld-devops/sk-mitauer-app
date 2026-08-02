@@ -1,6 +1,19 @@
 let races = [];
 let monthRaces = [];
+// Every race of the selected athlete, cached by the race-calendar panel. races
+// and monthRaces only ever hold the visible week/month, so a race listed in the
+// panel is usually in neither of them.
+let raceCalendarRaces = [];
 let seenRaceIds = new Set();
+
+// Looking a race up in `races` alone made the panel's edit button silently do
+// nothing for anything outside the current week - which is every past race.
+function findRaceById(raceId) {
+  return races.find((x) => x.id === raceId)
+    || monthRaces.find((x) => x.id === raceId)
+    || raceCalendarRaces.find((x) => x.id === raceId)
+    || null;
+}
 
 function loadSeenRaceIds() {
   try {
@@ -48,7 +61,7 @@ let editingRaceDistance = "";
 function openRaceDialog(raceId) {
   editingRaceId = raceId;
   if (raceId) {
-    const r = races.find((x) => x.id === raceId);
+    const r = findRaceById(raceId);
     if (!r) return;
     raceDate.value = r.date;
     raceName.value = r.name;
@@ -112,7 +125,7 @@ if (deleteRaceBtn) {
 // Race result dialog
 function openRaceResultDialog(raceId) {
   editingRaceResultId = raceId;
-  const r = races.find((x) => x.id === raceId);
+  const r = findRaceById(raceId);
   if (!r) return;
   raceResultInfo.innerHTML = `<strong>${escapeHtml(r.name)}</strong><span>${r.date}${r.distance ? " · " + escapeHtml(r.distance) : ""}${r.location ? " · " + escapeHtml(r.location) : ""}${r.target_time ? " · Mērķis: " + escapeHtml(r.target_time) : ""}</span>`;
   editingRaceDistance = r.distance || "";
@@ -152,6 +165,7 @@ function renderRaceTabFromRaces(allRaces, tab) {
   const upcoming = getUpcomingRaces(allRaces).sort((a, b) => a.date < b.date ? -1 : 1);
   const past = allRaces.filter((r) => !!r.result_time).sort((a, b) => a.date < b.date ? 1 : -1);
   const races = tab === "upcoming" ? upcoming : past;
+  raceCalendarRaces = allRaces;
   const content = document.getElementById("raceCalendarContent");
   if (!races.length) {
     content.innerHTML = "";
@@ -183,6 +197,9 @@ function renderRaceTabFromRaces(allRaces, tab) {
           ${tab === "upcoming" && !hasResult
             ? `<button class="secondary-action-sm" data-race-log="${r.id}" type="button">📝 Pievienot rezultātu</button>`
             : ""}
+          ${tab === "past" && hasResult && distanceToMeters(r.distance)
+            ? `<button class="secondary-action-sm" data-race-record="${r.id}" type="button">🏅 Saglabāt kā rekordu</button>`
+            : ""}
         </div>` : ""}
       </div>
     `;
@@ -195,6 +212,71 @@ function renderRaceTabFromRaces(allRaces, tab) {
     content.querySelectorAll("[data-race-log]").forEach((btn) => {
       btn.addEventListener("click", () => openRaceResultDialog(btn.dataset.raceLog));
     });
+    content.querySelectorAll("[data-race-record]").forEach((btn) => {
+      btn.addEventListener("click", () => saveRaceAsRecord(btn.dataset.raceRecord, btn));
+    });
+  }
+}
+
+// "37:32" -> 2252, "1:23:45" -> 5025. 0 when the time cannot be read, which
+// makes the caller skip the slower-than-existing check rather than guess.
+function raceTimeToSeconds(text) {
+  const parts = String(text || "").trim().split(":").map((p) => parseFloat(p.replace(",", ".")));
+  if (!parts.length || parts.some((n) => !isFinite(n))) return 0;
+  return parts.reduce((acc, n) => acc * 60 + n, 0);
+}
+
+// Turns a finished race into a personal record. An existing record over the
+// same distance is replaced in place - keeping its own distance wording, so it
+// stays in the row it was already in - otherwise a new record is added.
+async function saveRaceAsRecord(raceId, btn) {
+  const race = findRaceById(raceId);
+  if (!race || !race.result_time) return;
+  if (!distanceToMeters(race.distance)) {
+    alert("Šīm sacensībām nav norādīta distance, tāpēc rekordu saglabāt nevar.");
+    return;
+  }
+
+  const existing = findRecordForDistance(race.distance);
+  if (existing) {
+    const oldSec = raceTimeToSeconds(existing.time);
+    const newSec = raceTimeToSeconds(race.result_time);
+    // Only ask when the new time is genuinely worse; a faster result just wins.
+    if (oldSec && newSec && newSec > oldSec) {
+      const ok = confirm(
+        `Esošais rekords (${existing.distance}) ir ${existing.time}, `
+        + `bet šis rezultāts ${race.result_time} ir lēnāks.\n\nTomēr nomainīt rekordu?`
+      );
+      if (!ok) return;
+    }
+  }
+
+  const data = {
+    athlete_id: getSelectedAthleteId(),
+    distance: existing
+      ? existing.distance
+      : (standardRecordDistanceLabel(race.distance) || race.distance),
+    time: race.result_time,
+    location: race.location || "",
+    competition_name: race.name || "",
+    date: race.date,
+  };
+
+  try {
+    if (existing) {
+      await updateRecord(existing.id, data);
+    } else {
+      await insertRecord(data);
+    }
+    records = await getRecords(getSelectedAthleteId());
+    render();
+    if (btn) {
+      btn.textContent = "✅ Saglabāts";
+      btn.disabled = true;
+    }
+  } catch (e) {
+    console.error(e);
+    alert("Saglabāšana neizdevās (iespējams, trūkst tiesību).");
   }
 }
 

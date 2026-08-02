@@ -54,17 +54,52 @@ function renderRecordRow(r, canEditRecords) {
   `;
 }
 
+// The rows the records panel always shows, in order. A record only lands in
+// one of them if its `distance` string equals `value` exactly.
+const RECORD_DISTANCES = [
+  { value: "1 jūdze", label: "1 jūdze" },
+  { value: "5 km", label: "5 km" },
+  { value: "10 km", label: "10 km" },
+  { value: "21 km", label: "Pusmaratons" },
+  { value: "42 km", label: "Maratons" },
+];
+
+// "5km", "5 km", "21.1km", "1 jūdze", "400m" -> metres, so a race distance and
+// a record distance compare equal even when they are written differently.
+// 0 means "no usable number", which callers treat as "cannot match".
+function distanceToMeters(text) {
+  const s = String(text || "").trim().toLowerCase().replace(",", ".");
+  const m = s.match(/(\d+(?:\.\d+)?)/);
+  if (!m) return 0;
+  const n = parseFloat(m[1]);
+  const unit = s.slice(m.index + m[1].length).trim();
+  if (/^(j[ūu]dz|mil|mi$)/.test(unit)) return Math.round(n * 1609);
+  if (/^m(?![a-z])/.test(unit)) return Math.round(n);
+  return Math.round(n * 1000); // km, or no unit written at all
+}
+
+// The athlete's existing record over the same distance, whatever wording it
+// uses. Null when there is none, or when the distance has no number in it.
+function findRecordForDistance(distanceText) {
+  const meters = distanceToMeters(distanceText);
+  if (!meters) return null;
+  return records.find((r) => distanceToMeters(r.distance) === meters) || null;
+}
+
+// A new record only appears in a standard row if its distance string matches
+// that row's label exactly, so "5km" has to become "5 km" on the way in.
+function standardRecordDistanceLabel(distanceText) {
+  const meters = distanceToMeters(distanceText);
+  if (!meters) return "";
+  const match = RECORD_DISTANCES.find((d) => distanceToMeters(d.value) === meters);
+  return match ? match.value : "";
+}
+
 function renderRecords() {
   const athleteId = getSelectedAthleteId();
   const canEditRecords = currentUser.id === athleteId && activeRole !== "coach";
 
-  const recordDistances = [
-    { value: "1 jūdze", label: "1 jūdze" },
-    { value: "5 km", label: "5 km" },
-    { value: "10 km", label: "10 km" },
-    { value: "21 km", label: "Pusmaratons" },
-    { value: "42 km", label: "Maratons" },
-  ];
+  const recordDistances = RECORD_DISTANCES;
 
   const standardDists = new Set(recordDistances.map((d) => d.value));
   const customRecords = records.filter((r) => !standardDists.has(r.distance));
