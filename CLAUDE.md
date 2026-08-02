@@ -54,6 +54,22 @@ Two roles: `coach` and `athlete` (`currentProfile.role`, checked via `isCoach()`
 - `supabase/functions/` holds three Deno Edge Functions requiring the caller to be an authenticated coach: `create-user`, `delete-user`, `reset-password`. These exist because creating/deleting Supabase Auth users needs the service-role key, which must never reach the browser.
 - Core tables referenced from `db.js`: `profiles`, `plans`, `templates`, `races`, `records`, `log_entries`, `weekly_summaries`, `day_notes`, `restrictions`, `diary_entries`, `self_tests`, `polar_tests`, `health_entries`, `lab_tests`, `week_block_types`.
 
+### A training's `details` string is positional — treat it as a record, not prose
+
+`plans.details` / `templates.details` is a newline-separated block written by `getGeneratedTraining()` in `app.js` (`Iesildīšanās: …`, optional `Drill`, `Pamatdaļa: …`, `• Apavi: …`, `Atsildīšanās: …`), and each `Label: …` line is **semicolon-separated fields in a fixed order**: warmup/cooldown are `duration; pulse; extra`, a plain main part is `duration; pulse; pace`, an interval main part is `NxLENGTH (pace); caur REST`. `loadTemplateToForm()` and `parsePlanToForm()` read those fields **by position**, so anything that rewrites a details string must keep the slots aligned — dropping a middle field shifts every field after it into the wrong input box. Where a middle field has to go away, leave the slot empty (`15min; ; ar Drills`) and trim only trailing empties; clean the `"; ;"` up for display, not in the stored string. `normalizeTrainingDetails()` (the "Biežāk lietotie" feature) is the worked example.
+
+Related: the parenthetical on an interval line is the **pace** and only the pace — `caur 2min` is rest and always stays. When no pace is written, the line reads `Pamatdaļa: 6x400m; caur 2min`, which is why the length is matched with `/(\d+)x([^\s;()]+)/`; the older `(\d+)x(\S+)` swallowed the `;` and loaded the length as `"400m;"`.
+
+### "Biežāk lietotie" — most used trainings across all athletes
+
+A third source dropdown next to the two template dropdowns (coach only), added 2026-08-02: per training-type group, the 5 most used trainings from **every** athlete's plans over the last `FREQUENT_MONTHS` (4) months. Points worth knowing before touching it:
+
+- **Two trainings are "the same" once pace and pulse are stripped** — those are athlete-specific, so leaving them in would give every athlete their own bucket and no training would ever repeat. `isPaceOrPulseToken()` decides what counts as a bare number; anything containing real words (`caur 2min`) is content and survives.
+- **Loaded lazily on first open**, not at login, and cached for the session — it is a cross-athlete query and must not sit on the login path. `frequentLoading` drives the "Ielādē..." row.
+- **`getPlanTitlesSince()` in `db.js` pages the query** (`.range()` in 1000-row chunks). PostgREST caps a plain select at 1000 rows and ~25 athletes over 4 months exceeds that — without paging the counts would be silently wrong rather than visibly broken.
+- **Rows are addressed by index (`data-frequent-idx`), never by their key.** The key is a whole multi-line training and a newline does not survive a round trip through an HTML attribute — an earlier version used `data-frequent-key` and every click silently did nothing.
+- **Picking one clears the other two dropdowns** via `clearOtherSourceSelections()`, and vice versa; all three are alternative sources for the same builder form.
+
 ### Restrictions have day-part granularity
 
 A `restrictions` row can block a whole day or just one part (`time_of_day`: null = whole day, else `morning`/`afternoon`/`evening`). Check `isTimeSlotRestricted(dateStr, tod)`, `isDayFullyRestricted(dateStr)`, and `getRestrictedTods(dateStr)` in `panels/restrictions.js` before adding new scheduling logic that touches restrictions — `app.js`'s calendar renderers (`renderCalendar`/`renderMonthViewInline`) just call these as global functions, same as any other panel's exported helpers.
