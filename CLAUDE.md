@@ -60,15 +60,22 @@ Two roles: `coach` and `athlete` (`currentProfile.role`, checked via `isCoach()`
 
 Related: the parenthetical on an interval line is the **pace** and only the pace — `caur 2min` is rest and always stays. When no pace is written, the line reads `Pamatdaļa: 6x400m; caur 2min`, which is why the length is matched with `/(\d+)x([^\s;()]+)/`; the older `(\d+)x(\S+)` swallowed the `;` and loaded the length as `"400m;"`.
 
+### `TEMPLATE_GROUPS` is one group per training type
+
+The group list in `app.js` that headings both template dropdowns and the most-used table used to lump the three easy/medium/long runs into one "Lēnie/vidēji/garie skrējieni" group and the two interval kinds into one "Intervāli". Both were split on 2026-08-02 at the owner's request — a coach picking a template should never have to tell an equal-length interval session from a mixed-length one by reading the details. Keep it one group per type; the only remaining multi-type group is VFS/SFS. `"Intervāli"` with no suffix stays listed under the equal-length group as the legacy type name.
+
 ### "Biežāk lietotie" — most used trainings across all athletes
 
-A third source dropdown next to the two template dropdowns (coach only), added 2026-08-02: per training-type group, the 5 most used trainings from **every** athlete's plans over the last `FREQUENT_MONTHS` (4) months. Points worth knowing before touching it:
+A collapsible panel (`#frequentPanel`) in the main column just below the training builder, coach only, added 2026-08-02: one row per training type, each holding the 5 most used trainings from **every** athlete's plans over the last `FREQUENT_MONTHS` (4) months. Clicking a cell loads it into the builder via `loadTemplateToForm()`, exactly like a template. Points worth knowing before touching it:
+
+- **It started life as a dropdown and was rebuilt as a table the next day** — the owner's point was that a dropdown shows a sliver at a time. The whole value of the panel is that expanding it shows everything at once, so `.frequent-grid` must never gain a vertical scrollbar; only the ≤1040px fallback scrolls, and it scrolls sideways. Empty slots are rendered as invisible `.frequent-cell-blank` cells so the five columns stay aligned across rows.
+- **`FREQUENT_GROUPS` is `TEMPLATE_GROUPS` minus VFS/SFS and Velo.** Those are excluded from the table *and* not counted at all (`frequentGroupKey()` returns `null` for them, which `buildFrequentTrainings()` skips). A title matching **no** group is a coach-written name and goes to "Citi skrējieni" — don't collapse those two cases together.
 
 - **Two trainings are "the same" once pace and pulse are stripped** — those are athlete-specific, so leaving them in would give every athlete their own bucket and no training would ever repeat. `isPaceOrPulseToken()` decides what counts as a bare number; anything containing real words (`caur 2min`) is content and survives.
 - **Loaded lazily on first open**, not at login, and cached for the session — it is a cross-athlete query and must not sit on the login path. `frequentLoading` drives the "Ielādē..." row.
 - **`getPlanTitlesSince()` in `db.js` pages the query** (`.range()` in 1000-row chunks). PostgREST caps a plain select at 1000 rows and ~25 athletes over 4 months exceeds that — without paging the counts would be silently wrong rather than visibly broken.
-- **Rows are addressed by index (`data-frequent-idx`), never by their key.** The key is a whole multi-line training and a newline does not survive a round trip through an HTML attribute — an earlier version used `data-frequent-key` and every click silently did nothing.
-- **Picking one clears the other two dropdowns** via `clearOtherSourceSelections()`, and vice versa; all three are alternative sources for the same builder form.
+- **Cells are addressed by index (`data-frequent-idx`), never by their key.** The key is a whole multi-line training and a newline does not survive a round trip through an HTML attribute — an earlier version used `data-frequent-key` and every click silently did nothing. (The key also once contained a real NUL byte as its separator, which made `grep` treat `app.js` as a binary file and report zero matches for anything. It is `\u0000` now; if a search of `app.js` ever comes back mysteriously empty, check for stray control characters before doubting the search.)
+- **Picking a cell clears both template dropdowns** via `clearOtherSourceSelections("frequent")`, and picking a template clears the highlighted cell; the table and the two dropdowns are alternative sources for the same builder form.
 
 ### Restrictions have day-part granularity
 

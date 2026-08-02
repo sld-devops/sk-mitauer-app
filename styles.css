@@ -1122,8 +1122,7 @@ h4 {
   margin-bottom: 4px;
 }
 
-.template-dropdown-list,
-.frequent-dropdown-list {
+.template-dropdown-list {
   max-height: 400px;
   overflow-y: auto;
   padding: 6px;
@@ -1138,8 +1137,7 @@ h4 {
   display: none;
 }
 
-.template-dropdown.open .template-dropdown-list,
-.template-dropdown.open .frequent-dropdown-list {
+.template-dropdown.open .template-dropdown-list {
   display: grid;
   gap: 2px;
 }
@@ -1185,29 +1183,86 @@ h4 {
   line-height: 1.4;
 }
 
-/* "Most used" rows reuse .template-dropdown-item, but their name line also
-   carries a usage count pinned to the right. */
-.frequent-item-name {
-  align-items: baseline;
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
+
+/* ---- "Biežāk lietotie treniņi" table ---- */
+/* One row per training type: a label column plus five equal cells. The whole
+   point of this panel is that expanding it shows everything at once, so the
+   grid must never grow a vertical scrollbar — only the narrow-screen fallback
+   below scrolls, and it scrolls sideways. */
+.frequent-grid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: max-content repeat(5, minmax(0, 1fr));
+  align-items: stretch;
 }
 
-.frequent-item-count {
+.frequent-row-label {
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding-right: 8px;
+  text-transform: uppercase;
+}
+
+.frequent-cell {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font: inherit;
+  min-width: 0;
+  padding: 7px 9px;
+  text-align: left;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.frequent-cell:hover {
+  background: var(--panel-row-hover);
+  border-color: #677e99;
+}
+
+.frequent-cell.selected {
+  background: var(--surface-alt);
+  border-color: #677e99;
+  box-shadow: inset 3px 0 0 #677e99;
+}
+
+/* An unused slot only holds the column open so every row lines up — most rows
+   have far fewer than five entries, and drawing an outline around each gap made
+   the panel read as mostly empty boxes. */
+.frequent-cell-blank {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+  pointer-events: none;
+}
+
+.frequent-cell-count {
+  align-self: flex-start;
   background: var(--surface-alt);
   border-radius: 4px;
   color: var(--muted);
-  flex: none;
   font-size: 0.7rem;
   font-weight: 700;
   padding: 1px 6px;
 }
 
-.frequent-dropdown-empty {
-  color: var(--muted);
+.frequent-cell-details {
+  color: var(--ink);
   font-size: 0.8rem;
-  padding: 10px 8px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.frequent-empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0;
+  padding: 4px 0;
 }
 
 .builder-form {
@@ -3657,6 +3712,24 @@ textarea:disabled {
     gap: 2px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  /* Five readable cells plus a label do not fit a phone, so the table keeps its
+     shape and is pushed sideways with a finger instead of being squashed. */
+  #frequentTable {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* The label column is capped rather than sized to its longest label, which on
+     a phone would eat half the screen before the first training is visible. */
+  .frequent-grid {
+    grid-template-columns: 120px repeat(5, minmax(150px, 1fr));
+    min-width: max-content;
+  }
+
+  .frequent-row-label {
+    font-size: 0.7rem;
   }
 
   .month-day-cell {
