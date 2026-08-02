@@ -236,6 +236,68 @@ function renderThresholds() {
   }
 }
 
+// The zone palette lives in styles.css (:root --zoneN-*) so CSS and JS can
+// never drift apart; index 0..4 are zones 1-5, index 5 is "above zone 5".
+const zoneTokenCache = {};
+function zoneToken(index, kind) {
+  const name = `--zone${Math.min(index, 5) + 1}-${kind}`;
+  if (!(name in zoneTokenCache)) {
+    zoneTokenCache[name] = getComputedStyle(document.documentElement)
+      .getPropertyValue(name)
+      .trim();
+  }
+  return zoneTokenCache[name];
+}
+
+// Turns a pulse into "which zone, and how far through it" - 0 at the zone's
+// lower bound, 1 at its upper bound. Returns null when the athlete has no
+// usable zones, so the pace/HR rows can stay plain white as before.
+function locateHrZone(pulse, hrZones) {
+  const bpm = parseFloat(String(pulse ?? "").replace(",", "."));
+  if (!bpm) return null;
+  const bands = [];
+  ["1", "2", "3", "4", "5"].forEach((z, i) => {
+    const zone = (hrZones || {})[z] || {};
+    const from = parseFloat(zone.no);
+    const to = parseFloat(zone.lidz);
+    if (from > 0 && to > from) bands.push({ index: i, from, to });
+  });
+  if (!bands.length) return null;
+
+  const first = bands[0];
+  const last = bands[bands.length - 1];
+  if (bpm <= first.from) return { index: first.index, progress: 0 };
+  if (bpm >= last.to) return { index: last.index, progress: 1 };
+
+  for (const band of bands) {
+    if (bpm >= band.from && bpm <= band.to) {
+      return { index: band.index, progress: (bpm - band.from) / (band.to - band.from) };
+    }
+  }
+  // Falls in a gap the coach left between two zones - treat it as the top of
+  // the highest zone that ends below it.
+  const below = bands.filter((b) => b.to < bpm).pop() || first;
+  return { index: below.index, progress: 1 };
+}
+
+// A pulse just inside zone 3 reads as ~85% yellow with the last 15% sliding
+// into zone 4's orange; one near the top of zone 3 is almost fully orange.
+function hrZoneTintStyle(pulse, hrZones) {
+  const spot = locateHrZone(pulse, hrZones);
+  if (!spot) return { row: "", num: "" };
+  const share = Math.round((1 - spot.progress) * 100);
+  const own = zoneToken(spot.index, "tint");
+  const next = zoneToken(spot.index + 1, "tint");
+  const line = spot.progress < 0.5
+    ? zoneToken(spot.index, "line")
+    : zoneToken(spot.index + 1, "line");
+  const text = zoneToken(spot.index + (spot.progress < 0.5 ? 0 : 1), "text");
+  return {
+    row: `background: linear-gradient(120deg, ${own} 0%, ${own} ${share}%, ${next} 100%); border-color: ${line};`,
+    num: `color: ${text};`,
+  };
+}
+
 function renderPaceHrMap() {
   const athleteId = getSelectedAthleteId();
   const profile = isCoach()
@@ -251,11 +313,12 @@ function renderPaceHrMap() {
   const zoneRowsHtml = hrValues
     .map((hr) => {
       const entry = paceHrMap[hr] || {};
+      const tint = hrZoneTintStyle(hr, profile.hr_zones);
       return `
         <div class="zone-row">
-          <span class="zone-num">${hr}</span>
-          <input class="zone-no" value="${entry.no || ""}" placeholder="no" />
-          <input class="zone-lidz" value="${entry.lidz || ""}" placeholder="līdz" />
+          <span class="zone-num" style="${tint.num}">${hr}</span>
+          <input class="zone-no" style="${tint.row}" value="${entry.no || ""}" placeholder="no" />
+          <input class="zone-lidz" style="${tint.row}" value="${entry.lidz || ""}" placeholder="līdz" />
         </div>
       `;
     })
