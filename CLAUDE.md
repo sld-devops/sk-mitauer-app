@@ -111,6 +111,15 @@ A collapsible panel (`#frequentPanel`) in the main column just below the trainin
 - The lock also **collapses** a panel that is already open, so it can't be left hanging open when the selection is cleared.
 - Main-column collapsibles (`#frequentPanel`, `#raceCalendarPanel`, stats) are **not** locked — `#frequentPanel` is cross-athlete and works fine with nobody selected.
 
+### Logged interval times are shown block by block, with an average per block
+
+`buildIntervalDisplayHtml()` in `app.js` is the single place that turns a log entry's `intervals` array into the displayed line (added 2026-08-02; `extractLogMainPartHtml` and `renderLogEntryLines` both call it — they used to carry two near-identical copies of this code, so don't reintroduce a second one). Output looks like `76.5, 77.5, … (vid. 74.6) + 31.5, 33.1, … (vid. 32.3)`.
+
+- **Blocks come from the plan, not from the logged data.** `getPlannedIntervalBlocks(planDetails)` returns the reps per segment (`6x400m + 4x200m` → `[6, 4]`, a plain `6x400m` → `[6]`, a non-interval main part → `[]`). That means **every caller has to pass `planDetails`** — the parameter used to be optional and only one call site passed it.
+- **`showPlannedPrefix` is a separate 5th parameter for exactly that reason.** Passing `planDetails` used to be what switched on the "6x400m + 4x200m" line above the times; that is only wanted in the month-view detail, so the prefix now has its own flag and `planDetails` is passed everywhere.
+- **`averageIntervalTime()` mirrors whatever the athlete typed** — bare seconds in, one-decimal seconds out (`72.2`, and `72` rather than `72.0`); `mm:ss` in, `mm:ss` out. Fewer than two readable values yields `""`, so a single interval and unparseable text simply show no average rather than `NaN`.
+- Extras beyond the planned count keep their old treatment (appended after the last block, each joined with `" + "`, not averaged), and doing fewer than planned just makes the last block short. Neither can throw.
+
 ### Restrictions have day-part granularity
 
 A `restrictions` row can block a whole day or just one part (`time_of_day`: null = whole day, else `morning`/`afternoon`/`evening`). Check `isTimeSlotRestricted(dateStr, tod)`, `isDayFullyRestricted(dateStr)`, and `getRestrictedTods(dateStr)` in `panels/restrictions.js` before adding new scheduling logic that touches restrictions — `app.js`'s calendar renderers (`renderCalendar`/`renderMonthViewInline`) just call these as global functions, same as any other panel's exported helpers.
