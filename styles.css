@@ -2216,6 +2216,7 @@ label {
 .add-day-button,
 .secondary-action,
 .primary-action,
+.cancel-action,
 .delete-action,
 .delete-template-btn {
   border-radius: 7px;
@@ -2681,6 +2682,26 @@ label {
 }
 
 .primary-action:active {
+  transform: translateY(0);
+}
+
+/* Cancel is the same button as Saglabat - same size, radius and weight, same
+   hover lift - just grey instead of lime, so the pair reads as one control
+   with the confirming half highlighted. */
+.cancel-action {
+  background: #d6d9de;
+  border: 1px solid #d6d9de;
+  color: var(--ink);
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.cancel-action:hover {
+  background: #c3c7ce;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(21, 23, 26, 0.18);
+}
+
+.cancel-action:active {
   transform: translateY(0);
 }
 .training-bar-body .primary-action {

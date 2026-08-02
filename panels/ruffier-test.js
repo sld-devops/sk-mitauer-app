@@ -89,7 +89,7 @@ function renderRuffierTests() {
         </div>
         <div class="labtest-form-actions">
           ${editing ? `<button class="delete-action" id="deleteRuffierTestBtn" type="button">Dzēst</button>` : ""}
-          ${editing ? `<button class="secondary-action" id="cancelRuffierEditBtn" type="button">Atcelt</button>` : ""}
+          ${editing ? `<button class="cancel-action panel-add-btn" id="cancelRuffierEditBtn" type="button">Atcelt</button>` : ""}
           <button class="secondary-action panel-add-btn" id="saveRuffierTestBtn" type="button">${editing ? "Saglabāt" : "Pievienot"}</button>
         </div>
       </div>

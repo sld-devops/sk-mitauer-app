@@ -65,7 +65,7 @@ function renderHealthJournal() {
         <label>Apraksts <textarea id="hjDescription" rows="4">${editing ? escapeHtml(editing.description || "") : ""}</textarea></label>
         <div class="health-form-actions">
           ${editing ? `<button class="delete-action" id="deleteHealthBtn" type="button">Dzēst</button>` : ""}
-          ${editing ? `<button class="secondary-action" id="cancelHealthEditBtn" type="button">Atcelt</button>` : ""}
+          ${editing ? `<button class="cancel-action panel-add-btn" id="cancelHealthEditBtn" type="button">Atcelt</button>` : ""}
           <button class="secondary-action panel-add-btn" id="saveHealthBtn" type="button">${editing ? "Saglabāt" : "Pievienot"}</button>
         </div>
       </div>

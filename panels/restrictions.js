@@ -271,7 +271,7 @@ function renderRestrictionCards() {
       <div class="tod-radio-group">${todRadiosHtml}</div>
       <label>Iemesls <textarea id="restrictionReasonInput" class="restriction-input" rows="2">${editing ? escapeHtml(editing.reason || "") : ""}</textarea></label>
       <div class="restriction-form-actions">
-        ${editing ? `<button class="secondary-action" id="cancelRestrictionEditBtn" type="button">Atcelt</button>` : ""}
+        ${editing ? `<button class="cancel-action panel-add-btn" id="cancelRestrictionEditBtn" type="button">Atcelt</button>` : ""}
         <button class="secondary-action panel-add-btn" id="saveRestrictionBtn" type="button" disabled>${editing ? "Saglabāt" : "Pievienot"}</button>
       </div>
     </div>

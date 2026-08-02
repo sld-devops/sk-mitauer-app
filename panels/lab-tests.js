@@ -123,7 +123,7 @@ function renderLabTests() {
         </label>
         <div class="labtest-form-actions">
           ${editing ? `<button class="delete-action" id="deleteLabTestBtn" type="button">Dzēst</button>` : ""}
-          ${editing ? `<button class="secondary-action" id="cancelLabTestEditBtn" type="button">Atcelt</button>` : ""}
+          ${editing ? `<button class="cancel-action panel-add-btn" id="cancelLabTestEditBtn" type="button">Atcelt</button>` : ""}
           <button class="secondary-action panel-add-btn" id="saveLabTestBtn" type="button">${editing ? "Saglabāt" : "Pievienot"}</button>
         </div>
       </div>
