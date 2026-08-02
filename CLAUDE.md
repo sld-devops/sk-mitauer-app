@@ -126,6 +126,19 @@ A collapsible panel (`#frequentPanel`) in the main column just below the trainin
 - **`averageIntervalTime()` mirrors whatever the athlete typed** — bare seconds in, one-decimal seconds out (`72.2`, and `72` rather than `72.0`); `mm:ss` in, `mm:ss` out. Fewer than two readable values yields `""`, so a single interval and unparseable text simply show no average rather than `NaN`.
 - Extras beyond the planned count keep their old treatment (appended after the last block, each joined with `" + "`, not averaged), and doing fewer than planned just makes the last block short. Neither can throw.
 
+### `races` and `monthRaces` are week/month-scoped — look races up with `findRaceById`
+
+`races` is filled by `getRacesForWeek(athleteId, weekStart, weekEnd)` in `loadNonTemplateData()` and `monthRaces` by the same call for the visible month. The **race-calendar panel lists every race the athlete has**, so almost nothing in its "Notikušās" tab is in either global. `openRaceDialog`/`openRaceResultDialog` used to do `races.find(...)` and `if (!r) return;`, which is why the panel's ✏️ Rediģēt button silently did nothing on past races (reported and fixed 2026-08-02). `renderRaceTabFromRaces()` now caches its full list in `raceCalendarRaces`, and `findRaceById()` searches all three. Use it for any new race lookup — a bare `races.find()` will work in testing (today's week) and fail in use.
+
+### "Saglabāt kā rekordu" — races feed the records panel
+
+Each finished race in the panel's past tab has a 🏅 button (`data-race-record`, athlete-only like the rest of the row's actions) that writes it into `records`. `saveRaceAsRecord()` lives in `panels/races.js`, the distance helpers in `panels/records.js`.
+
+- **Distances are compared as metres, not as strings** — `distanceToMeters()` turns `5km`, `5 km`, `21,1km`, `400m`, `1 jūdze` and a bare `10` (assumed km) into a number, so a race and a record match however each was typed. A mile is 1609 m specifically so `1 jūdze` can't collide with `1km`. `0` means "no number in it", and both the button and the matching treat that as "cannot match" rather than guessing.
+- **`renderRecords()` puts a record in a standard row only on an exact string match** with `RECORD_DISTANCES[].value` (`"5 km"`, `"21 km"`, …). So a *new* record's distance is normalised through `standardRecordDistanceLabel()` first — saving a `5km` race verbatim would have parked it in the custom-records list instead of the 5 km row. When *replacing*, the existing record's own wording is kept, so it never jumps rows.
+- **A slower time asks before overwriting** (owner's choice 2026-08-02); a faster one just replaces. `raceTimeToSeconds()` returns 0 for anything it can't read, and the check is skipped in that case rather than assuming an order.
+- Manual record add/edit through the sidebar dialog is untouched — this is an additional entry point, not a replacement.
+
 ### Restrictions have day-part granularity
 
 A `restrictions` row can block a whole day or just one part (`time_of_day`: null = whole day, else `morning`/`afternoon`/`evening`). Check `isTimeSlotRestricted(dateStr, tod)`, `isDayFullyRestricted(dateStr)`, and `getRestrictedTods(dateStr)` in `panels/restrictions.js` before adding new scheduling logic that touches restrictions — `app.js`'s calendar renderers (`renderCalendar`/`renderMonthViewInline`) just call these as global functions, same as any other panel's exported helpers.
