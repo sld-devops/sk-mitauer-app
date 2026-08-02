@@ -210,17 +210,19 @@ function renderThresholds() {
   const canEdit = isCoach();
   const disabled = canEdit ? "" : "disabled";
 
+  // thr-a/thr-b/thr-c carry the zone-coloured gradients - each threshold is
+  // tinted with the two HR zones it physiologically sits between.
   document.getElementById("thresholdsBody").innerHTML = `
     <div class="profile-section">
-      <div class="field-grid">
+      <div class="field-grid thr-row thr-a">
         <label>Aerobais temps (min/km) <input id="editAerobicPace" value="${thresholds.aerobic_pace || ""}" ${disabled} /></label>
         <label>Aerobais pulss <input id="editAerobicHr" value="${thresholds.aerobic_hr || ""}" ${disabled} /></label>
       </div>
-      <div class="field-grid">
+      <div class="field-grid thr-row thr-b">
         <label>Anaerobais temps (min/km) <input id="editAnaerobicPace" value="${thresholds.anaerobic_pace || ""}" ${disabled} /></label>
         <label>Anaerobais pulss <input id="editAnaerobicHr" value="${thresholds.anaerobic_hr || ""}" ${disabled} /></label>
       </div>
-      <div class="field-grid">
+      <div class="field-grid thr-row thr-c">
         <label>Laktāta temps (min/km) <input id="editLtPace" value="${thresholds.lt_pace || ""}" ${disabled} /></label>
         <label>Laktāta pulss <input id="editLtHr" value="${thresholds.lt_hr || ""}" ${disabled} /></label>
       </div>

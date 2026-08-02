@@ -89,6 +89,16 @@ A collapsible panel (`#frequentPanel`) in the main column just below the trainin
 - **`.zone-row`/`.zone-num`/`.zone-no`/`.zone-lidz` are shared with the pace/HR panel** (`renderPaceHrMap`, same file), which must stay plain white with two inputs. Every colour rule is therefore scoped under `#hrZonesBody` — never restyle the bare `.zone-*` classes.
 - **The colour rules must stay *after* `#hrZoneFields input[disabled]`** in `styles.css`. Both selectors are specificity (1,1,1), so source order is what makes zone colours survive into the athlete's read-only view.
 - Colours are fixed per zone (1 grey, 2 light blue, 3 yellow, 4 orange, 5 red, "Maks." row violet) via `zone-c1`…`zone-c5`/`zone-max` classes. When `max_hr` is empty the percent boxes render blank and a `.zone-hint` line explains why — typing a percent with no max HR is a deliberate no-op, not a crash.
+- **Thresholds ("Sliekšņvērtības", `renderThresholds()`) reuse the same palette as gradients**, one row per threshold via `thr-a`/`thr-b`/`thr-c`: aerobic blends zone 2→3, anaerobic 3→4, lactate 4→5, so the three rows climb blue→red the same way the zones above them do. Same scoping rule — everything sits under `#thresholdsBody`, because `.field-grid` is used all over the app. Panel order in the sidebar is deliberately zones → pace/HR → thresholds (moved 2026-08-02).
+
+### Sidebar panels are locked until a coach picks an athlete
+
+`updateSidebarPanelLock()` in `app.js` (called at the end of `render()`) puts a `panel-locked` class on every `.planner-panel .collapsible` **except `#adminPanel`** while `activeRole === "coach"` and `getSelectedAthleteId()` is empty; the `.collapse-toggle` click handler returns early on that class. Added 2026-08-02 — before it, a coach who hadn't picked anyone could open a dozen panels and find them all blank.
+
+- **`#adminPanel` is deliberately exempt.** It is not athlete-scoped, and locking it would leave a coach with zero athletes unable to create their first one.
+- The "nothing selected yet" state is real and load-bearing: `renderAthleteDropdown()` sets `athleteSelect.selectedIndex = -1` for coaches, because populating a `<select>` otherwise makes the browser auto-select the first option.
+- The lock also **collapses** a panel that is already open, so it can't be left hanging open when the selection is cleared.
+- Main-column collapsibles (`#frequentPanel`, `#raceCalendarPanel`, stats) are **not** locked — `#frequentPanel` is cross-athlete and works fine with nobody selected.
 
 ### Restrictions have day-part granularity
 
