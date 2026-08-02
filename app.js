@@ -2285,6 +2285,25 @@ function render() {
   document.getElementById("polarTestsPanel").hidden = !hasAthletes;
   document.getElementById("healthJournalPanel").hidden = !hasAthletes;
   document.getElementById("labTestsPanel").hidden = !hasAthletes;
+  updateSidebarPanelLock();
+}
+
+// Every sidebar panel except athlete management shows one athlete's data, so
+// until a coach has picked someone there is nothing behind them but an empty
+// body. Lock them shut rather than letting the coach open blank panels.
+function updateSidebarPanelLock() {
+  const locked = activeRole === "coach" && !getSelectedAthleteId();
+  document.querySelectorAll(".planner-panel .collapsible").forEach((panel) => {
+    if (panel.id === "adminPanel") return;
+    panel.classList.toggle("panel-locked", locked);
+    const header = panel.querySelector(".panel-header");
+    if (header) header.title = locked ? "Vispirms izvēlies sportistu" : "";
+    if (locked && !panel.classList.contains("collapsed")) {
+      panel.classList.add("collapsed");
+      const btn = panel.querySelector(".collapse-toggle");
+      if (btn) btn.textContent = "▶";
+    }
+  });
 }
 
 function resetNewTrainingForm() {
@@ -2539,6 +2558,7 @@ document.getElementById("monthCurrent")?.addEventListener("click", async () => {
 document.querySelectorAll(".collapse-toggle").forEach((btn) => {
   btn.addEventListener("click", () => {
     const panel = btn.closest(".collapsible");
+    if (panel.classList.contains("panel-locked")) return;
     const wasCollapsed = panel.classList.contains("collapsed");
     panel.classList.toggle("collapsed");
     btn.textContent = panel.classList.contains("collapsed") ? "▶" : "▼";

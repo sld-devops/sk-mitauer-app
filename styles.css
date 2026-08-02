@@ -1741,11 +1741,13 @@ button:focus-visible {
   box-shadow: inset 4px 0 0 var(--accent);
 }
 
+/* Field captions read as ordinary text, same ink and weight as the calendar,
+   rather than the heavy grey they used to be. */
 label {
-  color: var(--muted);
+  color: var(--ink);
   display: grid;
   font-size: 0.88rem;
-  font-weight: 800;
+  font-weight: 600;
   gap: 6px;
 }
 
@@ -3358,6 +3360,27 @@ label {
 #hrZonesBody .zone-c4 .zone-num { color: #c2620c; }
 #hrZonesBody .zone-c5 .zone-num { color: #c02c2c; }
 #hrZonesBody .zone-max .zone-num { color: #7c3aed; }
+
+/* A sidebar panel a coach cannot open yet, because no athlete is selected. */
+.panel-locked .panel-header {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.panel-locked .panel-header:hover {
+  background: transparent;
+}
+
+/* ---- Threshold gradients (thresholds panel only) ----
+   Each row blends the two HR zone tints it sits between, so the three rows
+   climb blue -> yellow -> orange -> red the same way the zones above do. */
+#thresholdsBody .thr-a input { background: linear-gradient(120deg, #e9f2fd 0%, #fdf6dc 100%); border-color: #b6cbe2; }
+#thresholdsBody .thr-b input { background: linear-gradient(120deg, #fdf6dc 0%, #fdeedd 100%); border-color: #e2c88a; }
+#thresholdsBody .thr-c input { background: linear-gradient(120deg, #fdeedd 0%, #fdeaea 100%); border-color: #eeb193; }
+
+#thresholdsBody .thr-a > label { color: #2563eb; }
+#thresholdsBody .thr-b > label { color: #a1730a; }
+#thresholdsBody .thr-c > label { color: #c02c2c; }
 
 #hrZonesBody .zone-c1 input { background: #f2f3f5; border-color: #c3cad4; }
 #hrZonesBody .zone-c2 input { background: #e9f2fd; border-color: #93c0f0; }
