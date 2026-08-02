@@ -88,6 +88,31 @@ async function getAllPlans(athleteId) {
   return data || [];
 }
 
+// Every athlete's plans since `sinceDate`, title + details only — the input for
+// the "most used trainings" list. Fetched in pages because PostgREST caps a
+// plain select at 1000 rows, and ~25 athletes over a few months goes past that:
+// without paging the tail would silently vanish and the counts would be wrong.
+async function getPlanTitlesSince(athleteIds, sinceDate) {
+  if (!athleteIds.length) return [];
+  const PAGE = 1000;
+  const MAX_ROWS = 20000;
+  const rows = [];
+  for (let from = 0; from < MAX_ROWS; from += PAGE) {
+    const { data, error } = await supabase
+      .from("plans")
+      .select("title, details")
+      .in("athlete_id", athleteIds)
+      .gte("date", sinceDate)
+      .order("date", { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    rows.push(...data);
+    if (data.length < PAGE) break;
+  }
+  return rows;
+}
+
 async function insertPlan(plan) {
   const { data, error } = await supabase
     .from("plans")

@@ -1122,7 +1122,8 @@ h4 {
   margin-bottom: 4px;
 }
 
-.template-dropdown-list {
+.template-dropdown-list,
+.frequent-dropdown-list {
   max-height: 400px;
   overflow-y: auto;
   padding: 6px;
@@ -1137,7 +1138,8 @@ h4 {
   display: none;
 }
 
-.template-dropdown.open .template-dropdown-list {
+.template-dropdown.open .template-dropdown-list,
+.template-dropdown.open .frequent-dropdown-list {
   display: grid;
   gap: 2px;
 }
@@ -1181,6 +1183,31 @@ h4 {
   font-size: 0.8rem;
   color: var(--muted);
   line-height: 1.4;
+}
+
+/* "Most used" rows reuse .template-dropdown-item, but their name line also
+   carries a usage count pinned to the right. */
+.frequent-item-name {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.frequent-item-count {
+  background: var(--surface-alt);
+  border-radius: 4px;
+  color: var(--muted);
+  flex: none;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+}
+
+.frequent-dropdown-empty {
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 10px 8px;
 }
 
 .builder-form {

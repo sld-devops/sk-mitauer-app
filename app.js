@@ -4,6 +4,11 @@ const days = [
 ];
 
 let selectedTemplateId = null;
+// "Most used trainings" list: null until the coach first opens that dropdown.
+let frequentTrainings = null;
+let frequentLoading = false;
+let selectedFrequentKey = null;
+let frequentVisible = [];
 let activeRole = "athlete";
 // "desktop" = horizontal layout (days side by side), "mobile" = vertical layout (days stacked).
 // Week view only — the month view is always a 7-column grid, so it has no such choice.
@@ -946,6 +951,176 @@ function renderTemplateDropdown(containerId, templatesList) {
   }
 }
 
+// ---- "Biežāk lietotie" — most used trainings across every athlete ----
+
+const FREQUENT_MONTHS = 4;
+const FREQUENT_PER_GROUP = 5;
+
+// True for a written value that is only a number/time, i.e. a pace or a pulse:
+// "130-140", "4:30", "4:30/km", "1:20-1:25", "90s". Anything containing real
+// words ("caur 2min", "ar Drills") is content and must survive normalisation.
+function isPaceOrPulseToken(str) {
+  const s = (str || "").trim();
+  if (!s) return false;
+  return /^[\d:.,\s-]+$/.test(s)
+    || /^[\d:.,\s-]+\/\s*[^\s/]+$/.test(s)
+    || /^[\d:.,\s-]+(s|sek|min|km)$/i.test(s);
+}
+
+// Strips everything athlete-specific (pace, pulse) out of a training, so that
+// the same session prescribed to a fast and a slow athlete counts as one.
+// Positions are preserved — a dropped middle field becomes an empty slot rather
+// than shifting the field after it, because loadTemplateToForm() reads
+// "Iesildīšanās: <duration>; <pulse>; <extra>" positionally.
+function normalizeTrainingDetails(details) {
+  const FIELD_LINES = ["Iesildīšanās", "Atsildīšanās", "Pamatdaļa", "Velo"];
+  return (details || "")
+    .split("\n")
+    .map((raw) => {
+      // Interval pace sits in brackets: "6x400m (1:20-1:25); caur 2min".
+      // Only brackets holding a bare number are a pace — leave prose alone.
+      let line = raw.trim().replace(/\s*\(([^)]*)\)/g, (m, inner) =>
+        isPaceOrPulseToken(inner) ? "" : m);
+      const colon = line.indexOf(":");
+      const label = colon === -1 ? "" : line.slice(0, colon).trim();
+      if (FIELD_LINES.includes(label)) {
+        const parts = line.slice(colon + 1).split(";").map((p) => p.trim());
+        const kept = parts.map((p, i) => (i === 0 || !isPaceOrPulseToken(p) ? p : ""));
+        while (kept.length && !kept[kept.length - 1]) kept.pop();
+        line = `${label}: ${kept.join("; ")}`;
+      }
+      return line.replace(/\s+/g, " ").trim();
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+// Returns ready HTML, like the template dropdown's own details line. Dropped
+// fields leave "…; ; …" behind, which parses correctly but reads badly, so the
+// empty slots are tidied away for display only.
+function frequentDetailsForDisplay(details) {
+  const cleaned = (details || "")
+    .replace(/;\s*(?=;)/g, "")
+    .replace(/;\s*$/gm, "");
+  return formatDetailsForCard(escapeHtml(cleaned)).replace(/\n/g, " | ");
+}
+
+function frequentGroupKey(title) {
+  const base = (title || "").replace(/\s*Koptreniņš\s*$/, "").trim();
+  const group = TEMPLATE_GROUPS.find((g) => g.types.includes(base));
+  return group ? group.key : "other";
+}
+
+// One pass over every athlete's recent plans -> per group, the most used
+// trainings, most used first.
+function buildFrequentTrainings(rows) {
+  const counts = new Map();
+  for (const row of rows) {
+    const title = (row.title || "").trim();
+    const details = normalizeTrainingDetails(row.details);
+    if (!title || !details) continue;
+    const key = `${title} ${details}`;
+    const entry = counts.get(key);
+    if (entry) {
+      entry.count += 1;
+    } else {
+      counts.set(key, { key, title, details, count: 1, group: frequentGroupKey(title) });
+    }
+  }
+  const byGroup = {};
+  for (const entry of counts.values()) {
+    (byGroup[entry.group] = byGroup[entry.group] || []).push(entry);
+  }
+  for (const key of Object.keys(byGroup)) {
+    byGroup[key].sort((a, b) => b.count - a.count || a.title.localeCompare(b.title));
+    byGroup[key] = byGroup[key].slice(0, FREQUENT_PER_GROUP);
+  }
+  return byGroup;
+}
+
+async function loadFrequentTrainings() {
+  if (frequentTrainings || frequentLoading) return;
+  frequentLoading = true;
+  renderFrequentDropdown();
+  try {
+    const since = new Date();
+    since.setMonth(since.getMonth() - FREQUENT_MONTHS);
+    const athleteIds = athletes.map((a) => a.id);
+    const rows = await getPlanTitlesSince(athleteIds, formatDateISO(since));
+    frequentTrainings = buildFrequentTrainings(rows);
+  } catch (e) {
+    console.error(e);
+    frequentTrainings = {};
+  }
+  frequentLoading = false;
+  renderFrequentDropdown();
+}
+
+function renderFrequentDropdown() {
+  const container = document.getElementById("frequentTrainingsDropdown");
+  if (!container) return;
+  container.hidden = activeRole !== "coach";
+  if (container.hidden) return;
+
+  const listEl = container.querySelector(".frequent-dropdown-list");
+  const selectedEl = container.querySelector(".dropdown-selected");
+
+  frequentVisible = [];
+  if (frequentLoading) {
+    listEl.innerHTML = '<div class="frequent-dropdown-empty">Ielādē...</div>';
+  } else if (!frequentTrainings) {
+    listEl.innerHTML = "";
+  } else {
+    const groups = TEMPLATE_GROUPS
+      .map((g) => ({ ...g, items: frequentTrainings[g.key] || [] }))
+      .filter((g) => g.items.length);
+    // Rows are addressed by their position in frequentVisible, not by their key:
+    // the key is a whole multi-line training, and a newline does not survive a
+    // round trip through an HTML attribute.
+    listEl.innerHTML = groups.length
+      ? groups.map((group) => `
+        <div class="template-dropdown-group">
+          <div class="template-dropdown-group-title">${group.label}</div>
+          ${group.items.map((item) => {
+            const idx = frequentVisible.push(item) - 1;
+            return `
+            <div class="template-dropdown-item${selectedFrequentKey === item.key ? " selected" : ""}" data-frequent-idx="${idx}">
+              <div class="template-dropdown-item-name frequent-item-name">
+                <span>${escapeHtml(displayTitle(item.title))}</span>
+                <span class="frequent-item-count">${item.count}x</span>
+              </div>
+              <div class="template-dropdown-item-details">${frequentDetailsForDisplay(item.details)}</div>
+            </div>`;
+          }).join("")}
+        </div>
+      `).join("")
+      : `<div class="frequent-dropdown-empty">Pēdējos ${FREQUENT_MONTHS} mēnešos nav ieplānotu treniņu.</div>`;
+  }
+
+  const selected = frequentVisible.find((i) => i.key === selectedFrequentKey);
+  selectedEl.textContent = selected ? displayTitle(selected.title) : "Izvēlies treniņu...";
+}
+
+// The three source dropdowns are alternatives to each other — picking one has to
+// visibly release the other two, or the form's contents look like they came from
+// whichever label was left standing.
+function clearOtherSourceSelections(pickedId) {
+  if (pickedId !== "frequentTrainingsDropdown" && selectedFrequentKey) {
+    selectedFrequentKey = null;
+    renderFrequentDropdown();
+  }
+  if (pickedId === "frequentTrainingsDropdown") {
+    selectedTemplateId = null;
+    ["allTemplatesDropdown", "athleteTemplatesDropdown"].forEach((id) => {
+      const d = document.getElementById(id);
+      if (!d) return;
+      d.classList.remove("open");
+      d.querySelector(".dropdown-selected").textContent = "Izvēlies sagatavi...";
+      d.querySelectorAll(".template-dropdown-item").forEach((i) => i.classList.remove("selected"));
+    });
+  }
+}
+
 function renderCustomPreview() {
   const training = getGeneratedTraining();
   customPreview.innerHTML = `<strong>${displayTitle(training.title)}</strong><span>${formatDetailsForCard(training.details).replace(/\n/g, "<br>")}</span>`;
@@ -1388,7 +1563,9 @@ function loadTemplateToForm(template) {
       } else if (type === OTHER_RUN_TYPE) {
         setVal("customFreeText", rest);
       } else {
-        const intervalMatch = rest.match(/(\d+)x(\S+)/);
+        // Stop the length at ";" / "(" — with no pace written, "6x400m; caur 2min"
+        // used to load the length as "400m;" (\S+ ran straight through the ";").
+        const intervalMatch = rest.match(/(\d+)x([^\s;()]+)/);
         if (intervalMatch) {
           setVal("repeatCount", intervalMatch[1]);
           setVal("intervalLength", intervalMatch[2]);
@@ -2008,6 +2185,7 @@ function render() {
 
   renderAthleteDropdown();
   renderTemplates();
+  renderFrequentDropdown();
   renderSourcePicker();
   document.getElementById("updateTemplateBtn").hidden = !selectedTemplateId;
   document.getElementById("deleteTemplateBtn").hidden = !selectedTemplateId;
@@ -2570,12 +2748,34 @@ document.querySelectorAll(".template-dropdown-list").forEach(list => {
     dropdown.querySelector(".dropdown-selected").textContent = item.querySelector(".template-dropdown-item-name").textContent;
     dropdown.querySelectorAll(".template-dropdown-item").forEach(i => i.classList.remove("selected"));
     item.classList.add("selected");
+    clearOtherSourceSelections(dropdown.id);
 
     const t = templates.find(t => t.id === templateId);
     if (t) loadTemplateToForm(t);
     render();
   });
 });
+
+// "Biežāk lietotie" — loaded the first time it is opened, not at login, so it
+// costs nothing for athletes or for a coach who never opens it.
+document.querySelector("#frequentTrainingsDropdown .dropdown-trigger")
+  ?.addEventListener("click", () => { loadFrequentTrainings(); });
+
+document.querySelector("#frequentTrainingsDropdown .frequent-dropdown-list")
+  ?.addEventListener("click", (e) => {
+    const item = e.target.closest("[data-frequent-idx]");
+    if (!item) return;
+    const entry = frequentVisible[Number(item.dataset.frequentIdx)];
+    if (!entry) return;
+
+    selectedFrequentKey = entry.key;
+    document.getElementById("frequentTrainingsDropdown").classList.remove("open");
+    clearOtherSourceSelections("frequentTrainingsDropdown");
+    // Same entry point the template dropdowns use — pace/pulse fields simply
+    // stay empty, since those values were stripped when counting.
+    loadTemplateToForm({ name: entry.title, details: entry.details });
+    render();
+  });
 
 document.addEventListener("click", () => {
   document.querySelectorAll(".template-dropdown.open").forEach(d => d.classList.remove("open"));

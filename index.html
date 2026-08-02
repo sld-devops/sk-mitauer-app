@@ -55,7 +55,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=144" />
+    <link rel="stylesheet" href="styles.css?v=145" />
   </head>
   <body>
     <div id="authView">
@@ -304,6 +304,14 @@
                       <span class="dropdown-arrow">▼</span>
                     </div>
                     <div class="dropdown-list template-dropdown-list"></div>
+                  </div>
+                  <div class="custom-dropdown template-dropdown" id="frequentTrainingsDropdown" hidden>
+                    <label class="template-dropdown-label">Biežāk lietotie</label>
+                    <div class="dropdown-trigger">
+                      <span class="dropdown-selected">Izvēlies treniņu...</span>
+                      <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="dropdown-list frequent-dropdown-list"></div>
                   </div>
                 </div>
                 <div class="type-select-label">Izveidot jaunu treniņu
@@ -898,7 +906,7 @@
     <div id="loadingOverlay" class="loading-overlay" hidden><div class="loading-spinner"></div></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="db.js?v=3"></script>
+    <script src="db.js?v=4"></script>
     <script src="auth.js?v=3"></script>
     <script src="panels/self-tests.js"></script>
     <script src="panels/polar-tests.js"></script>
@@ -914,6 +922,6 @@
     <script src="panels/admin.js?v=2"></script>
     <script src="panels/weekly-review.js"></script>
     <script src="panels/ruffier-test.js"></script>
-    <script src="app.js?v=40"></script>
+    <script src="app.js?v=41"></script>
   </body>
 </html>
