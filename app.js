@@ -1002,14 +1002,16 @@ function normalizeTrainingDetails(details) {
         while (kept.length && !kept[kept.length - 1]) kept.pop();
         line = `${label}: ${kept.join("; ")}`;
       }
-      // "60 min" and "60min" are the same training written two ways, and the
-      // coach writes both — without this they were two separate entries sitting
-      // next to each other in the table with their counts split. The spaced
-      // form is rewritten to the tight one, which is also what gets loaded back
-      // into the builder.
-      // The lookahead stops "5 minūtes" from becoming "5minūtes": \b would not,
-      // since "ū" is not a word character to a JS regex.
+      // The coach writes the same duration several ways — "60 min", "60min",
+      // "75'", "5 minūtes" — and without this each spelling became its own
+      // entry in the table with the count split between them. Every way of
+      // writing minutes is rewritten to "min" with no space, and that tight
+      // form is what the table shows and what gets loaded back into the
+      // builder.
+      // Note "m" is metres, never minutes ("400m"), so it is only ever
+      // space-closed, never rewritten.
       return line
+        .replace(/(\d)\s*(?:['′]|min\.|minūt\p{L}*)/gu, "$1min")
         .replace(/(\d)\s+(min|km|sek|h|s|m)(?![\p{L}\d])/gu, "$1$2")
         .replace(/\s+/g, " ")
         .trim();
