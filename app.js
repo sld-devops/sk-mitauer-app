@@ -1383,6 +1383,14 @@ function renderEditPlanPreview() {
   preview.innerHTML = `<strong>${displayTitle(training.title)}</strong><span>${formatDetailsForCard(training.details).replace(/\n/g, "<br>")}</span>`;
 }
 
+// "Iesildīšanās: 15min; 130-145; ar Drills" -> ["15min", "130-145", "ar Drills"].
+// The fields are positional, so an empty slot must stay an empty slot.
+function splitDetailFields(line) {
+  const idx = line.indexOf(":");
+  if (idx === -1) return [];
+  return line.slice(idx + 1).split(";").map((p) => p.trim());
+}
+
 function parsePlanToForm(plan) {
   const knownTypes = ["Atjaunojošais/lēnais skrējiens", "Vidējas intensitātes skrējiens", "Garais skrējiens", "Intervāli", SAME_INTERVAL_TYPE, VAR_INTERVAL_TYPE, "Tempa skrējiens", OTHER_RUN_TYPE, "VFS", "SFS", "Velo", "Cits"];
   const isKnownType = knownTypes.includes(plan.title);
@@ -1390,22 +1398,26 @@ function parsePlanToForm(plan) {
 
   document.getElementById("epType").value = resolvedType;
   document.getElementById("epCustomName").value = isKnownType ? "" : plan.title;
-  document.getElementById("epWarmupDuration").value = "15 min";
-  document.getElementById("epWarmupPulse").value = "130-145";
+  // Every field starts empty and is then filled from the plan itself. These
+  // used to be seeded with example values ("45 min", "4:15/km", ...), so any
+  // field the plan did not mention kept the example - and saving wrote it into
+  // the plan. The dialog must show exactly what the training says, nothing more.
+  document.getElementById("epWarmupDuration").value = "";
+  document.getElementById("epWarmupPulse").value = "";
   document.getElementById("epIncludeWarmup").checked = false;
   document.getElementById("epIncludeCooldown").checked = false;
   document.getElementById("epIncludeDrills").checked = false;
   document.getElementById("epMainAdditional").value = "";
   document.getElementById("epMainDrills").checked = false;
-  document.getElementById("epCooldownDuration").value = "15 min";
-  document.getElementById("epCooldownPulse").value = "120-135";
-  document.getElementById("epIntervalLength").value = "600 m";
-  document.getElementById("epRepeatCount").value = "6";
-  document.getElementById("epIntervalPace").value = "3:45/km";
-  document.getElementById("epRestDuration").value = "2 min";
-  document.getElementById("epMainDuration").value = "45 min";
-  document.getElementById("epMainPulse").value = "145-155";
-  document.getElementById("epTempoPace").value = "4:15/km";
+  document.getElementById("epCooldownDuration").value = "";
+  document.getElementById("epCooldownPulse").value = "";
+  document.getElementById("epIntervalLength").value = "";
+  document.getElementById("epRepeatCount").value = "";
+  document.getElementById("epIntervalPace").value = "";
+  document.getElementById("epRestDuration").value = "";
+  document.getElementById("epMainDuration").value = "";
+  document.getElementById("epMainPulse").value = "";
+  document.getElementById("epTempoPace").value = "";
   document.getElementById("epFreeText").value = "";
   document.getElementById("epWarmupAdditional").value = "";
   document.getElementById("epCooldownAdditional").value = "";
@@ -1423,20 +1435,16 @@ function parsePlanToForm(plan) {
   for (const line of lines) {
     if (line.startsWith("Iesildīšanās:")) {
       document.getElementById("epIncludeWarmup").checked = true;
-      const m = line.match(/: (.+?)(?:; (.+?)(?:; (.+))?)?$/);
-      if (m) {
-        if (m[1]) document.getElementById("epWarmupDuration").value = m[1];
-        if (m[2]) document.getElementById("epWarmupPulse").value = m[2];
-        if (m[3]) document.getElementById("epWarmupAdditional").value = m[3];
-      }
+      const parts = splitDetailFields(line);
+      document.getElementById("epWarmupDuration").value = parts[0] || "";
+      document.getElementById("epWarmupPulse").value = parts[1] || "";
+      document.getElementById("epWarmupAdditional").value = parts[2] || "";
     } else if (line.startsWith("Atsildīšanās:")) {
       document.getElementById("epIncludeCooldown").checked = true;
-      const m = line.match(/: (.+?)(?:; (.+?)(?:; (.+))?)?$/);
-      if (m) {
-        if (m[1]) document.getElementById("epCooldownDuration").value = m[1];
-        if (m[2]) document.getElementById("epCooldownPulse").value = m[2];
-        if (m[3]) document.getElementById("epCooldownAdditional").value = m[3];
-      }
+      const parts = splitDetailFields(line);
+      document.getElementById("epCooldownDuration").value = parts[0] || "";
+      document.getElementById("epCooldownPulse").value = parts[1] || "";
+      document.getElementById("epCooldownAdditional").value = parts[2] || "";
     } else if (line === "Drill") {
       if (epMainSeen) {
         document.getElementById("epMainDrills").checked = true;
@@ -1467,31 +1475,23 @@ function parsePlanToForm(plan) {
               document.getElementById("epVarLaps"),
               document.getElementById("epVarRestBetweenLaps")
             );
-          } else if (mainContent.match(/^(\d+)x([\d.\s]+\s*\w+)/) && isIntervalType(plan.title)) {
-            const intervalMatch = mainContent.match(/^(\d+)x([\d.\s]+\s*\w+)/);
-            if (intervalMatch) {
-              document.getElementById("epRepeatCount").value = intervalMatch[1];
-              document.getElementById("epIntervalLength").value = intervalMatch[2];
-            }
+          } else if (/^(\d+)x([^\s;()]+)/.test(mainContent) && isIntervalType(plan.title)) {
+            // Same length matcher as loadTemplateToForm: (\S+) used to swallow
+            // the ";" and load "400m;" as the length.
+            const intervalMatch = mainContent.match(/^(\d+)x([^\s;()]+)/);
+            document.getElementById("epRepeatCount").value = intervalMatch[1];
+            document.getElementById("epIntervalLength").value = intervalMatch[2];
             const paceMatch = mainContent.match(/\(([^)]+)\)/);
-            if (paceMatch) document.getElementById("epIntervalPace").value = paceMatch[1].trim();
+            document.getElementById("epIntervalPace").value = paceMatch ? paceMatch[1].trim() : "";
             const restMatch = mainContent.match(/caur\s+(.+)/);
-            if (restMatch) document.getElementById("epRestDuration").value = restMatch[1];
+            document.getElementById("epRestDuration").value = restMatch ? restMatch[1].trim() : "";
           } else {
-            const pulseMatch = mainContent.match(/(.+?);\s*(.+?)(?:sr)?(?:;\s*(.+))?$/);
-            if (pulseMatch) {
-              document.getElementById("epMainDuration").value = pulseMatch[1].trim();
-              document.getElementById("epMainPulse").value = pulseMatch[2].trim();
-              if (pulseMatch[3]) document.getElementById("epTempoPace").value = pulseMatch[3].trim();
-            } else {
-              const tempoMatch = mainContent.match(/^(.+?);\s+(.+)/);
-              if (tempoMatch) {
-                document.getElementById("epMainDuration").value = tempoMatch[1].trim();
-                document.getElementById("epTempoPace").value = tempoMatch[2].trim();
-              } else {
-                document.getElementById("epMainDuration").value = mainContent.trim();
-              }
-            }
+            // "duration; pulse; pace", read by position - never sniffed with
+            // regexes, or a missing middle field shifts the rest along.
+            const parts = mainContent.split(";").map((p) => p.trim());
+            document.getElementById("epMainDuration").value = parts[0] || "";
+            document.getElementById("epMainPulse").value = parts[1] || "";
+            document.getElementById("epTempoPace").value = parts[2] || "";
           }
         }
       }
