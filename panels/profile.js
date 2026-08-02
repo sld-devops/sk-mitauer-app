@@ -86,6 +86,34 @@ function renderProfile() {
   });
 }
 
+// The percent column is derived from max HR, never stored - hr_zones keeps
+// holding plain pulse numbers, so nothing already saved changes shape.
+function hrPercentOf(value, maxHr) {
+  const v = parseFloat(String(value ?? "").replace(",", "."));
+  if (!v || v <= 0 || !maxHr) return "";
+  return String(Math.round((v / maxHr) * 100));
+}
+
+function parseMaxHr(value) {
+  const n = parseFloat(String(value ?? "").replace(",", "."));
+  return n > 0 ? n : 0;
+}
+
+function hrZonePercentText(zone, maxHr) {
+  const from = hrPercentOf(zone.no, maxHr);
+  const to = hrPercentOf(zone.lidz, maxHr);
+  if (from && to) return `${from}-${to}%`;
+  if (from || to) return `${from || to}%`;
+  return "";
+}
+
+// Accepts "71-78", "71-78%", "71 - 78", or a single number (fills only "no").
+function parsePercentRange(text) {
+  const nums = String(text ?? "").match(/\d+(?:[.,]\d+)?/g);
+  if (!nums) return [];
+  return nums.slice(0, 2).map((n) => parseFloat(n.replace(",", ".")));
+}
+
 function renderHrZones() {
   const athleteId = getSelectedAthleteId();
   const profile = isCoach()
@@ -94,33 +122,83 @@ function renderHrZones() {
   const hrZones = profile.hr_zones || {};
   const canEdit = isCoach();
   const disabled = canEdit ? "" : "disabled";
+  const maxHr = parseMaxHr(hrZones.max_hr);
 
   const zoneRowsHtml = ["1", "2", "3", "4", "5"]
     .map((z) => {
       const zone = hrZones[z] || {};
       return `
-        <div class="zone-row">
+        <div class="zone-row zone-c${z}">
           <span class="zone-num">${z}.</span>
           <input class="zone-no" value="${zone.no || ""}" placeholder="no" ${disabled} />
           <input class="zone-lidz" value="${zone.lidz || ""}" placeholder="līdz" ${disabled} />
+          <input class="zone-pct" value="${hrZonePercentText(zone, maxHr)}" placeholder="%" ${disabled} />
         </div>
       `;
     })
     .join("");
 
+  const hintHtml = maxHr
+    ? ""
+    : `<p class="zone-hint">Ievadi maksimālo pulsu, lai rēķinātu procentus.</p>`;
+
   document.getElementById("hrZonesBody").innerHTML = `
     <div class="profile-section" id="hrZoneFields">${zoneRowsHtml}</div>
-    <div class="zone-row">
+    <div class="zone-row zone-max">
       <span class="zone-num">Maks.</span>
       <input id="maxHrInput" value="${hrZones.max_hr || ""}" placeholder="maks. HR" ${disabled} />
     </div>
+    ${hintHtml}
   `;
 
   if (canEdit) {
-    document.querySelectorAll("#hrZoneFields .zone-no, #hrZoneFields .zone-lidz, #maxHrInput").forEach(el => {
+    document.querySelectorAll("#hrZoneFields .zone-no, #hrZoneFields .zone-lidz").forEach((el) => {
+      el.addEventListener("input", () => refreshHrZonePercent(el.closest(".zone-row")));
       el.addEventListener("change", saveHrZones);
     });
+    document.querySelectorAll("#hrZoneFields .zone-pct").forEach((el) => {
+      el.addEventListener("input", () => applyHrZonePercent(el.closest(".zone-row")));
+      el.addEventListener("change", saveHrZones);
+    });
+    const maxInput = document.getElementById("maxHrInput");
+    maxInput?.addEventListener("input", refreshAllHrZonePercents);
+    maxInput?.addEventListener("change", saveHrZones);
   }
+}
+
+function currentMaxHrInput() {
+  return parseMaxHr(document.getElementById("maxHrInput")?.value);
+}
+
+function refreshHrZonePercent(row) {
+  if (!row) return;
+  const maxHr = currentMaxHrInput();
+  const pct = row.querySelector(".zone-pct");
+  if (!pct) return;
+  pct.value = hrZonePercentText(
+    {
+      no: row.querySelector(".zone-no")?.value,
+      lidz: row.querySelector(".zone-lidz")?.value,
+    },
+    maxHr
+  );
+}
+
+function refreshAllHrZonePercents() {
+  document.querySelectorAll("#hrZoneFields .zone-row").forEach(refreshHrZonePercent);
+}
+
+// Setting .value from script fires no "input" event, so writing the pulse
+// boxes here cannot bounce back and re-trigger this handler.
+function applyHrZonePercent(row) {
+  if (!row) return;
+  const maxHr = currentMaxHrInput();
+  if (!maxHr) return;
+  const [from, to] = parsePercentRange(row.querySelector(".zone-pct")?.value);
+  const noInput = row.querySelector(".zone-no");
+  const lidzInput = row.querySelector(".zone-lidz");
+  if (from > 0 && noInput) noInput.value = String(Math.round((from / 100) * maxHr));
+  if (to > 0 && lidzInput) lidzInput.value = String(Math.round((to / 100) * maxHr));
 }
 
 function renderThresholds() {
