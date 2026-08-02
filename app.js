@@ -897,14 +897,27 @@ function renderAthleteDropdown() {
     .join("");
 }
 
+// One group per training type — deliberately not lumped together (the three
+// easy/medium/long runs used to share one group, and the two interval kinds
+// another), so a list of templates or of most-used trainings never mixes two
+// kinds of session under one heading.
+// "Intervāli" without a suffix is the legacy type name, kept so older rows
+// still land in the equal-length group.
 const TEMPLATE_GROUPS = [
-  { key: "recovery", label: "Lēnie/vidēji/garie skrējieni", types: ["Atjaunojošais/lēnais skrējiens", "Vidējas intensitātes skrējiens", "Garais skrējiens"] },
-  { key: "intervals", label: "Intervāli", types: ["Intervāli (vienāda garuma/ilguma)", "Intervāli (dažāda garuma/ilguma)"] },
+  { key: "easy", label: "Atjaunojošie/lēnie skrējieni", types: ["Atjaunojošais/lēnais skrējiens"] },
+  { key: "medium", label: "Vidējas intensitātes skrējieni", types: ["Vidējas intensitātes skrējiens"] },
+  { key: "long", label: "Garie skrējieni", types: ["Garais skrējiens"] },
+  { key: "intervals_same", label: "Intervāli (vienāda garuma/ilguma)", types: [SAME_INTERVAL_TYPE, "Intervāli"] },
+  { key: "intervals_var", label: "Intervāli (dažāda garuma/ilguma)", types: [VAR_INTERVAL_TYPE] },
   { key: "tempo", label: "Tempa skrējieni", types: ["Tempa skrējiens"] },
-  { key: "other", label: "Citi skrējieni", types: ["Cita veida skrējiens"] },
+  { key: "other", label: "Citi skrējieni", types: [OTHER_RUN_TYPE] },
   { key: "vfs_sfs", label: "VFS/SFS", types: ["VFS", "SFS"] },
   { key: "velo", label: "Velo", types: ["Velo"] },
 ];
+
+// The most-used table covers running only — VFS/SFS/Velo are excluded from it
+// entirely, and are not even counted.
+const FREQUENT_GROUPS = TEMPLATE_GROUPS.filter((g) => g.key !== "vfs_sfs" && g.key !== "velo");
 
 function renderTemplates() {
   const athleteId = getSelectedAthleteId();
@@ -1008,7 +1021,11 @@ function frequentDetailsForDisplay(details) {
 function frequentGroupKey(title) {
   const base = (title || "").replace(/\s*Koptreniņš\s*$/, "").trim();
   const group = TEMPLATE_GROUPS.find((g) => g.types.includes(base));
-  return group ? group.key : "other";
+  // No group at all means a coach-written name ("Fartleks") — that is what
+  // "Citi skrējieni" is for. VFS/SFS/Velo do match a group, just not one this
+  // table covers, and those are dropped rather than swept into "Citi".
+  if (!group) return "other";
+  return FREQUENT_GROUPS.some((g) => g.key === group.key) ? group.key : null;
 }
 
 // One pass over every athlete's recent plans -> per group, the most used
@@ -1019,12 +1036,14 @@ function buildFrequentTrainings(rows) {
     const title = (row.title || "").trim();
     const details = normalizeTrainingDetails(row.details);
     if (!title || !details) continue;
-    const key = `${title} ${details}`;
+    const group = frequentGroupKey(title);
+    if (group === null) continue;
+    const key = `${title}\u0000${details}`;
     const entry = counts.get(key);
     if (entry) {
       entry.count += 1;
     } else {
-      counts.set(key, { key, title, details, count: 1, group: frequentGroupKey(title) });
+      counts.set(key, { key, title, details, count: 1, group });
     }
   }
   const byGroup = {};
@@ -1041,7 +1060,7 @@ function buildFrequentTrainings(rows) {
 async function loadFrequentTrainings() {
   if (frequentTrainings || frequentLoading) return;
   frequentLoading = true;
-  renderFrequentDropdown();
+  renderFrequentTable();
   try {
     const since = new Date();
     since.setMonth(since.getMonth() - FREQUENT_MONTHS);
@@ -1053,70 +1072,75 @@ async function loadFrequentTrainings() {
     frequentTrainings = {};
   }
   frequentLoading = false;
-  renderFrequentDropdown();
+  renderFrequentTable();
 }
 
-function renderFrequentDropdown() {
-  const container = document.getElementById("frequentTrainingsDropdown");
-  if (!container) return;
-  container.hidden = activeRole !== "coach";
-  if (container.hidden) return;
+function renderFrequentTable() {
+  const panel = document.getElementById("frequentPanel");
+  if (!panel) return;
+  panel.hidden = activeRole !== "coach";
+  if (panel.hidden) return;
 
-  const listEl = container.querySelector(".frequent-dropdown-list");
-  const selectedEl = container.querySelector(".dropdown-selected");
-
+  const tableEl = document.getElementById("frequentTable");
   frequentVisible = [];
+
   if (frequentLoading) {
-    listEl.innerHTML = '<div class="frequent-dropdown-empty">Ielādē...</div>';
-  } else if (!frequentTrainings) {
-    listEl.innerHTML = "";
-  } else {
-    const groups = TEMPLATE_GROUPS
-      .map((g) => ({ ...g, items: frequentTrainings[g.key] || [] }))
-      .filter((g) => g.items.length);
-    // Rows are addressed by their position in frequentVisible, not by their key:
-    // the key is a whole multi-line training, and a newline does not survive a
-    // round trip through an HTML attribute.
-    listEl.innerHTML = groups.length
-      ? groups.map((group) => `
-        <div class="template-dropdown-group">
-          <div class="template-dropdown-group-title">${group.label}</div>
-          ${group.items.map((item) => {
-            const idx = frequentVisible.push(item) - 1;
-            return `
-            <div class="template-dropdown-item${selectedFrequentKey === item.key ? " selected" : ""}" data-frequent-idx="${idx}">
-              <div class="template-dropdown-item-name frequent-item-name">
-                <span>${escapeHtml(displayTitle(item.title))}</span>
-                <span class="frequent-item-count">${item.count}x</span>
-              </div>
-              <div class="template-dropdown-item-details">${frequentDetailsForDisplay(item.details)}</div>
-            </div>`;
-          }).join("")}
-        </div>
-      `).join("")
-      : `<div class="frequent-dropdown-empty">Pēdējos ${FREQUENT_MONTHS} mēnešos nav ieplānotu treniņu.</div>`;
+    tableEl.innerHTML = '<p class="frequent-empty">Ielādē...</p>';
+    return;
+  }
+  if (!frequentTrainings) {
+    tableEl.innerHTML = "";
+    return;
+  }
+  if (!Object.values(frequentTrainings).some((items) => items.length)) {
+    tableEl.innerHTML = `<p class="frequent-empty">Pēdējos ${FREQUENT_MONTHS} mēnešos nav ieplānotu treniņu.</p>`;
+    return;
   }
 
-  const selected = frequentVisible.find((i) => i.key === selectedFrequentKey);
-  selectedEl.textContent = selected ? displayTitle(selected.title) : "Izvēlies treniņu...";
+  // One row per training type, always all of them — an empty row still says
+  // "nothing used here recently", which is itself worth seeing at a glance.
+  // Cells are addressed by their position in frequentVisible, not by their key:
+  // the key is a whole multi-line training, and a newline does not survive a
+  // round trip through an HTML attribute.
+  tableEl.innerHTML = `
+    <div class="frequent-grid">
+      ${FREQUENT_GROUPS.map((group) => {
+        const items = frequentTrainings[group.key] || [];
+        const cells = items.map((item) => {
+          const idx = frequentVisible.push(item) - 1;
+          return `
+            <button type="button" class="frequent-cell${selectedFrequentKey === item.key ? " selected" : ""}" data-frequent-idx="${idx}">
+              <span class="frequent-cell-count">${item.count}x</span>
+              <span class="frequent-cell-details">${frequentDetailsForDisplay(item.details)}</span>
+            </button>`;
+        }).join("");
+        const blanks = Array.from({ length: FREQUENT_PER_GROUP - items.length },
+          () => '<span class="frequent-cell frequent-cell-blank"></span>').join("");
+        return `
+          <div class="frequent-row-label">${escapeHtml(group.label)}</div>
+          ${cells}${blanks}`;
+      }).join("")}
+    </div>
+  `;
 }
 
-// The three source dropdowns are alternatives to each other — picking one has to
-// visibly release the other two, or the form's contents look like they came from
-// whichever label was left standing.
-function clearOtherSourceSelections(pickedId) {
-  if (pickedId !== "frequentTrainingsDropdown" && selectedFrequentKey) {
+// The training builder can be filled from three places — the two template
+// dropdowns and this table. Picking one has to visibly release the others, or
+// the form's contents look like they came from whichever label was left
+// standing.
+function clearOtherSourceSelections(picked) {
+  if (picked !== "frequent" && selectedFrequentKey) {
     selectedFrequentKey = null;
-    renderFrequentDropdown();
+    renderFrequentTable();
   }
-  if (pickedId === "frequentTrainingsDropdown") {
+  if (picked === "frequent") {
     selectedTemplateId = null;
     ["allTemplatesDropdown", "athleteTemplatesDropdown"].forEach((id) => {
-      const d = document.getElementById(id);
-      if (!d) return;
-      d.classList.remove("open");
-      d.querySelector(".dropdown-selected").textContent = "Izvēlies sagatavi...";
-      d.querySelectorAll(".template-dropdown-item").forEach((i) => i.classList.remove("selected"));
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove("open");
+      el.querySelector(".dropdown-selected").textContent = "Izvēlies sagatavi...";
+      el.querySelectorAll(".template-dropdown-item").forEach((i) => i.classList.remove("selected"));
     });
   }
 }
@@ -2185,7 +2209,7 @@ function render() {
 
   renderAthleteDropdown();
   renderTemplates();
-  renderFrequentDropdown();
+  renderFrequentTable();
   renderSourcePicker();
   document.getElementById("updateTemplateBtn").hidden = !selectedTemplateId;
   document.getElementById("deleteTemplateBtn").hidden = !selectedTemplateId;
@@ -2600,6 +2624,10 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
     if (panel.id === "raceCalendarPanel" && wasCollapsed && !panel.classList.contains("collapsed")) {
       onRaceCalendarExpand();
     }
+
+    if (panel.id === "frequentPanel" && wasCollapsed && !panel.classList.contains("collapsed")) {
+      loadFrequentTrainings();
+    }
   });
 });
 
@@ -2748,7 +2776,7 @@ document.querySelectorAll(".template-dropdown-list").forEach(list => {
     dropdown.querySelector(".dropdown-selected").textContent = item.querySelector(".template-dropdown-item-name").textContent;
     dropdown.querySelectorAll(".template-dropdown-item").forEach(i => i.classList.remove("selected"));
     item.classList.add("selected");
-    clearOtherSourceSelections(dropdown.id);
+    clearOtherSourceSelections("template");
 
     const t = templates.find(t => t.id === templateId);
     if (t) loadTemplateToForm(t);
@@ -2756,26 +2784,22 @@ document.querySelectorAll(".template-dropdown-list").forEach(list => {
   });
 });
 
-// "Biežāk lietotie" — loaded the first time it is opened, not at login, so it
+// "Biežāk lietotie" — the data is fetched the first time the panel is expanded
+// (see the frequentPanel branch in the collapse handler), not at login, so it
 // costs nothing for athletes or for a coach who never opens it.
-document.querySelector("#frequentTrainingsDropdown .dropdown-trigger")
-  ?.addEventListener("click", () => { loadFrequentTrainings(); });
+document.getElementById("frequentTable")?.addEventListener("click", (e) => {
+  const cell = e.target.closest("[data-frequent-idx]");
+  if (!cell) return;
+  const entry = frequentVisible[Number(cell.dataset.frequentIdx)];
+  if (!entry) return;
 
-document.querySelector("#frequentTrainingsDropdown .frequent-dropdown-list")
-  ?.addEventListener("click", (e) => {
-    const item = e.target.closest("[data-frequent-idx]");
-    if (!item) return;
-    const entry = frequentVisible[Number(item.dataset.frequentIdx)];
-    if (!entry) return;
-
-    selectedFrequentKey = entry.key;
-    document.getElementById("frequentTrainingsDropdown").classList.remove("open");
-    clearOtherSourceSelections("frequentTrainingsDropdown");
-    // Same entry point the template dropdowns use — pace/pulse fields simply
-    // stay empty, since those values were stripped when counting.
-    loadTemplateToForm({ name: entry.title, details: entry.details });
-    render();
-  });
+  selectedFrequentKey = entry.key;
+  clearOtherSourceSelections("frequent");
+  // Same entry point the template dropdowns use — pace/pulse fields simply
+  // stay empty, since those values were stripped when counting.
+  loadTemplateToForm({ name: entry.title, details: entry.details });
+  render();
+});
 
 document.addEventListener("click", () => {
   document.querySelectorAll(".template-dropdown.open").forEach(d => d.classList.remove("open"));

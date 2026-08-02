@@ -55,7 +55,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=145" />
+    <link rel="stylesheet" href="styles.css?v=146" />
   </head>
   <body>
     <div id="authView">
@@ -305,14 +305,6 @@
                     </div>
                     <div class="dropdown-list template-dropdown-list"></div>
                   </div>
-                  <div class="custom-dropdown template-dropdown" id="frequentTrainingsDropdown" hidden>
-                    <label class="template-dropdown-label">Biežāk lietotie</label>
-                    <div class="dropdown-trigger">
-                      <span class="dropdown-selected">Izvēlies treniņu...</span>
-                      <span class="dropdown-arrow">▼</span>
-                    </div>
-                    <div class="dropdown-list frequent-dropdown-list"></div>
-                  </div>
                 </div>
                 <div class="type-select-label">Izveidot jaunu treniņu
                   <select id="customType" hidden>
@@ -458,6 +450,16 @@
                 </div>
                 </form>
               </div>
+            </div>
+          </div>
+
+          <div class="stats-collapsible collapsible collapsed" id="frequentPanel" hidden>
+            <div class="panel-header">
+              <h2>⭐ Biežāk lietotie treniņi</h2>
+              <button class="collapse-toggle" type="button" aria-label="Rādīt biežāk lietotos treniņus">▶</button>
+            </div>
+            <div class="panel-body">
+              <div id="frequentTable"></div>
             </div>
           </div>
 
@@ -922,6 +924,6 @@
     <script src="panels/admin.js?v=2"></script>
     <script src="panels/weekly-review.js"></script>
     <script src="panels/ruffier-test.js"></script>
-    <script src="app.js?v=41"></script>
+    <script src="app.js?v=42"></script>
   </body>
 </html>
