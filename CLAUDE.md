@@ -80,6 +80,16 @@ A collapsible panel (`#frequentPanel`) in the main column just below the trainin
 - **Cells are addressed by index (`data-frequent-idx`), never by their key.** The key is a whole multi-line training and a newline does not survive a round trip through an HTML attribute — an earlier version used `data-frequent-key` and every click silently did nothing. (The key also once contained a real NUL byte as its separator, which made `grep` treat `app.js` as a binary file and report zero matches for anything. It is `\u0000` now; if a search of `app.js` ever comes back mysteriously empty, check for stray control characters before doubting the search.)
 - **Picking a cell clears both template dropdowns** via `clearOtherSourceSelections("frequent")`, and picking a template clears the highlighted cell; the table and the two dropdowns are alternative sources for the same builder form.
 
+### HR zones: the percent column is derived, and `.zone-row` is shared
+
+"Sirdsritma darba zonas" (`renderHrZones()` in `panels/profile.js`) gained a third input per row on 2026-08-02 showing each zone as a percentage of max HR, editable in **both** directions: typing pulse fills the percent, typing percent (`71-78`, `71-78%`, or a single number → only "no") fills the pulse boxes. Things to know:
+
+- **Nothing new is stored.** `hr_zones` still holds only `{ no, lidz }` per zone plus `max_hr`; the percent is recomputed from `max_hr` on every render. `saveHrZones()` was left untouched — it reads `.zone-no`/`.zone-lidz` only, so `.zone-pct` is invisible to it. The owner can't run migrations, so a derived column is the only option that doesn't need a schema change (same reasoning as `pace_hr_map._meta`).
+- **Live recalculation rides on `input`, saving still rides on `change`.** Writing an input's `.value` from script fires no `input` event, so the percent↔pulse handlers cannot bounce off each other. Don't switch either side to dispatching synthetic events.
+- **`.zone-row`/`.zone-num`/`.zone-no`/`.zone-lidz` are shared with the pace/HR panel** (`renderPaceHrMap`, same file), which must stay plain white with two inputs. Every colour rule is therefore scoped under `#hrZonesBody` — never restyle the bare `.zone-*` classes.
+- **The colour rules must stay *after* `#hrZoneFields input[disabled]`** in `styles.css`. Both selectors are specificity (1,1,1), so source order is what makes zone colours survive into the athlete's read-only view.
+- Colours are fixed per zone (1 grey, 2 light blue, 3 yellow, 4 orange, 5 red, "Maks." row violet) via `zone-c1`…`zone-c5`/`zone-max` classes. When `max_hr` is empty the percent boxes render blank and a `.zone-hint` line explains why — typing a percent with no max HR is a deliberate no-op, not a crash.
+
 ### Restrictions have day-part granularity
 
 A `restrictions` row can block a whole day or just one part (`time_of_day`: null = whole day, else `morning`/`afternoon`/`evening`). Check `isTimeSlotRestricted(dateStr, tod)`, `isDayFullyRestricted(dateStr)`, and `getRestrictedTods(dateStr)` in `panels/restrictions.js` before adding new scheduling logic that touches restrictions — `app.js`'s calendar renderers (`renderCalendar`/`renderMonthViewInline`) just call these as global functions, same as any other panel's exported helpers.

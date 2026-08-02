@@ -3329,6 +3329,43 @@ label {
   flex: 1;
 }
 
+/* ---- HR zone colours (this panel only - .zone-row is shared with the
+   pace/HR panel, which must keep its plain white rows) ---- */
+/* Wide enough for the longest reading, "92-100%", without clipping. */
+#hrZonesBody .zone-pct {
+  flex: 0 0 78px;
+  font-size: 0.85rem;
+  min-width: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+  text-align: center;
+}
+
+#hrZonesBody .zone-no,
+#hrZonesBody .zone-lidz {
+  min-width: 0;
+}
+
+#hrZonesBody .zone-hint {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 8px 0 0;
+}
+
+#hrZonesBody .zone-c1 .zone-num { color: #5b6472; }
+#hrZonesBody .zone-c2 .zone-num { color: #2563eb; }
+#hrZonesBody .zone-c3 .zone-num { color: #a1730a; }
+#hrZonesBody .zone-c4 .zone-num { color: #c2620c; }
+#hrZonesBody .zone-c5 .zone-num { color: #c02c2c; }
+#hrZonesBody .zone-max .zone-num { color: #7c3aed; }
+
+#hrZonesBody .zone-c1 input { background: #f2f3f5; border-color: #c3cad4; }
+#hrZonesBody .zone-c2 input { background: #e9f2fd; border-color: #93c0f0; }
+#hrZonesBody .zone-c3 input { background: #fdf6dc; border-color: #e2c85f; }
+#hrZonesBody .zone-c4 input { background: #fdeedd; border-color: #f0b47a; }
+#hrZonesBody .zone-c5 input { background: #fdeaea; border-color: #eb9f9f; }
+#hrZonesBody .zone-max input { background: #f3ecfd; border-color: #c0aef8; }
+
 /* ---- Dialog animations ---- */
 @keyframes dialog-in {
   from { opacity: 0; transform: scale(0.95) translateY(-12px); }
