@@ -62,6 +62,12 @@ Two roles: `coach` and `athlete` (`currentProfile.role`, checked via `isCoach()`
 
 Related: the parenthetical on an interval line is the **pace** and only the pace — `caur 2min` is rest and always stays. When no pace is written, the line reads `Pamatdaļa: 6x400m; caur 2min`, which is why the length is matched with `/(\d+)x([^\s;()]+)/`; the older `(\d+)x(\S+)` swallowed the `;` and loaded the length as `"400m;"`.
 
+**`parsePlanToForm()` (the "Rediģēt treniņu" dialog) had the same two bugs plus a worse one, all fixed 2026-08-02.** It seeded every input with a hardcoded example (`"45 min"`, `"145-155"`, `"4:15/km"`, `"600 m"`, `"6"`, `"3:45/km"`, `"2 min"`, `"15 min"`, `"130-145"`, `"120-135"`) and then only overwrote the fields the plan happened to mention. So editing `Pamatdaļa: 60 min; 120-130` showed a pace of `4:15/km` that was never in the plan — and because the preview and the save build the details string from the inputs, **saving wrote that invented pace into the training**. Rules now:
+
+- Every field is cleared to `""` first, then filled from the plan; the `value="…"` attributes were stripped from the eleven `ep*` inputs in `index.html` too (the new-training builder never had them — the edit dialog was the odd one out).
+- Warmup, cooldown and the main part all read by position via `splitDetailFields()`, matching `loadTemplateToForm`. Don't reintroduce `if (m[2]) …`-style guarded assignment here: a guard means "keep whatever was in the box", which is exactly the bug.
+- The interval branch clears pace and rest when the line has neither, and uses the `/^(\d+)x([^\s;()]+)/` length matcher rather than the old `([\d.\s]+\s*\w+)`.
+
 ### `TEMPLATE_GROUPS` is one group per training type
 
 The group list in `app.js` that headings both template dropdowns and the most-used table used to lump the three easy/medium/long runs into one "Lēnie/vidēji/garie skrējieni" group and the two interval kinds into one "Intervāli". Both were split on 2026-08-02 at the owner's request — a coach picking a template should never have to tell an equal-length interval session from a mixed-length one by reading the details. Keep it one group per type; the only remaining multi-type group is VFS/SFS. `"Intervāli"` with no suffix stays listed under the equal-length group as the legacy type name.
@@ -193,6 +199,8 @@ The working recipe, refined over several sessions:
 - **`--dump-dom` gives no computed styles**, so a probe must write its findings into a `<pre id="...">` in the page and the shell extracts that element from the dumped DOM. Add `* { transition: none !important }` when reading values that animate.
 - **Screenshot with `--screenshot=` plus a wide `--window-size`**, then crop/downscale with PIL (Pillow is available; imagemagick and ffmpeg are not) and open the result with the Read tool. Below 1040px `.planner-panel` becomes an off-canvas fixed drawer, so sidebar-panel screenshots need a wide viewport or the sidebar comes out blank. Chromium also clamps `--window-size` width to ~500px minimum, so a "375px phone" screenshot is really ~500px.
 - Playwright's bundled chromium is broken here (missing `libnspr4.so`) — use the system `chromium` binary with `--headless --no-sandbox --disable-gpu --virtual-time-budget=<ms>`.
+- **`--screenshot` does not capture `<dialog>` content**, whether opened with `showModal()` or by setting the `open` attribute — the top layer simply isn't painted. Don't waste time trying to force it; verify dialogs by reading their fields and rendered text out of the dumped DOM instead.
+- **Top-level `let` in a classic script is not on `window`.** `window.currentProfile = x` from a probe creates a *different* binding that `app.js`'s `let currentProfile` never sees, and the render call then throws on null. Assign with the bare name (`currentProfile = x`).
 - **Delete the staged directory when done.**
 
 ### Splitting `app.js` into smaller files (in progress)
