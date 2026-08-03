@@ -3358,20 +3358,20 @@ label {
   margin: 10px auto 0;
   max-width: 100%;
   overflow-x: auto;
-  padding: 8px 12px;
+  padding: 10px 16px;
   width: fit-content;
 }
 
 .chart-table {
   border-collapse: collapse;
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   width: auto;
 }
 
 .chart-table-note {
   color: var(--muted);
-  font-size: 0.72rem;
-  margin: 6px auto 0;
+  font-size: 0.78rem;
+  margin: 8px auto 0;
   max-width: 100%;
   text-align: center;
   width: fit-content;
@@ -3380,7 +3380,7 @@ label {
 .chart-table th,
 .chart-table td {
   border-bottom: 1px solid var(--line);
-  padding: 5px 6px;
+  padding: 7px 10px;
   text-align: right;
   white-space: nowrap;
 }
@@ -5425,5 +5425,18 @@ body.is-dragging .session-card.is-draggable {
 @media (max-width: 700px) {
   .chart-point-label {
     display: none;
+  }
+
+  .chart-table {
+    font-size: 0.78rem;
+  }
+
+  .chart-table th,
+  .chart-table td {
+    padding: 5px 6px;
+  }
+
+  .chart-table-wrap {
+    padding: 8px 10px;
   }
 }
