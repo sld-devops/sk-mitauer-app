@@ -14,7 +14,7 @@ const statsBar = document.getElementById("statsBar");
 const CHART_W = 1000;
 const FACET_H = 116;
 const AXIS_H = 26;
-const PAD = { top: 14, right: 78, bottom: 10, left: 58 };
+const PAD = { top: 26, right: 22, bottom: 10, left: 22 };
 
 // color = validated categorical slot, assigned in fixed order and never
 // recycled; the hue is set once on the facet as --series and inherited.
@@ -129,8 +129,18 @@ function buildFacetHtml(metric, data) {
     <circle class="chart-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" />
   `).join("");
 
-  const latest = data[data.length - 1][metric.key] || 0;
-  const lastPoint = points[points.length - 1];
+  // Every point carries its own figure, so the reader never has to hover. Zero
+  // weeks are left blank on purpose: the point already sits on the baseline,
+  // and a row of "0.0" over every untrained week is noise, not information.
+  // The label is clamped to the plot so a value at the very top or at either
+  // end cannot be drawn outside the box.
+  const valueLabels = empty ? "" : points.map((p, i) => {
+    const val = data[i][metric.key] || 0;
+    if (val <= 0) return "";
+    const y = Math.max(11, p.y - 11);
+    const x = Math.min(CHART_W - PAD.right, Math.max(PAD.left, p.x));
+    return `<text class="chart-point-label" x="${x.toFixed(1)}" y="${y.toFixed(1)}">${escapeHtml(val.toFixed(1))}</text>`;
+  }).join("");
 
   return `
     <div class="chart-facet ${metric.color}" data-facet="${metric.key}">
@@ -145,11 +155,8 @@ function buildFacetHtml(metric, data) {
         ${empty ? "" : `<path class="chart-line" d="${linePath}" />`}
         ${dots}
         ${empty ? "" : `<circle class="chart-cursor-dot" cx="-99" cy="-99" r="6" />`}
-        <text class="chart-tick" x="${PAD.left - 10}" y="${plotTop + 5}">${empty ? "" : escapeHtml(max.toFixed(1))}</text>
-        <text class="chart-tick" x="${PAD.left - 10}" y="${plotBottom + 4}">0</text>
-        ${empty
-          ? `<text class="chart-empty-note" x="${PAD.left + 8}" y="${plotTop + plotH / 2 + 5}">nav datu</text>`
-          : `<text class="chart-end-label" x="${(lastPoint.x + 12).toFixed(1)}" y="${(lastPoint.y + 5).toFixed(1)}">${escapeHtml(statsValueText(metric, latest))}</text>`}
+        ${valueLabels}
+        ${empty ? `<text class="chart-empty-note" x="${PAD.left + 8}" y="${plotTop + plotH / 2 + 5}">nav datu</text>` : ""}
       </svg>
     </div>
   `;
@@ -246,9 +253,9 @@ function renderStats() {
         <div class="chart-crosshair" hidden></div>
         <div class="chart-tooltip" hidden role="status"></div>
       </div>
-      <button class="chart-table-toggle" type="button" data-stats-table>
-        ${statsTableOpen ? "Paslēpt skaitļus" : "Rādīt skaitļus tabulā"}
-      </button>
+      <div class="chart-table-actions">
+        <button class="secondary-action" type="button" data-stats-table>${statsTableOpen ? "Paslēpt tabulu" : "Rādīt tabulu"}</button>
+      </div>
       ${statsTableOpen ? buildStatsTableHtml(data) : ""}
     </div>
   `;

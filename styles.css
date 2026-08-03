@@ -3233,18 +3233,15 @@ label {
   stroke-width: 3;
 }
 
-.chart-end-label {
-  fill: var(--muted);
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.chart-tick {
+/* One figure above every point, so nothing has to be hovered for. Text wears a
+   text token, never the series colour - the coloured line beside it carries
+   identity, and the light hues are illegible as text. */
+.chart-point-label {
   fill: var(--muted);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  text-anchor: end;
+  text-anchor: middle;
 }
 
 .chart-empty-note {
@@ -3329,40 +3326,39 @@ label {
 }
 
 /* ---- Table view: every value reachable without hovering ---- */
-.chart-table-toggle {
-  background: none;
-  border: none;
-  color: var(--muted);
-  font-size: 0.76rem;
-  font-weight: 700;
-  margin-top: 12px;
-  padding: 4px 2px;
-  text-decoration: underline;
+.chart-table-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
 }
 
-.chart-table-toggle:hover {
-  color: var(--ink);
-}
-
-/* Safety net only - the headings are short enough that the table normally
-   fits. Without it a narrow phone clipped the last column with no way to
-   reach it. */
+/* Only as wide as its content, centred - stretched across the full panel the
+   columns drifted metres apart. overflow-x is the safety net for a phone. */
 .chart-table-wrap {
   -webkit-overflow-scrolling: touch;
-  margin-top: 6px;
+  background: var(--lime-bg);
+  border: 1px solid var(--olive-border);
+  border-radius: 10px;
+  margin: 10px auto 0;
+  max-width: 100%;
   overflow-x: auto;
+  padding: 8px 12px;
+  width: fit-content;
 }
 
 .chart-table {
   border-collapse: collapse;
   font-size: 0.78rem;
-  width: 100%;
+  width: auto;
 }
 
 .chart-table-note {
   color: var(--muted);
   font-size: 0.72rem;
-  margin: 6px 0 0;
+  margin: 6px auto 0;
+  max-width: 100%;
+  text-align: center;
+  width: fit-content;
 }
 
 .chart-table th,
@@ -5409,3 +5405,9 @@ body.is-dragging .session-card.is-draggable {
   line-height: 1.5;
 }
 
+
+@media (max-width: 700px) {
+  .chart-point-label {
+    display: none;
+  }
+}
