@@ -2787,6 +2787,52 @@ document.getElementById("plannerBackdrop")?.addEventListener("click", () => {
   togglePlannerMenu(false);
 });
 
+// "Telefona skats" / "Datora skats" toggle, shown on touch devices only.
+// The layout viewport is pinned by the inline <head> script in index.html, before
+// first paint — rewriting the meta tag afterwards is unreliable across mobile
+// browsers, and calendarMode/updateMenuBtnArrow/the hamburger all read the width
+// at load time, so switching reloads the page rather than trying to restyle live.
+// Named screenViewMode, not viewMode — `viewMode` is already taken by the
+// week/month calendar switch (app.js:48).
+function getScreenViewMode() {
+  try {
+    return localStorage.getItem("screenViewMode") === "mobile" ? "mobile" : "desktop";
+  } catch (e) {
+    return "desktop";
+  }
+}
+
+// Device-based, not width-based: the pinned viewport makes innerWidth 1100 on a
+// phone, so only the pointer features (which the meta tag does not affect) can
+// tell a phone from a monitor. The screen.width fallback catches a touch device
+// that somehow reports a fine pointer, so nobody can end up stuck in desktop
+// view with no way back; 820 is deliberately below any real monitor, because a
+// desktop browser ignores the viewport meta entirely and the button would
+// therefore do nothing visible there. The fallback also demands real touch
+// hardware, so a small non-touch monitor still gets no button.
+function isTouchDevice() {
+  if (window.matchMedia?.("(hover: none) and (pointer: coarse)")?.matches) return true;
+  return (navigator.maxTouchPoints ?? 0) > 0 && (window.screen?.width ?? 9999) <= 820;
+}
+
+function setupScreenViewBtn() {
+  const btn = document.getElementById("screenViewBtn");
+  if (!btn || !isTouchDevice()) return;
+  const switchesToMobile = getScreenViewMode() === "desktop";
+  btn.querySelector(".label-full").textContent = switchesToMobile ? "Telefona skats" : "Datora skats";
+  btn.querySelector(".label-short").textContent = switchesToMobile ? "Telefons" : "Dators";
+  btn.hidden = false;
+  btn.addEventListener("click", () => {
+    try {
+      localStorage.setItem("screenViewMode", switchesToMobile ? "mobile" : "desktop");
+    } catch (e) {
+      /* private mode — the switch just won't stick */
+    }
+    location.reload();
+  });
+}
+setupScreenViewBtn();
+
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     const panel = document.querySelector(".planner-panel");

@@ -6,6 +6,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Toma Komasa Sportistu Portāls</title>
     <script>
+      // "Desktop view on a phone" — the default. Pinning the layout viewport to a
+      // fixed width makes a phone lay the page out like a monitor and scale it to
+      // fit, exactly like the browser's own "Request desktop site". Must run
+      // before first paint, hence inline in <head> rather than in app.js.
+      //
+      // Why 1200: it must clear the 1040px mobile breakpoint in styles.css to get
+      // the two-column desktop layout at all, and smaller means larger text on the
+      // phone — but .calendar-grid needs 7 x 155px = 1085px for a whole week, so
+      // below ~1185 (1085 + .app-body's 40px padding + a little slack) the week
+      // only fits once the sidebar is collapsed with the header's arrow button.
+      // 1200 is the smallest width where that works. Safe to tune.
+      (function () {
+        window.DESKTOP_VIEW_WIDTH = 1200;
+        var mode;
+        try {
+          mode = localStorage.getItem("screenViewMode");
+        } catch (e) {
+          mode = null;
+        }
+        if (mode !== "mobile") {
+          document
+            .querySelector('meta[name="viewport"]')
+            .setAttribute("content", "width=" + window.DESKTOP_VIEW_WIDTH);
+        }
+      })();
+    </script>
+    <script>
       (function () {
         // position: on wide screens the browser crops the top/bottom of the photo (the
         // full width always fits, since these photos are less wide than most monitors),
@@ -99,6 +126,7 @@
           <button id="exerciseLibraryBtn" class="secondary-action" type="button"><span class="label-full">VFS/SFS/Iesildīšanās/Drill bibliotēka</span><span class="label-short">Bibliotēka</span></button>
         </div>
         <div class="header-right">
+          <button id="screenViewBtn" class="secondary-action" type="button" hidden><span class="label-full"></span><span class="label-short"></span></button>
           <button id="changePasswordBtn" class="secondary-action" type="button">Mainīt paroli</button>
           <button id="logoutBtn" class="secondary-action" type="button">Iziet</button>
         </div>
@@ -924,6 +952,6 @@
     <script src="panels/admin.js?v=2"></script>
     <script src="panels/weekly-review.js"></script>
     <script src="panels/ruffier-test.js?v=2"></script>
-    <script src="app.js?v=48"></script>
+    <script src="app.js?v=49"></script>
   </body>
 </html>
