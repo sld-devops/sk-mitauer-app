@@ -224,6 +224,18 @@ The working recipe, refined over several sessions:
 - **Top-level `let` in a classic script is not on `window`.** `window.currentProfile = x` from a probe creates a *different* binding that `app.js`'s `let currentProfile` never sees, and the render call then throws on null. Assign with the bare name (`currentProfile = x`).
 - **Delete the staged directory when done.**
 
+### "Paveiktā statistika" is a hand-drawn SVG line chart
+
+Replaced the stacked horizontal bars on 2026-08-02 — one row per week said nothing about whether the load is climbing. `buildTrendChartHtml()` in `panels/stats.js` writes the whole `<svg>` as a string; there is no chart library and there must not be one (no build step, no CDN).
+
+- **Each curve is scaled to its own maximum**, exactly as the bars were, because `run_km` is kilometres while the other three are hours — on one shared axis the hour lines would flatten against zero. The consequence is that the Y axis has no single meaning, so each metric's ceiling is printed in the legend (`.chart-legend-max`, "līdz 101.0 km") and the grid lines carry no numbers on purpose.
+- **`smoothLinePath()` is Catmull-Rom converted to cubic beziers, with the control points clamped to the plot rectangle.** Without the clamp a steep week-to-week step bows the curve out through the top or bottom edge. Keep the clamp if you touch the tension.
+- **Coordinates are fixed (`CHART_W`/`CHART_H`) and the SVG is stretched by CSS.** Lines and grid use `vector-effect: non-scaling-stroke` so they stay crisp; **`.chart-dot` deliberately does not** — a non-scaling 2px white ring swallows the whole marker once the SVG is scaled down to phone width.
+- **`spreadLabelYs()` pushes the end-of-line value labels apart** when two curves finish at the same height, then shifts the whole stack back inside the plot if it overflowed.
+- The newest date on the axis is always labelled; when thinning to every second label would leave it crowded against its neighbour, the **neighbour** is dropped, not the newest one.
+- Metrics that are zero across the whole period are not drawn at all (they would just trace the bottom edge) and their legend entry is dimmed via `.chart-legend-item.is-empty`.
+- The old `.chart-row`/`.chart-bar*`/`.chart-stacked-*` rules were removed with the bars — they were used by nothing else.
+
 ### Splitting `app.js` into smaller files (in progress)
 
 The owner agrees the single ~6100-line `app.js` is itself a source of the recurring damage and wants it split into smaller, focused files (still plain `<script>` tags, no bundler/build step needed) — but has delegated the *how* entirely to Claude, since they can't evaluate JS structure themselves.
