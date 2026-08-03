@@ -3139,87 +3139,7 @@ label {
   background: var(--surface-hover);
 }
 
-.chart-metrics {
-  display: grid;
-  gap: 4px;
-}
-
-.chart-row {
-  align-items: center;
-  display: grid;
-  gap: 8px;
-  grid-template-columns: 120px 1fr;
-  padding: 4px 0;
-}
-
-.chart-label {
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-align: right;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.chart-bars {
-  align-items: center;
-  display: flex;
-  gap: 3px;
-}
-
-.chart-bar-wrap {
-  align-items: center;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.chart-bar {
-  background: var(--accent);
-  border-radius: 3px;
-  height: 10px;
-  min-width: 2px;
-  transition: width 0.2s;
-}
-
-.chart-bar.run_km {
-  background: var(--accent);
-}
-
-.chart-bar.run_min {
-  background: var(--info-accent);
-}
-
-.chart-bar.vfs_sfs_min {
-  background: #16a34a;
-}
-
-.chart-bar.velo_min {
-  background: #ca8a04;
-}
-
-.chart-value {
-  color: var(--muted);
-  font-size: 0.7rem;
-  white-space: nowrap;
-}
-
-.chart-date-label {
-  color: var(--muted);
-  font-size: 0.65rem;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.chart-header {
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 6px;
-  margin-bottom: 4px;
-}
-
-/* ---- Stacked bar chart ---- */
+/* ---- Trend line chart ---- */
 .chart-legend {
   display: flex;
   flex-wrap: wrap;
@@ -3238,6 +3158,17 @@ label {
   white-space: nowrap;
 }
 
+/* Each curve has its own scale, so its ceiling is spelled out in the legend. */
+.chart-legend-max {
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: none;
+}
+
+.chart-legend-item.is-empty {
+  opacity: 0.4;
+}
+
 .chart-legend-swatch {
   border-radius: 3px;
   display: inline-block;
@@ -3250,47 +3181,65 @@ label {
 .chart-legend-swatch.vfs_sfs_min { background: #16a34a; }
 .chart-legend-swatch.velo_min { background: #ca8a04; }
 
-.chart-stacked-bar {
-  display: flex;
-  height: 28px;
-  min-width: 2px;
+/* The plot scales to the panel width; the SVG's own coordinates are fixed, so
+   strokes and text are kept at a real size with non-scaling-stroke / a font
+   size expressed in the SVG's units. */
+.chart-plot svg {
+  display: block;
+  height: auto;
   width: 100%;
 }
 
-.chart-stacked-segment {
-  align-items: center;
-  display: flex;
-  height: 100%;
-  justify-content: flex-end;
-  min-width: 2px;
-  padding: 0 4px;
-  transition: width 0.2s;
+.chart-grid-line {
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
 }
 
-.chart-stacked-segment.run_km { background: var(--accent); }
-.chart-stacked-segment.run_min { background: var(--info-accent); }
-.chart-stacked-segment.vfs_sfs_min { background: #16a34a; }
-.chart-stacked-segment.velo_min { background: #ca8a04; }
-
-.chart-stacked-segment:first-child {
-  border-radius: 3px 0 0 3px;
+.chart-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
 }
 
-.chart-stacked-segment:last-child {
-  border-radius: 0 3px 3px 0;
+/* No non-scaling-stroke here on purpose: the ring has to shrink together with
+   the dot, or on a phone the 1.5px white outline swallows the whole marker. */
+.chart-dot {
+  stroke: #fff;
+  stroke-width: 2;
 }
 
-.chart-stacked-segment:only-child {
-  border-radius: 3px;
+.chart-dot:hover {
+  r: 6;
 }
 
-.chart-stacked-segment .chart-value {
-  color: #ffffff;
-  font-size: 0.75rem;
+.chart-line.run_km { stroke: var(--accent); }
+.chart-line.run_min { stroke: var(--info-accent); }
+.chart-line.vfs_sfs_min { stroke: #16a34a; }
+.chart-line.velo_min { stroke: #ca8a04; }
+
+.chart-dot.run_km { fill: var(--accent); }
+.chart-dot.run_min { fill: var(--info-accent); }
+.chart-dot.vfs_sfs_min { fill: #16a34a; }
+.chart-dot.velo_min { fill: #ca8a04; }
+
+.chart-end-label {
+  font-size: 17px;
   font-weight: 800;
-  line-height: 1;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
-  white-space: nowrap;
+}
+
+.chart-end-label.run_km { fill: var(--accent); }
+.chart-end-label.run_min { fill: var(--info-accent); }
+.chart-end-label.vfs_sfs_min { fill: #16a34a; }
+.chart-end-label.velo_min { fill: #ca8a04; }
+
+.chart-axis-label {
+  fill: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+  text-anchor: middle;
 }
 
 /* ---- Weekly summary ---- */
@@ -4883,8 +4832,8 @@ textarea:disabled {
     min-width: 120px;
   }
 
-  .chart-row {
-    grid-template-columns: 80px 1fr;
+  .chart-legend {
+    gap: 8px;
   }
 
   .session-card h3 {
