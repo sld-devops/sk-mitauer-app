@@ -3189,8 +3189,7 @@ label {
   text-transform: uppercase;
 }
 
-.chart-facet svg,
-.chart-axis-row svg {
+.chart-facet svg {
   display: block;
   height: auto;
   overflow: visible;
@@ -3244,7 +3243,7 @@ label {
    identity, and the light hues are illegible as text. */
 .chart-point-label {
   fill: var(--muted);
-  font-size: 14px;
+  font-size: 9.5px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -3255,37 +3254,33 @@ label {
   font-style: italic;
 }
 
+/* Small on purpose: the band repeats under all four facets, so it has to stay
+   quiet. Past eight labels it steps down again to keep twelve from touching. */
 .chart-axis-label {
   fill: var(--muted);
-  font-size: 15px;
+  font-size: 10px;
   font-weight: 700;
 }
 
-/* Every period carries a label, so past eight of them the type steps down to
-   keep twelve of them from touching. */
-.chart-axis-row svg.is-dense .chart-axis-label {
-  font-size: 13px;
-}
-
-.chart-axis-row {
-  margin-top: 2px;
+.chart-facet svg.is-dense .chart-axis-label {
+  font-size: 9px;
 }
 
 .chart-axis-year {
   fill: var(--muted);
-  font-size: 13px;
+  font-size: 9px;
   font-weight: 600;
   opacity: 0.75;
 }
 
-.chart-axis-row svg.is-dense .chart-axis-year {
-  font-size: 12px;
+.chart-facet svg.is-dense .chart-axis-year {
+  font-size: 8.5px;
 }
 
 /* ---- Hover layer ---- */
 .chart-crosshair {
   background: var(--muted);
-  bottom: 26px;
+  bottom: 0;
   pointer-events: none;
   position: absolute;
   top: 0;
