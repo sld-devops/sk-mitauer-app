@@ -2802,17 +2802,24 @@ function getScreenViewMode() {
   }
 }
 
-// Device-based, not width-based: the pinned viewport makes innerWidth 1100 on a
-// phone, so only the pointer features (which the meta tag does not affect) can
-// tell a phone from a monitor. The screen.width fallback catches a touch device
-// that somehow reports a fine pointer, so nobody can end up stuck in desktop
-// view with no way back; 820 is deliberately below any real monitor, because a
-// desktop browser ignores the viewport meta entirely and the button would
-// therefore do nothing visible there. The fallback also demands real touch
-// hardware, so a small non-touch monitor still gets no button.
+// Device-based, not width-based: the pinned viewport makes innerWidth 1200 on a
+// phone, so the width tells us nothing — only touch capability, which the meta
+// tag does not affect, can tell a phone from a monitor.
+//
+// Deliberately generous, and the checks are OR'd rather than AND'd: if the user
+// also has the browser's own "Request desktop site" switched on, Chrome spoofs a
+// desktop and reports `pointer: fine` / `hover: hover`, which would hide this
+// button on the very device it exists for and leave them with no way back to the
+// phone layout. maxTouchPoints and ontouchstart survive that spoofing. The cost
+// of being generous is only that a touchscreen laptop shows one extra button
+// that does nothing (desktop browsers ignore the viewport meta); the cost of
+// being strict is a phone with no escape hatch, which is far worse.
 function isTouchDevice() {
-  if (window.matchMedia?.("(hover: none) and (pointer: coarse)")?.matches) return true;
-  return (navigator.maxTouchPoints ?? 0) > 0 && (window.screen?.width ?? 9999) <= 820;
+  return (
+    window.matchMedia?.("(hover: none) and (pointer: coarse)")?.matches ||
+    (navigator.maxTouchPoints ?? 0) > 0 ||
+    "ontouchstart" in window
+  );
 }
 
 function setupScreenViewBtn() {
