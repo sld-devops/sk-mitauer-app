@@ -3203,6 +3203,12 @@ label {
   vector-effect: non-scaling-stroke;
 }
 
+/* One per period. Lighter than the horizontal rules: there are twelve of them
+   and they are wayfinding, not a scale to read against. */
+.chart-grid-tick {
+  opacity: 0.55;
+}
+
 .chart-area {
   fill: var(--series);
   opacity: 0.1;
@@ -3241,7 +3247,6 @@ label {
   font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  text-anchor: middle;
 }
 
 .chart-empty-note {
@@ -3254,16 +3259,32 @@ label {
   fill: var(--muted);
   font-size: 15px;
   font-weight: 700;
-  text-anchor: middle;
+}
+
+/* Every period carries a label, so past eight of them the type steps down to
+   keep twelve of them from touching. */
+.chart-axis-row svg.is-dense .chart-axis-label {
+  font-size: 13px;
 }
 
 .chart-axis-row {
   margin-top: 2px;
 }
 
+.chart-axis-year {
+  fill: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.chart-axis-row svg.is-dense .chart-axis-year {
+  font-size: 12px;
+}
+
 /* ---- Hover layer ---- */
 .chart-crosshair {
-  background: var(--line);
+  background: var(--muted);
   bottom: 26px;
   pointer-events: none;
   position: absolute;

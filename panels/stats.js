@@ -13,7 +13,7 @@ const statsBar = document.getElementById("statsBar");
 // four independently-scaled lines on one plot invent crossings that mean nothing.
 const CHART_W = 1000;
 const FACET_H = 116;
-const AXIS_H = 26;
+const AXIS_H = 40;
 const PAD = { top: 26, right: 22, bottom: 10, left: 22 };
 
 // color = validated categorical slot, assigned in fixed order and never
@@ -21,7 +21,7 @@ const PAD = { top: 26, right: 22, bottom: 10, left: 22 };
 const STATS_METRICS = [
   // short = the table heading. The full label is far too wide for a phone-width
   // table; the unit moves to a caption under it rather than into every heading.
-  { key: "run_km", label: "Kilometrāža", short: "Km", unit: "km", color: "chart-series-1" },
+  { key: "run_km", label: "Kilometrāža", short: "Kilometrāža", unit: "km", color: "chart-series-1" },
   { key: "run_min", label: "Laiks", short: "Laiks", unit: "h", color: "chart-series-2" },
   { key: "vfs_sfs_min", label: "VFS/SFS", short: "VFS/SFS", unit: "h", color: "chart-series-3" },
   { key: "velo_min", label: "Velo", short: "Velo", unit: "h", color: "chart-series-4" },
@@ -37,6 +37,16 @@ function statsPointX(i, count) {
   return PAD.left + (i / (count - 1)) * plotW;
 }
 
+// "Jūlijs 2026" rather than "2026. gada 7. mēnesis" - the month is named, the
+// way the coach would say it. Intl gives it lowercase in Latvian.
+function statsMonthName(monthStart, style) {
+  const parts = (monthStart || "").split("-");
+  if (parts.length < 2) return "";
+  const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+  const name = new Intl.DateTimeFormat("lv-LV", { month: style }).format(d);
+  return `${capitalize(name)} ${parts[0]}`;
+}
+
 function statsFullDateLabel(d) {
   if (statsPeriod === "week") {
     const parts = (d.week_start || "").split("-");
@@ -46,19 +56,19 @@ function statsFullDateLabel(d) {
     const p2 = (n) => String(n).padStart(2, "0");
     return `${p2(start.getDate())}.${p2(start.getMonth() + 1)}.–${p2(end.getDate())}.${p2(end.getMonth() + 1)}.`;
   }
-  const parts = (d.month_start || "").split("-");
-  return parts.length >= 2 ? `${parts[0]}. gada ${parseInt(parts[1])}. mēnesis` : "";
+  return statsMonthName(d.month_start, "long");
 }
 
 // The full week label is far too wide to repeat under every point, so the axis
-// only carries the start of the week.
+// only carries the start of the week, and months only the short name. The year
+// rides a second line (see buildAxisHtml) rather than stealing width here -
+// "Janv. 2026" next to "Febr." collided at twelve months across.
 function statsAxisDateLabel(d) {
   if (statsPeriod === "week") {
     const parts = (d.week_start || "").split("-");
     return parts.length === 3 ? `${parts[2]}.${parts[1]}.` : "";
   }
-  const parts = (d.month_start || "").split("-");
-  return parts.length >= 2 ? `${parts[1]}.${parts[0].slice(2)}.` : "";
+  return statsMonthName(d.month_start, "short").replace(/\s+\d{4}$/, "");
 }
 
 // The first column is the widest cell in the table; the heading already says
@@ -68,8 +78,15 @@ function statsTableDateLabel(d) {
     const parts = (d.week_start || "").split("-");
     return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0].slice(2)}.` : "";
   }
-  const parts = (d.month_start || "").split("-");
-  return parts.length >= 2 ? `${parts[1]}.${parts[0]}.` : "";
+  return statsMonthName(d.month_start, "long");
+}
+
+// A middle-anchored label on the first or last point hangs half its width past
+// the edge of the plot - and past the edge of the card. The ends anchor inwards.
+function edgeAnchor(i, count) {
+  if (i === 0) return "start";
+  if (i === count - 1) return "end";
+  return "middle";
 }
 
 function statsValueText(metric, val) {
@@ -121,9 +138,15 @@ function buildFacetHtml(metric, data) {
     ? `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${plotBottom} L ${points[0].x.toFixed(1)} ${plotBottom} Z`
     : "";
 
+  // Horizontal hairlines for reading height, plus one vertical hairline per
+  // period so it is obvious at a glance which point belongs to which month.
   const grid = [plotTop, plotTop + plotH / 2, plotBottom]
     .map((y) => `<line class="chart-grid-line" x1="${PAD.left}" y1="${y.toFixed(1)}" x2="${plotRight}" y2="${y.toFixed(1)}" />`)
-    .join("");
+    .join("")
+    + data.map((_, i) => {
+      const x = statsPointX(i, data.length).toFixed(1);
+      return `<line class="chart-grid-line chart-grid-tick" x1="${x}" y1="${plotTop}" x2="${x}" y2="${plotBottom}" />`;
+    }).join("");
 
   const dots = empty ? "" : points.map((p) => `
     <circle class="chart-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" />
@@ -139,7 +162,7 @@ function buildFacetHtml(metric, data) {
     if (val <= 0) return "";
     const y = Math.max(11, p.y - 11);
     const x = Math.min(CHART_W - PAD.right, Math.max(PAD.left, p.x));
-    return `<text class="chart-point-label" x="${x.toFixed(1)}" y="${y.toFixed(1)}">${escapeHtml(val.toFixed(1))}</text>`;
+    return `<text class="chart-point-label" text-anchor="${edgeAnchor(i, points.length)}" x="${x.toFixed(1)}" y="${y.toFixed(1)}">${escapeHtml(val.toFixed(1))}</text>`;
   }).join("");
 
   return `
@@ -163,26 +186,26 @@ function buildFacetHtml(metric, data) {
 }
 
 function buildAxisHtml(data) {
-  // With many points every second label is enough to keep the axis readable.
-  // The newest one is always labelled; when thinning would leave it crowded
-  // against its neighbour, the neighbour is dropped instead.
-  const labelStep = data.length > 8 ? 2 : 1;
-  const last = data.length - 1;
-  const shown = new Set();
-  for (let i = 0; i <= last; i += labelStep) shown.add(i);
-  if (!shown.has(last)) {
-    const prev = Math.max(...shown);
-    if (last - prev <= 1) shown.delete(prev);
-    shown.add(last);
-  }
+  // Every period is labelled - the owner wants to see at a glance which point
+  // is which month, so nothing is thinned out. Past eight the type steps down
+  // a size, which is what keeps twelve labels from touching.
+  // The year sits on its own line under the first period and wherever the year
+  // rolls over, so it never competes for width with the month beside it.
+  let lastYear = "";
   const labels = data
-    .map((d, i) => (shown.has(i)
-      ? `<text class="chart-axis-label" x="${statsPointX(i, data.length).toFixed(1)}" y="16">${escapeHtml(statsAxisDateLabel(d))}</text>`
-      : ""))
+    .map((d, i) => {
+      const x = statsPointX(i, data.length).toFixed(1);
+      const anchor = edgeAnchor(i, data.length);
+      const year = (d.month_start || d.week_start || "").slice(0, 4);
+      const showYear = year !== lastYear;
+      lastYear = year;
+      return `<text class="chart-axis-label" text-anchor="${anchor}" x="${x}" y="16">${escapeHtml(statsAxisDateLabel(d))}</text>`
+        + (showYear ? `<text class="chart-axis-year" text-anchor="${anchor}" x="${x}" y="33">${escapeHtml(year)}</text>` : "");
+    })
     .join("");
   return `
     <div class="chart-axis-row">
-      <svg viewBox="0 0 ${CHART_W} ${AXIS_H}" aria-hidden="true">${labels}</svg>
+      <svg class="${data.length > 8 ? "is-dense" : ""}" viewBox="0 0 ${CHART_W} ${AXIS_H}" aria-hidden="true">${labels}</svg>
     </div>
   `;
 }
@@ -207,7 +230,7 @@ function buildStatsTableHtml(data) {
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <p class="chart-table-note">Km — kilometri. Laiks, VFS/SFS un Velo — stundās.</p>
+    <p class="chart-table-note">Kilometrāža — kilometros. Laiks, VFS/SFS un Velo — stundās.</p>
   `;
 }
 
@@ -215,7 +238,7 @@ function buildStatsRangeHtml() {
   const isWeek = statsPeriod === "week";
   const ranges = isWeek
     ? [{ val: 4, label: "4 nedēļas" }, { val: 8, label: "8 nedēļas" }, { val: 12, label: "12 nedēļas" }]
-    : [{ val: 3, label: "3 mēn." }, { val: 6, label: "6 mēn." }, { val: 12, label: "12 mēn." }];
+    : [{ val: 3, label: "3 mēneši" }, { val: 6, label: "6 mēneši" }, { val: 12, label: "12 mēneši" }];
   const currentRange = isWeek ? trendWeeks : trendMonths;
   return `
     <div class="stats-range">
