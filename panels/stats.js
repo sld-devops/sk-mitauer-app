@@ -19,10 +19,12 @@ const PAD = { top: 14, right: 78, bottom: 10, left: 58 };
 // color = validated categorical slot, assigned in fixed order and never
 // recycled; the hue is set once on the facet as --series and inherited.
 const STATS_METRICS = [
-  { key: "run_km", label: "Kilometrāža", unit: "km", color: "chart-series-1" },
-  { key: "run_min", label: "Laiks", unit: "h", color: "chart-series-2" },
-  { key: "vfs_sfs_min", label: "VFS/SFS", unit: "h", color: "chart-series-3" },
-  { key: "velo_min", label: "Velo", unit: "h", color: "chart-series-4" },
+  // short = the table heading. The full label is far too wide for a phone-width
+  // table; the unit moves to a caption under it rather than into every heading.
+  { key: "run_km", label: "Kilometrāža", short: "Km", unit: "km", color: "chart-series-1" },
+  { key: "run_min", label: "Laiks", short: "Laiks", unit: "h", color: "chart-series-2" },
+  { key: "vfs_sfs_min", label: "VFS/SFS", short: "VFS/SFS", unit: "h", color: "chart-series-3" },
+  { key: "velo_min", label: "Velo", short: "Velo", unit: "h", color: "chart-series-4" },
 ];
 
 function statsData() {
@@ -57,6 +59,17 @@ function statsAxisDateLabel(d) {
   }
   const parts = (d.month_start || "").split("-");
   return parts.length >= 2 ? `${parts[1]}.${parts[0].slice(2)}.` : "";
+}
+
+// The first column is the widest cell in the table; the heading already says
+// "Nedēļa", so the week's start date alone carries it.
+function statsTableDateLabel(d) {
+  if (statsPeriod === "week") {
+    const parts = (d.week_start || "").split("-");
+    return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0].slice(2)}.` : "";
+  }
+  const parts = (d.month_start || "").split("-");
+  return parts.length >= 2 ? `${parts[1]}.${parts[0]}.` : "";
 }
 
 function statsValueText(metric, val) {
@@ -170,18 +183,24 @@ function buildAxisHtml(data) {
 // Tooltips must never be the only way to read a value, so every figure is also
 // available as a plain table.
 function buildStatsTableHtml(data) {
-  const head = STATS_METRICS.map((m) => `<th scope="col">${escapeHtml(m.label)}, ${escapeHtml(m.unit)}</th>`).join("");
+  const head = STATS_METRICS.map((m) => `<th scope="col">${escapeHtml(m.short)}</th>`).join("");
   const rows = data.slice().reverse().map((d) => `
     <tr>
-      <th scope="row">${escapeHtml(statsFullDateLabel(d))}</th>
+      <th scope="row">${escapeHtml(statsTableDateLabel(d))}</th>
       ${STATS_METRICS.map((m) => `<td>${(d[m.key] || 0).toFixed(1)}</td>`).join("")}
     </tr>
   `).join("");
+  // The wrapper is the safety net: the headings are short enough that the table
+  // normally fits, but a narrow phone can still be pushed sideways instead of
+  // silently clipping the last column.
   return `
-    <table class="chart-table">
-      <thead><tr><th scope="col">${statsPeriod === "week" ? "Nedēļa" : "Mēnesis"}</th>${head}</tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
+    <div class="chart-table-wrap">
+      <table class="chart-table">
+        <thead><tr><th scope="col">${statsPeriod === "week" ? "Nedēļa" : "Mēnesis"}</th>${head}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <p class="chart-table-note">Km — kilometri. Laiks, VFS/SFS un Velo — stundās.</p>
   `;
 }
 

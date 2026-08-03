@@ -3344,18 +3344,43 @@ label {
   color: var(--ink);
 }
 
+/* Safety net only - the headings are short enough that the table normally
+   fits. Without it a narrow phone clipped the last column with no way to
+   reach it. */
+.chart-table-wrap {
+  -webkit-overflow-scrolling: touch;
+  margin-top: 6px;
+  overflow-x: auto;
+}
+
 .chart-table {
   border-collapse: collapse;
   font-size: 0.78rem;
-  margin-top: 6px;
   width: 100%;
+}
+
+.chart-table-note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  margin: 6px 0 0;
 }
 
 .chart-table th,
 .chart-table td {
   border-bottom: 1px solid var(--line);
-  padding: 5px 8px;
+  padding: 5px 6px;
   text-align: right;
+  white-space: nowrap;
+}
+
+.chart-table th:first-child,
+.chart-table td:first-child {
+  padding-left: 2px;
+}
+
+.chart-table th:last-child,
+.chart-table td:last-child {
+  padding-right: 2px;
 }
 
 .chart-table thead th {
