@@ -305,9 +305,10 @@ async function getWeeklyTrend(athleteId, numWeeks) {
   let startDate = new Date(endDate);
   startDate.setDate(startDate.getDate() - (numWeeks * 7) + 1);
 
-  const TREND_START = new Date(2026, 5, 1);
-  if (startDate < TREND_START) startDate = new Date(TREND_START);
-
+  // No floor here on purpose. A hardcoded 2026-06-01 used to clamp the start,
+  // so every range button returned the same handful of periods and looked
+  // dead: in August 2026 "4", "8" and "12 mēneši" all gave the same 3 months.
+  // Periods with nothing logged simply come back as zeros.
   const startStr = trendDateISO(startDate);
   const endStr = trendDateISO(endDate);
 
@@ -375,9 +376,7 @@ async function getMonthlyTrend(athleteId, numMonths) {
   const endDate = new Date();
   let startDate = new Date(endDate.getFullYear(), endDate.getMonth() - numMonths + 1, 1);
 
-  const TREND_START = new Date(2026, 5, 1);
-  if (startDate < TREND_START) startDate = new Date(TREND_START);
-
+  // Same as getWeeklyTrend: no hardcoded floor, or the range buttons do nothing.
   const startStr = trendDateISO(startDate);
   const endStr = trendDateISO(endDate);
 

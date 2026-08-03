@@ -1,6 +1,6 @@
 let statsPeriod = "week";
 let trendWeeks = 8;
-let trendMonths = 6;
+let trendMonths = 8;
 let weeklyTrend = [];
 let monthlyTrend = [];
 let statsTableOpen = false;
@@ -12,9 +12,10 @@ const statsBar = document.getElementById("statsBar");
 // are hours, so a shared scale would flatten the hour lines against zero, and
 // four independently-scaled lines on one plot invent crossings that mean nothing.
 const CHART_W = 1000;
-const FACET_H = 116;
-const AXIS_H = 40;
-const PAD = { top: 26, right: 22, bottom: 10, left: 22 };
+// Each facet carries its own date band at the bottom, so the months are
+// readable next to every chart instead of only under the last one.
+const FACET_H = 132;
+const PAD = { top: 20, right: 22, bottom: 26, left: 22 };
 
 // color = validated categorical slot, assigned in fixed order and never
 // recycled; the hue is set once on the facet as --series and inherited.
@@ -61,7 +62,7 @@ function statsFullDateLabel(d) {
 
 // The full week label is far too wide to repeat under every point, so the axis
 // only carries the start of the week, and months only the short name. The year
-// rides a second line (see buildAxisHtml) rather than stealing width here -
+// rides a second line (see buildAxisLabels) rather than stealing width here -
 // "Janv. 2026" next to "Febr." collided at twelve months across.
 function statsAxisDateLabel(d) {
   if (statsPeriod === "week") {
@@ -117,7 +118,7 @@ function smoothLinePath(points, minY, maxY) {
   return d;
 }
 
-function buildFacetHtml(metric, data) {
+function buildFacetHtml(metric, data, withYear) {
   const plotTop = PAD.top;
   const plotBottom = FACET_H - PAD.bottom;
   const plotH = plotBottom - plotTop;
@@ -171,7 +172,7 @@ function buildFacetHtml(metric, data) {
         <span class="chart-facet-key"></span>
         <span class="chart-facet-title">${escapeHtml(metric.label)}</span>
       </div>
-      <svg viewBox="0 0 ${CHART_W} ${FACET_H}" role="img"
+      <svg class="${data.length > 8 ? "is-dense" : ""}" viewBox="0 0 ${CHART_W} ${FACET_H}" role="img"
            aria-label="${escapeHtml(metric.label)} — tendence">
         ${grid}
         ${empty ? "" : `<path class="chart-area" d="${areaPath}" />`}
@@ -180,34 +181,32 @@ function buildFacetHtml(metric, data) {
         ${empty ? "" : `<circle class="chart-cursor-dot" cx="-99" cy="-99" r="6" />`}
         ${valueLabels}
         ${empty ? `<text class="chart-empty-note" x="${PAD.left + 8}" y="${plotTop + plotH / 2 + 5}">nav datu</text>` : ""}
+        ${buildAxisLabels(data, plotBottom, withYear)}
       </svg>
     </div>
   `;
 }
 
-function buildAxisHtml(data) {
-  // Every period is labelled - the owner wants to see at a glance which point
-  // is which month, so nothing is thinned out. Past eight the type steps down
-  // a size, which is what keeps twelve labels from touching.
-  // The year sits on its own line under the first period and wherever the year
-  // rolls over, so it never competes for width with the month beside it.
+// The date band that sits under every facet. Every period is labelled - the
+// owner wants to see at a glance which point is which month, so nothing is
+// thinned out; past eight the type steps down, which is what keeps twelve
+// labels from touching. The year rides a second line under the first period
+// and wherever it rolls over, so it never competes for width with the month
+// beside it, and only under the bottom facet - all four share the same x
+// positions, so repeating the year four times is just clutter.
+function buildAxisLabels(data, plotBottom, withYear) {
   let lastYear = "";
-  const labels = data
+  return data
     .map((d, i) => {
       const x = statsPointX(i, data.length).toFixed(1);
       const anchor = edgeAnchor(i, data.length);
       const year = (d.month_start || d.week_start || "").slice(0, 4);
       const showYear = year !== lastYear;
       lastYear = year;
-      return `<text class="chart-axis-label" text-anchor="${anchor}" x="${x}" y="16">${escapeHtml(statsAxisDateLabel(d))}</text>`
-        + (showYear ? `<text class="chart-axis-year" text-anchor="${anchor}" x="${x}" y="33">${escapeHtml(year)}</text>` : "");
+      return `<text class="chart-axis-label" text-anchor="${anchor}" x="${x}" y="${plotBottom + 13}">${escapeHtml(statsAxisDateLabel(d))}</text>`
+        + (withYear && showYear ? `<text class="chart-axis-year" text-anchor="${anchor}" x="${x}" y="${plotBottom + 23}">${escapeHtml(year)}</text>` : "");
     })
     .join("");
-  return `
-    <div class="chart-axis-row">
-      <svg class="${data.length > 8 ? "is-dense" : ""}" viewBox="0 0 ${CHART_W} ${AXIS_H}" aria-hidden="true">${labels}</svg>
-    </div>
-  `;
 }
 
 // Tooltips must never be the only way to read a value, so every figure is also
@@ -238,7 +237,7 @@ function buildStatsRangeHtml() {
   const isWeek = statsPeriod === "week";
   const ranges = isWeek
     ? [{ val: 4, label: "4 nedēļas" }, { val: 8, label: "8 nedēļas" }, { val: 12, label: "12 nedēļas" }]
-    : [{ val: 3, label: "3 mēneši" }, { val: 6, label: "6 mēneši" }, { val: 12, label: "12 mēneši" }];
+    : [{ val: 4, label: "4 mēneši" }, { val: 8, label: "8 mēneši" }, { val: 12, label: "12 mēneši" }];
   const currentRange = isWeek ? trendWeeks : trendMonths;
   return `
     <div class="stats-range">
@@ -271,8 +270,7 @@ function renderStats() {
       ${buildStatsRangeHtml()}
       <div class="chart-facets" id="chartFacets" tabindex="0"
            role="group" aria-label="Paveiktās slodzes tendence pa rādītājiem">
-        ${STATS_METRICS.map((m) => buildFacetHtml(m, data)).join("")}
-        ${buildAxisHtml(data)}
+        ${STATS_METRICS.map((m, i) => buildFacetHtml(m, data, i === STATS_METRICS.length - 1)).join("")}
         <div class="chart-crosshair" hidden></div>
         <div class="chart-tooltip" hidden role="status"></div>
       </div>
