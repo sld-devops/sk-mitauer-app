@@ -224,17 +224,20 @@ The working recipe, refined over several sessions:
 - **Top-level `let` in a classic script is not on `window`.** `window.currentProfile = x` from a probe creates a *different* binding that `app.js`'s `let currentProfile` never sees, and the render call then throws on null. Assign with the bare name (`currentProfile = x`).
 - **Delete the staged directory when done.**
 
-### "Paveiktā statistika" is a hand-drawn SVG line chart
+### "Paveiktā statistika" is four hand-drawn SVG small multiples
 
-Replaced the stacked horizontal bars on 2026-08-02 — one row per week said nothing about whether the load is climbing. `buildTrendChartHtml()` in `panels/stats.js` writes the whole `<svg>` as a string; there is no chart library and there must not be one (no build step, no CDN).
+Rebuilt twice on 2026-08-02: stacked bars → one combined line chart → **one small multiple per metric**. `buildFacetHtml()` in `panels/stats.js` writes each `<svg>` as a string; there is no chart library and there must not be one (no build step, no CDN, and athlete data must not leave the browser).
 
-- **Each curve is scaled to its own maximum**, exactly as the bars were, because `run_km` is kilometres while the other three are hours — on one shared axis the hour lines would flatten against zero. The consequence is that the Y axis has no single meaning, so each metric's ceiling is printed in the legend (`.chart-legend-max`, "līdz 101.0 km") and the grid lines carry no numbers on purpose.
-- **`smoothLinePath()` is Catmull-Rom converted to cubic beziers, with the control points clamped to the plot rectangle.** Without the clamp a steep week-to-week step bows the curve out through the top or bottom edge. Keep the clamp if you touch the tension.
-- **Coordinates are fixed (`CHART_W`/`CHART_H`) and the SVG is stretched by CSS.** Lines and grid use `vector-effect: non-scaling-stroke` so they stay crisp; **`.chart-dot` deliberately does not** — a non-scaling 2px white ring swallows the whole marker once the SVG is scaled down to phone width.
-- **`spreadLabelYs()` pushes the end-of-line value labels apart** when two curves finish at the same height, then shifts the whole stack back inside the plot if it overflowed.
-- The newest date on the axis is always labelled; when thinning to every second label would leave it crowded against its neighbour, the **neighbour** is dropped, not the newest one.
-- Metrics that are zero across the whole period are not drawn at all (they would just trace the bottom edge) and their legend entry is dimmed via `.chart-legend-item.is-empty`.
-- The old `.chart-row`/`.chart-bar*`/`.chart-stacked-*` rules were removed with the bars — they were used by nothing else.
+**Why four plots and not one.** `run_km` is kilometres, the other three are hours. On a shared axis the hour lines flatten against zero; scaling each line to its own maximum on one plot (which the combined version did) is the classic dual-axis mistake — the crossings are artefacts of the scaling, not facts about the training. Each facet now carries its own `0`/max ticks, so the y axis means something again. **Don't merge them back onto one plot.**
+
+- **The palette is validated, not chosen by eye.** The old red/blue/green/amber set *failed* colourblind separation outright — amber vs green ΔE 3.6 under protanopia against a floor of 8, i.e. indistinguishable. The current hues are categorical slots 1–4 (`#2a78d6` `#eb6834` `#1baf7a` `#eda100`, worst adjacent ΔE 9.1). They live as `--series` on `.chart-series-1…4` in `styles.css` and are inherited by every mark in the facet. Re-validate before changing any of them.
+- **Identity never rests on colour**: every facet is titled in plain text, so there is no legend box (one series per plot needs none).
+- **`smoothLinePath()` is Catmull-Rom converted to cubic beziers with the control points clamped** to the facet rectangle — without the clamp a steep step bows the curve out through the top or bottom edge.
+- **Coordinates are fixed (`CHART_W`/`FACET_H`) and the SVGs are stretched by CSS.** Every facet and the axis row share `PAD`, which is what keeps the x positions aligned across all five SVGs — change the padding in one place only. Lines and grid use `vector-effect: non-scaling-stroke`; **the dots deliberately do not**, or the surface ring swallows the marker at phone width.
+- **`attachStatsHover()` puts one crosshair and one tooltip across all four facets** — that is what gives back the "what did every metric do that week" reading the combined plot had. It reads pixel geometry from the first facet's rendered `getBoundingClientRect()`, so it survives any width. Keyboard arrows mirror hover.
+- **The table toggle is not optional polish**: per-point values live only in the tooltip otherwise, and a tooltip must never be the only way to reach a number.
+- Metrics that are zero across the whole period keep their heading but draw no line — a flat line on the baseline says nothing.
+- No dark mode: the app is light-only, so there is no second set of steps to validate.
 
 ### Splitting `app.js` into smaller files (in progress)
 

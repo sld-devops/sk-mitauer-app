@@ -3139,54 +3139,61 @@ label {
   background: var(--surface-hover);
 }
 
-/* ---- Trend line chart ---- */
-.chart-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 10px;
-  padding: 4px 0;
+/* ---- Trend chart: one small multiple per metric ----
+   Palette = validated categorical slots 1-4 (blue / orange / aqua / yellow);
+   the previous red+green+amber set failed the colourblind check outright
+   (amber vs green delta-E 3.6 under protanopia, needs >= 8). Identity never
+   rests on colour here: every facet is titled in plain text. */
+.chart-series-1 { --series: #2a78d6; }
+.chart-series-2 { --series: #eb6834; }
+.chart-series-3 { --series: #1baf7a; }
+.chart-series-4 { --series: #eda100; }
+
+.chart-facets {
+  margin-top: 10px;
+  position: relative;
 }
 
-.chart-legend-item {
-  align-items: center;
+.chart-facets:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--info-accent);
+  outline-offset: 3px;
+}
+
+.chart-facet + .chart-facet {
+  margin-top: 10px;
+}
+
+.chart-facet-head {
+  align-items: baseline;
   display: flex;
-  font-size: 0.75rem;
-  font-weight: 700;
-  gap: 6px;
+  gap: 8px;
+  padding-left: 2px;
+}
+
+/* A short line-key, mirroring the mark it stands for. */
+.chart-facet-key {
+  background: var(--series);
+  border-radius: 2px;
+  flex: none;
+  height: 3px;
+  width: 14px;
+  align-self: center;
+}
+
+.chart-facet-title {
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  white-space: nowrap;
 }
 
-/* Each curve has its own scale, so its ceiling is spelled out in the legend. */
-.chart-legend-max {
-  color: var(--muted);
-  font-weight: 600;
-  text-transform: none;
-}
-
-.chart-legend-item.is-empty {
-  opacity: 0.4;
-}
-
-.chart-legend-swatch {
-  border-radius: 3px;
-  display: inline-block;
-  height: 10px;
-  width: 10px;
-}
-
-.chart-legend-swatch.run_km { background: var(--accent); }
-.chart-legend-swatch.run_min { background: var(--info-accent); }
-.chart-legend-swatch.vfs_sfs_min { background: #16a34a; }
-.chart-legend-swatch.velo_min { background: #ca8a04; }
-
-/* The plot scales to the panel width; the SVG's own coordinates are fixed, so
-   strokes and text are kept at a real size with non-scaling-stroke / a font
-   size expressed in the SVG's units. */
-.chart-plot svg {
+.chart-facet svg,
+.chart-axis-row svg {
   display: block;
   height: auto;
+  overflow: visible;
   width: 100%;
 }
 
@@ -3196,50 +3203,177 @@ label {
   vector-effect: non-scaling-stroke;
 }
 
+.chart-area {
+  fill: var(--series);
+  opacity: 0.1;
+  stroke: none;
+}
+
 .chart-line {
   fill: none;
+  stroke: var(--series);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2.5;
+  stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }
 
-/* No non-scaling-stroke here on purpose: the ring has to shrink together with
-   the dot, or on a phone the 1.5px white outline swallows the whole marker. */
+/* No non-scaling-stroke on the markers on purpose: the surface ring has to
+   shrink together with the dot, or on a phone the ring swallows the marker. */
 .chart-dot {
+  fill: var(--series);
   stroke: #fff;
   stroke-width: 2;
 }
 
-.chart-dot:hover {
-  r: 6;
+.chart-cursor-dot {
+  fill: var(--series);
+  pointer-events: none;
+  stroke: #fff;
+  stroke-width: 3;
 }
-
-.chart-line.run_km { stroke: var(--accent); }
-.chart-line.run_min { stroke: var(--info-accent); }
-.chart-line.vfs_sfs_min { stroke: #16a34a; }
-.chart-line.velo_min { stroke: #ca8a04; }
-
-.chart-dot.run_km { fill: var(--accent); }
-.chart-dot.run_min { fill: var(--info-accent); }
-.chart-dot.vfs_sfs_min { fill: #16a34a; }
-.chart-dot.velo_min { fill: #ca8a04; }
 
 .chart-end-label {
-  font-size: 17px;
-  font-weight: 800;
+  fill: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
 }
 
-.chart-end-label.run_km { fill: var(--accent); }
-.chart-end-label.run_min { fill: var(--info-accent); }
-.chart-end-label.vfs_sfs_min { fill: #16a34a; }
-.chart-end-label.velo_min { fill: #ca8a04; }
+.chart-tick {
+  fill: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-anchor: end;
+}
+
+.chart-empty-note {
+  fill: var(--muted);
+  font-size: 15px;
+  font-style: italic;
+}
 
 .chart-axis-label {
   fill: var(--muted);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   text-anchor: middle;
+}
+
+.chart-axis-row {
+  margin-top: 2px;
+}
+
+/* ---- Hover layer ---- */
+.chart-crosshair {
+  background: var(--line);
+  bottom: 26px;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  width: 1px;
+}
+
+.chart-tooltip {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(21, 23, 26, 0.16);
+  padding: 8px 10px;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  z-index: 3;
+}
+
+.chart-tooltip-date {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.chart-tooltip-row {
+  align-items: baseline;
+  display: flex;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.chart-tooltip-row + .chart-tooltip-row {
+  margin-top: 2px;
+}
+
+.chart-tooltip-key {
+  background: var(--series);
+  border-radius: 2px;
+  height: 3px;
+  width: 12px;
+  align-self: center;
+  flex: none;
+}
+
+/* The value leads, the series name follows - the reader already knows which
+   series they are on and wants the number. */
+.chart-tooltip-row strong {
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-tooltip-name {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* ---- Table view: every value reachable without hovering ---- */
+.chart-table-toggle {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  margin-top: 12px;
+  padding: 4px 2px;
+  text-decoration: underline;
+}
+
+.chart-table-toggle:hover {
+  color: var(--ink);
+}
+
+.chart-table {
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  margin-top: 6px;
+  width: 100%;
+}
+
+.chart-table th,
+.chart-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 5px 8px;
+  text-align: right;
+}
+
+.chart-table thead th {
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.chart-table tbody th {
+  color: var(--ink);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.chart-table td {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---- Weekly summary ---- */
@@ -4832,9 +4966,6 @@ textarea:disabled {
     min-width: 120px;
   }
 
-  .chart-legend {
-    gap: 8px;
-  }
 
   .session-card h3 {
     padding-right: 36px;

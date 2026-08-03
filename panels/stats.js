@@ -3,132 +3,76 @@ let trendWeeks = 8;
 let trendMonths = 6;
 let weeklyTrend = [];
 let monthlyTrend = [];
+let statsTableOpen = false;
 
 const statsBar = document.getElementById("statsBar");
 
-// Drawing surface. The SVG is scaled to the panel width by CSS, so these are
-// just internal proportions - lines keep their real thickness thanks to
-// vector-effect="non-scaling-stroke".
+// One small chart per metric, stacked and sharing the x positions. They are NOT
+// drawn on one pair of axes on purpose: run_km is kilometres and the other three
+// are hours, so a shared scale would flatten the hour lines against zero, and
+// four independently-scaled lines on one plot invent crossings that mean nothing.
 const CHART_W = 1000;
-const CHART_H = 300;
-const CHART_PAD = { top: 18, right: 96, bottom: 34, left: 12 };
+const FACET_H = 116;
+const AXIS_H = 26;
+const PAD = { top: 14, right: 78, bottom: 10, left: 58 };
 
-function renderStats() {
-  const data = statsPeriod === "week" ? weeklyTrend : monthlyTrend;
+// color = validated categorical slot, assigned in fixed order and never
+// recycled; the hue is set once on the facet as --series and inherited.
+const STATS_METRICS = [
+  { key: "run_km", label: "Kilometrāža", unit: "km", color: "chart-series-1" },
+  { key: "run_min", label: "Laiks", unit: "h", color: "chart-series-2" },
+  { key: "vfs_sfs_min", label: "VFS/SFS", unit: "h", color: "chart-series-3" },
+  { key: "velo_min", label: "Velo", unit: "h", color: "chart-series-4" },
+];
 
-  const tabsHtml = `
-    <div class="stats-tabs">
-      <button class="${statsPeriod === "week" ? "active" : ""}" data-stat-period="week">Nedēļa</button>
-      <button class="${statsPeriod === "month" ? "active" : ""}" data-stat-period="month">Mēnesis</button>
-    </div>
-  `;
-
-  if (!data || !data.length) {
-    statsBar.innerHTML = tabsHtml + '<p class="muted" style="padding:12px 18px">Nav datu</p>';
-    attachStatsTabHandlers();
-    return;
-  }
-
-  const metrics = [
-    { key: "run_km", label: "Kilometrāža", color: "run_km" },
-    { key: "run_min", label: "Laiks", color: "run_min" },
-    { key: "vfs_sfs_min", label: "VFS/SFS", color: "vfs_sfs_min" },
-    { key: "velo_min", label: "Velo", color: "velo_min" },
-  ];
-
-  const maxValues = {};
-  for (const m of metrics) {
-    maxValues[m.key] = Math.max(...data.map((d) => d[m.key] || 0), 1);
-  }
-  // A metric that is zero for the whole period would just lie along the bottom
-  // edge and get in the way of the ones that do have data.
-  const hasData = {};
-  for (const m of metrics) {
-    hasData[m.key] = data.some((d) => (d[m.key] || 0) > 0);
-  }
-
-  function chartDateLabel(d) {
-    if (statsPeriod === "week") {
-      const parts = (d.week_start || "").split("-");
-      if (parts.length !== 3) return "";
-      const start = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-      const end = addDays(start, 6);
-      return `${String(start.getDate()).padStart(2, "0")}.${String(start.getMonth() + 1).padStart(2, "0")}.–${String(end.getDate()).padStart(2, "0")}.${String(end.getMonth() + 1).padStart(2, "0")}.`;
-    }
-    const parts = (d.month_start || "").split("-");
-    return parts.length >= 2 ? `${parts[0]}.${parts[1]}.` : "";
-  }
-
-  // The full week label ("07.07.–13.07.") is far too wide to repeat under every
-  // point, so the axis only carries the start of the week.
-  function axisDateLabel(d) {
-    if (statsPeriod === "week") {
-      const parts = (d.week_start || "").split("-");
-      if (parts.length !== 3) return "";
-      return `${parts[2]}.${parts[1]}.`;
-    }
-    const parts = (d.month_start || "").split("-");
-    return parts.length >= 2 ? `${parts[1]}.${parts[0].slice(2)}.` : "";
-  }
-
-  function displayValue(m, val) {
-    if (m.key === "run_km") return val.toFixed(1) + " km";
-    return val.toFixed(1) + " h";
-  }
-
-  const legendHtml = `
-    <div class="chart-legend">
-      ${metrics.map((m) => `
-        <span class="chart-legend-item${hasData[m.key] ? "" : " is-empty"}">
-          <span class="chart-legend-swatch ${m.color}"></span>
-          ${m.label}
-          <span class="chart-legend-max">${hasData[m.key] ? `līdz ${displayValue(m, maxValues[m.key])}` : "nav datu"}</span>
-        </span>
-      `).join("")}
-    </div>
-  `;
-
-  statsBar.innerHTML = `
-    <div class="stats-chart">
-      ${tabsHtml}
-      ${buildStatsRangeHtml()}
-      ${legendHtml}
-      ${buildTrendChartHtml(data, metrics, maxValues, hasData, {
-        chartDateLabel, axisDateLabel, displayValue,
-      })}
-    </div>
-  `;
-
-  attachStatsTabHandlers();
-  attachStatsRangeHandlers();
+function statsData() {
+  return statsPeriod === "week" ? weeklyTrend : monthlyTrend;
 }
 
-function buildStatsRangeHtml() {
-  const isWeek = statsPeriod === "week";
-  const ranges = isWeek
-    ? [{ val: 4, label: "4 nedēļas" }, { val: 8, label: "8 nedēļas" }, { val: 12, label: "12 nedēļas" }]
-    : [{ val: 3, label: "3 mēn." }, { val: 6, label: "6 mēn." }, { val: 12, label: "12 mēn." }];
-  const currentRange = isWeek ? trendWeeks : trendMonths;
+function statsPointX(i, count) {
+  const plotW = CHART_W - PAD.left - PAD.right;
+  if (count === 1) return PAD.left + plotW / 2;
+  return PAD.left + (i / (count - 1)) * plotW;
+}
 
-  return `
-    <div class="stats-range">
-      ${ranges.map((r) => `
-        <button class="${r.val === currentRange ? "active" : ""}" data-stat-range="${r.val}" type="button">${r.label}</button>
-      `).join("")}
-    </div>
-  `;
+function statsFullDateLabel(d) {
+  if (statsPeriod === "week") {
+    const parts = (d.week_start || "").split("-");
+    if (parts.length !== 3) return "";
+    const start = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    const end = addDays(start, 6);
+    const p2 = (n) => String(n).padStart(2, "0");
+    return `${p2(start.getDate())}.${p2(start.getMonth() + 1)}.–${p2(end.getDate())}.${p2(end.getMonth() + 1)}.`;
+  }
+  const parts = (d.month_start || "").split("-");
+  return parts.length >= 2 ? `${parts[0]}. gada ${parseInt(parts[1])}. mēnesis` : "";
+}
+
+// The full week label is far too wide to repeat under every point, so the axis
+// only carries the start of the week.
+function statsAxisDateLabel(d) {
+  if (statsPeriod === "week") {
+    const parts = (d.week_start || "").split("-");
+    return parts.length === 3 ? `${parts[2]}.${parts[1]}.` : "";
+  }
+  const parts = (d.month_start || "").split("-");
+  return parts.length >= 2 ? `${parts[1]}.${parts[0].slice(2)}.` : "";
+}
+
+function statsValueText(metric, val) {
+  return `${val.toFixed(1)} ${metric.unit}`;
 }
 
 // Catmull-Rom through every point, converted to cubic beziers - that is what
-// makes the line curve through the data instead of kinking at each point.
-// Control points are clamped to the plot area so a steep step cannot bow the
-// curve out through the top or bottom edge.
+// makes the line curve through the data instead of kinking at each point. The
+// control points are clamped to the plot rectangle, or a steep week-to-week
+// step bows the curve out through the top or bottom edge.
 function smoothLinePath(points, minY, maxY) {
   if (!points.length) return "";
   if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
   const clamp = (v) => Math.max(minY, Math.min(maxY, v));
   const TENSION = 0.85;
-  let d = `M ${points[0].x} ${points[0].y}`;
+  let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
   for (let i = 0; i < points.length - 1; i++) {
     const p0 = points[i - 1] || points[i];
     const p1 = points[i];
@@ -143,72 +87,65 @@ function smoothLinePath(points, minY, maxY) {
   return d;
 }
 
-// Keeps the end-of-line value labels from sitting on top of each other when two
-// curves finish at nearly the same height. Nudges them apart, in order.
-function spreadLabelYs(entries, minY, maxY, gap) {
-  const sorted = entries.slice().sort((a, b) => a.y - b.y);
-  let prev = -Infinity;
-  sorted.forEach((e) => {
-    e.labelY = Math.max(e.y, prev + gap);
-    prev = e.labelY;
-  });
-  const overflow = sorted.length ? sorted[sorted.length - 1].labelY - maxY : 0;
-  if (overflow > 0) sorted.forEach((e) => { e.labelY -= overflow; });
-  sorted.forEach((e) => { e.labelY = Math.max(minY, Math.min(maxY, e.labelY)); });
-  return entries;
-}
-
-function buildTrendChartHtml(data, metrics, maxValues, hasData, fmt) {
-  const plotLeft = CHART_PAD.left;
-  const plotRight = CHART_W - CHART_PAD.right;
-  const plotTop = CHART_PAD.top;
-  const plotBottom = CHART_H - CHART_PAD.bottom;
-  const plotW = plotRight - plotLeft;
+function buildFacetHtml(metric, data) {
+  const plotTop = PAD.top;
+  const plotBottom = FACET_H - PAD.bottom;
   const plotH = plotBottom - plotTop;
+  const plotRight = CHART_W - PAD.right;
+  const max = Math.max(...data.map((d) => d[metric.key] || 0), 0);
+  // An all-zero metric would draw a flat line along the baseline and say
+  // nothing; the facet keeps its heading so the reader still sees it exists.
+  const empty = max <= 0;
+  const scaleMax = empty ? 1 : max;
+  const yAt = (val) => plotBottom - (val / scaleMax) * plotH;
 
-  // A single point has no width to spread over, so it sits in the middle.
-  const xAt = (i) => (data.length === 1
-    ? plotLeft + plotW / 2
-    : plotLeft + (i / (data.length - 1)) * plotW);
-  const yAt = (key, val) => plotBottom - (val / maxValues[key]) * plotH;
+  const points = data.map((d, i) => ({
+    x: statsPointX(i, data.length),
+    y: yAt(d[metric.key] || 0),
+  }));
+  const linePath = smoothLinePath(points, plotTop, plotBottom);
+  const areaPath = points.length > 1
+    ? `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${plotBottom} L ${points[0].x.toFixed(1)} ${plotBottom} Z`
+    : "";
 
-  const gridHtml = [0, 0.25, 0.5, 0.75, 1]
-    .map((f) => {
-      const y = (plotTop + f * plotH).toFixed(1);
-      return `<line class="chart-grid-line" x1="${plotLeft}" y1="${y}" x2="${plotRight}" y2="${y}" />`;
-    })
+  const grid = [plotTop, plotTop + plotH / 2, plotBottom]
+    .map((y) => `<line class="chart-grid-line" x1="${PAD.left}" y1="${y.toFixed(1)}" x2="${plotRight}" y2="${y.toFixed(1)}" />`)
     .join("");
 
-  const drawn = metrics.filter((m) => hasData[m.key]);
-
-  const linesHtml = drawn.map((m) => {
-    const points = data.map((d, i) => ({ x: xAt(i), y: yAt(m.key, d[m.key] || 0) }));
-    const path = smoothLinePath(points, plotTop, plotBottom);
-    const dots = points.map((p, i) => `
-      <circle class="chart-dot ${m.color}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="5">
-        <title>${escapeHtml(fmt.chartDateLabel(data[i]))} · ${escapeHtml(m.label)}: ${escapeHtml(fmt.displayValue(m, data[i][m.key] || 0))}</title>
-      </circle>
-    `).join("");
-    return `<path class="chart-line ${m.color}" d="${path}" />${dots}`;
-  }).join("");
-
-  // Last value of each curve, printed just past the right edge of the plot.
-  const endLabels = spreadLabelYs(
-    drawn.map((m) => ({
-      metric: m,
-      y: yAt(m.key, data[data.length - 1][m.key] || 0),
-    })),
-    plotTop, plotBottom, 20
-  );
-  const endLabelsHtml = endLabels.map((e) => `
-    <text class="chart-end-label ${e.metric.color}" x="${plotRight + 8}" y="${(e.labelY + 4).toFixed(1)}">
-      ${escapeHtml(fmt.displayValue(e.metric, data[data.length - 1][e.metric.key] || 0))}
-    </text>
+  const dots = empty ? "" : points.map((p) => `
+    <circle class="chart-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" />
   `).join("");
 
-  // With 12 weeks every second label is enough to keep the axis readable. The
-  // newest point always gets a label; if that would sit right next to the
-  // previous one, the previous one is dropped rather than crowding it.
+  const latest = data[data.length - 1][metric.key] || 0;
+  const lastPoint = points[points.length - 1];
+
+  return `
+    <div class="chart-facet ${metric.color}" data-facet="${metric.key}">
+      <div class="chart-facet-head">
+        <span class="chart-facet-key"></span>
+        <span class="chart-facet-title">${escapeHtml(metric.label)}</span>
+      </div>
+      <svg viewBox="0 0 ${CHART_W} ${FACET_H}" role="img"
+           aria-label="${escapeHtml(metric.label)} — tendence">
+        ${grid}
+        ${empty ? "" : `<path class="chart-area" d="${areaPath}" />`}
+        ${empty ? "" : `<path class="chart-line" d="${linePath}" />`}
+        ${dots}
+        ${empty ? "" : `<circle class="chart-cursor-dot" cx="-99" cy="-99" r="6" />`}
+        <text class="chart-tick" x="${PAD.left - 10}" y="${plotTop + 5}">${empty ? "" : escapeHtml(max.toFixed(1))}</text>
+        <text class="chart-tick" x="${PAD.left - 10}" y="${plotBottom + 4}">0</text>
+        ${empty
+          ? `<text class="chart-empty-note" x="${PAD.left + 8}" y="${plotTop + plotH / 2 + 5}">nav datu</text>`
+          : `<text class="chart-end-label" x="${(lastPoint.x + 12).toFixed(1)}" y="${(lastPoint.y + 5).toFixed(1)}">${escapeHtml(statsValueText(metric, latest))}</text>`}
+      </svg>
+    </div>
+  `;
+}
+
+function buildAxisHtml(data) {
+  // With many points every second label is enough to keep the axis readable.
+  // The newest one is always labelled; when thinning would leave it crowded
+  // against its neighbour, the neighbour is dropped instead.
   const labelStep = data.length > 8 ? 2 : 1;
   const last = data.length - 1;
   const shown = new Set();
@@ -218,22 +155,202 @@ function buildTrendChartHtml(data, metrics, maxValues, hasData, fmt) {
     if (last - prev <= 1) shown.delete(prev);
     shown.add(last);
   }
-  const axisHtml = data
+  const labels = data
     .map((d, i) => (shown.has(i)
-      ? `<text class="chart-axis-label" x="${xAt(i).toFixed(1)}" y="${plotBottom + 22}">${escapeHtml(fmt.axisDateLabel(d))}</text>`
+      ? `<text class="chart-axis-label" x="${statsPointX(i, data.length).toFixed(1)}" y="16">${escapeHtml(statsAxisDateLabel(d))}</text>`
       : ""))
     .join("");
-
   return `
-    <div class="chart-plot">
-      <svg viewBox="0 0 ${CHART_W} ${CHART_H}" role="img" aria-label="Paveiktās slodzes tendence">
-        ${gridHtml}
-        ${linesHtml}
-        ${endLabelsHtml}
-        ${axisHtml}
-      </svg>
+    <div class="chart-axis-row">
+      <svg viewBox="0 0 ${CHART_W} ${AXIS_H}" aria-hidden="true">${labels}</svg>
     </div>
   `;
+}
+
+// Tooltips must never be the only way to read a value, so every figure is also
+// available as a plain table.
+function buildStatsTableHtml(data) {
+  const head = STATS_METRICS.map((m) => `<th scope="col">${escapeHtml(m.label)}, ${escapeHtml(m.unit)}</th>`).join("");
+  const rows = data.slice().reverse().map((d) => `
+    <tr>
+      <th scope="row">${escapeHtml(statsFullDateLabel(d))}</th>
+      ${STATS_METRICS.map((m) => `<td>${(d[m.key] || 0).toFixed(1)}</td>`).join("")}
+    </tr>
+  `).join("");
+  return `
+    <table class="chart-table">
+      <thead><tr><th scope="col">${statsPeriod === "week" ? "Nedēļa" : "Mēnesis"}</th>${head}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function buildStatsRangeHtml() {
+  const isWeek = statsPeriod === "week";
+  const ranges = isWeek
+    ? [{ val: 4, label: "4 nedēļas" }, { val: 8, label: "8 nedēļas" }, { val: 12, label: "12 nedēļas" }]
+    : [{ val: 3, label: "3 mēn." }, { val: 6, label: "6 mēn." }, { val: 12, label: "12 mēn." }];
+  const currentRange = isWeek ? trendWeeks : trendMonths;
+  return `
+    <div class="stats-range">
+      ${ranges.map((r) => `
+        <button class="${r.val === currentRange ? "active" : ""}" data-stat-range="${r.val}" type="button">${r.label}</button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderStats() {
+  const data = statsData();
+
+  const tabsHtml = `
+    <div class="stats-tabs">
+      <button class="${statsPeriod === "week" ? "active" : ""}" data-stat-period="week">Nedēļa</button>
+      <button class="${statsPeriod === "month" ? "active" : ""}" data-stat-period="month">Mēnesis</button>
+    </div>
+  `;
+
+  if (!data || !data.length) {
+    statsBar.innerHTML = tabsHtml + '<p class="muted" style="padding:12px 18px">Nav datu</p>';
+    attachStatsTabHandlers();
+    return;
+  }
+
+  statsBar.innerHTML = `
+    <div class="stats-chart">
+      ${tabsHtml}
+      ${buildStatsRangeHtml()}
+      <div class="chart-facets" id="chartFacets" tabindex="0"
+           role="group" aria-label="Paveiktās slodzes tendence pa rādītājiem">
+        ${STATS_METRICS.map((m) => buildFacetHtml(m, data)).join("")}
+        ${buildAxisHtml(data)}
+        <div class="chart-crosshair" hidden></div>
+        <div class="chart-tooltip" hidden role="status"></div>
+      </div>
+      <button class="chart-table-toggle" type="button" data-stats-table>
+        ${statsTableOpen ? "Paslēpt skaitļus" : "Rādīt skaitļus tabulā"}
+      </button>
+      ${statsTableOpen ? buildStatsTableHtml(data) : ""}
+    </div>
+  `;
+
+  attachStatsTabHandlers();
+  attachStatsRangeHandlers();
+  attachStatsTableToggle();
+  attachStatsHover(data);
+}
+
+// One crosshair and one tooltip across all four facets: splitting the metrics
+// apart gave each an honest scale, and this gives back the "what did every
+// metric do that week" reading that a single combined plot had.
+function attachStatsHover(data) {
+  const wrap = document.getElementById("chartFacets");
+  if (!wrap) return;
+  const crosshair = wrap.querySelector(".chart-crosshair");
+  const tooltip = wrap.querySelector(".chart-tooltip");
+  const facets = [...wrap.querySelectorAll(".chart-facet")];
+  const cursorDots = facets.map((f) => f.querySelector(".chart-cursor-dot"));
+  let activeIndex = -1;
+
+  function geometry() {
+    const svg = facets[0]?.querySelector("svg");
+    if (!svg) return null;
+    const svgRect = svg.getBoundingClientRect();
+    const wrapRect = wrap.getBoundingClientRect();
+    if (!svgRect.width) return null;
+    return {
+      scale: svgRect.width / CHART_W,
+      offsetX: svgRect.left - wrapRect.left,
+      wrapRect,
+    };
+  }
+
+  function show(index) {
+    const g = geometry();
+    if (!g || index < 0 || index >= data.length) return;
+    activeIndex = index;
+    const d = data[index];
+    const xPx = g.offsetX + statsPointX(index, data.length) * g.scale;
+
+    crosshair.hidden = false;
+    crosshair.style.left = `${xPx}px`;
+
+    facets.forEach((facet, i) => {
+      const dot = cursorDots[i];
+      if (!dot) return;
+      const metric = STATS_METRICS[i];
+      const line = facet.querySelector(".chart-line");
+      if (!line) { dot.setAttribute("cx", "-99"); return; }
+      const max = Math.max(...data.map((row) => row[metric.key] || 0), 0);
+      const plotTop = PAD.top;
+      const plotBottom = FACET_H - PAD.bottom;
+      const val = d[metric.key] || 0;
+      dot.setAttribute("cx", statsPointX(index, data.length).toFixed(1));
+      dot.setAttribute("cy", (plotBottom - (val / (max || 1)) * (plotBottom - plotTop)).toFixed(1));
+    });
+
+    // Series names are ours, but building the readout node by node keeps the
+    // tooltip free of any string-concatenated markup.
+    tooltip.textContent = "";
+    const head = document.createElement("div");
+    head.className = "chart-tooltip-date";
+    head.textContent = statsFullDateLabel(d);
+    tooltip.appendChild(head);
+    STATS_METRICS.forEach((m) => {
+      const row = document.createElement("div");
+      row.className = "chart-tooltip-row";
+      const key = document.createElement("span");
+      key.className = `chart-tooltip-key ${m.color}`;
+      const val = document.createElement("strong");
+      val.textContent = statsValueText(m, d[m.key] || 0);
+      const name = document.createElement("span");
+      name.className = "chart-tooltip-name";
+      name.textContent = m.label;
+      row.append(key, val, name);
+      tooltip.appendChild(row);
+    });
+    tooltip.hidden = false;
+
+    const tipW = tooltip.offsetWidth;
+    const maxLeft = g.wrapRect.width - tipW - 4;
+    tooltip.style.left = `${Math.max(4, Math.min(maxLeft, xPx - tipW / 2))}px`;
+  }
+
+  function hide() {
+    activeIndex = -1;
+    crosshair.hidden = true;
+    tooltip.hidden = true;
+    cursorDots.forEach((dot) => dot && dot.setAttribute("cx", "-99"));
+  }
+
+  // The reader aims at a date, never at a 2px line: the nearest point wins.
+  function indexFromEvent(e) {
+    const g = geometry();
+    if (!g) return -1;
+    const x = e.clientX - g.wrapRect.left - g.offsetX;
+    const plotW = (CHART_W - PAD.left - PAD.right) * g.scale;
+    if (data.length === 1) return 0;
+    const rel = (x - PAD.left * g.scale) / plotW;
+    return Math.max(0, Math.min(data.length - 1, Math.round(rel * (data.length - 1))));
+  }
+
+  wrap.addEventListener("pointermove", (e) => show(indexFromEvent(e)));
+  wrap.addEventListener("pointerleave", hide);
+  wrap.addEventListener("focus", () => show(data.length - 1));
+  wrap.addEventListener("blur", hide);
+  wrap.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const from = activeIndex === -1 ? data.length - 1 : activeIndex;
+    show(Math.max(0, Math.min(data.length - 1, from + (e.key === "ArrowRight" ? 1 : -1))));
+  });
+}
+
+function attachStatsTableToggle() {
+  statsBar.querySelector("[data-stats-table]")?.addEventListener("click", () => {
+    statsTableOpen = !statsTableOpen;
+    renderStats();
+  });
 }
 
 function attachStatsTabHandlers() {
