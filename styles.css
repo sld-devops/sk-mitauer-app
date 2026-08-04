@@ -5690,3 +5690,148 @@ body.is-dragging .session-card.is-draggable {
   line-height: 1.35;
   margin-top: 8px;
 }
+
+/* ---- Date picker (date-picker.js) ----
+   Replaces the browser's own <input type="date"> calendar, which starts its
+   week on Sunday and writes "08/02/2026" whenever the browser's language is
+   English — neither of which the page can change. */
+.dp-wrap {
+  display: inline-block;
+  position: relative;
+  width: 100%;
+}
+
+.dp-display {
+  background: #fff;
+  cursor: pointer;
+  width: 100%;
+}
+
+.dp-display:disabled {
+  background: #f0f0f0;
+  color: var(--muted);
+  cursor: default;
+}
+
+/* Sits inside the field's own wrapper rather than on <body>: half these fields
+   are inside a <dialog>, and a body-level popup paints underneath it. */
+.dp-popup {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.18);
+  left: 0;
+  padding: 10px;
+  position: absolute;
+  top: calc(100% + 4px);
+  width: 260px;
+  z-index: 40;
+}
+
+.dp-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.dp-month {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.dp-nav {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 2px 10px;
+}
+
+.dp-nav:hover {
+  background: var(--surface-hover);
+}
+
+.dp-grid {
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.dp-dayname {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding-bottom: 4px;
+  text-align: center;
+}
+
+.dp-day {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 6px 2px;
+  text-align: center;
+  user-select: none;
+}
+
+.dp-day:hover {
+  background: var(--surface-hover);
+}
+
+.dp-day.empty {
+  cursor: default;
+}
+
+.dp-day.empty:hover {
+  background: none;
+}
+
+.dp-day.today {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.dp-day.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.dp-actions {
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.dp-action {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+}
+
+.dp-action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* While a calendar is open the panel must neither clip it nor be painted over
+   by the next panel - see date-picker.js. */
+.panel .panel-body.dp-overflow-open {
+  overflow: visible;
+}
+
+.planner-panel .panel.dp-overflow-open {
+  z-index: 30;
+}

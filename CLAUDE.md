@@ -144,6 +144,17 @@ Added 2026-08-03 at the owner's request: they'd been switching Chrome's own "Req
 - **No mobile CSS was deleted.** The `max-width: 1040/720/380px` blocks simply stop matching while the viewport is pinned, so "Telefona skats" is a real, working way back. The owner has flagged that the phone layout still has buttons running off the edge and overlapping — that's a known, separate piece of work, not a regression from this change.
 - The login screen is pinned too, deliberately: switching the viewport at login time would make the layout jump.
 
+### Every date field draws its own calendar (`date-picker.js`)
+
+Added 2026-08-05. `<input type="date">` draws its calendar from the **browser's** language, not the page's: an English browser gives a Sunday-first week and `08/02/2026`. `lang="lv"` on the input changes nothing — measured in a headless browser, plain / `lang="lv"` / `lang="en-GB"` all render `08/02/2026`. So the only way to get a Monday-first Latvian calendar is to draw it, which `date-picker.js` (loaded before the panels) does for all ten date fields.
+
+- **The original input stays in the DOM as the value holder** and `.value` still reads and writes ISO `YYYY-MM-DD`. That is what makes this a ~150-line addition instead of an edit to fifteen call sites: `raceDate.value = r.date`, `document.getElementById("stDate").value`, `.disabled = !isAthleteView` all keep working. Both `value` and `disabled` are re-defined on the element with `Object.defineProperty` so assignment also refreshes the visible box — don't "simplify" that away, a plain hidden input would silently show a stale date.
+- **Fields are converted by a `MutationObserver`, not by a call in each panel.** The panels build their forms as HTML strings at render time, so the fields appear and vanish constantly. The observer only scans added nodes. It is asynchronous (a microtask), so a test that checks right after `render()` will still see `type="date"` — wait a tick.
+- **The popup is appended inside the field's own `.dp-wrap`**, never to `<body>`: half these fields live inside a `<dialog>`, and a body-level popup is painted underneath the dialog's top layer.
+- **Two things fought the popup and both are handled on open**: `.panel .panel-body` is `overflow: hidden` for the collapse animation and cut the last week off, and `.planner-panel .panel` is `position: relative; z-index: 1` — its own stacking context — so the next panel painted over whatever hung outside. Both get `dp-overflow-open` while the calendar is open.
+- **`popup.addEventListener("click", e => e.preventDefault())` is load-bearing.** Every date field sits inside a `<label>`, and clicking a plain `<div>` inside a label makes the browser forward a second synthetic click to the label's control — so picking a day closed the calendar and instantly reopened it.
+- Dates are built with a local-time helper, never `toISOString()`, which shifts to UTC and can land on the previous day.
+
 ### Sidebar panels are locked until a coach picks an athlete
 
 `updateSidebarPanelLock()` in `app.js` (called at the end of `render()`) puts a `panel-locked` class on every `.planner-panel .collapsible` **except `#adminPanel`** while `activeRole === "coach"` and `getSelectedAthleteId()` is empty; the `.collapse-toggle` click handler returns early on that class. Added 2026-08-02 — before it, a coach who hadn't picked anyone could open a dozen panels and find them all blank.
