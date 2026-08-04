@@ -177,6 +177,10 @@ Added 2026-08-05. `<input type="date">` draws its calendar from the **browser's*
 
 `races` is filled by `getRacesForWeek(athleteId, weekStart, weekEnd)` in `loadNonTemplateData()` and `monthRaces` by the same call for the visible month. The **race-calendar panel lists every race the athlete has**, so almost nothing in its "Notikušās" tab is in either global. `openRaceDialog`/`openRaceResultDialog` used to do `races.find(...)` and `if (!r) return;`, which is why the panel's ✏️ Rediģēt button silently did nothing on past races (reported and fixed 2026-08-02). `renderRaceTabFromRaces()` now caches its full list in `raceCalendarRaces`, and `findRaceById()` searches all three. Use it for any new race lookup — a bare `races.find()` will work in testing (today's week) and fail in use.
 
+### A saved race result stays editable
+
+`openRaceResultDialog()` in `panels/races.js` always could edit — it pre-fills time, pace and comment from the race — but until 2026-08-05 nothing reached it once a result existed: the week calendar's button was gated on `!hasResult`, and the race-calendar panel's on `tab === "upcoming" && !hasResult`. A mistyped time was therefore permanent, and a race that had already happened could never be given a result from the panel at all. Both buttons are now unconditional for the athlete and only their label changes ("Pievienot rezultātu" / "✏️ Labot rezultātu"). Same class of bug as the unreachable lab-test edit below — when a dialog supports editing, check that something actually opens it in that mode.
+
 ### "Saglabāt kā rekordu" — races feed the records panel
 
 Each finished race in the panel's past tab has a 🏅 button (`data-race-record`, athlete-only like the rest of the row's actions) that writes it into `records`. `saveRaceAsRecord()` lives in `panels/races.js`, the distance helpers in `panels/records.js`.

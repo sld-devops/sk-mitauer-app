@@ -127,7 +127,7 @@ function openRaceResultDialog(raceId) {
   editingRaceResultId = raceId;
   const r = findRaceById(raceId);
   if (!r) return;
-  raceResultInfo.innerHTML = `<strong>${escapeHtml(r.name)}</strong><span>${r.date}${r.distance ? " · " + escapeHtml(r.distance) : ""}${r.location ? " · " + escapeHtml(r.location) : ""}${r.target_time ? " · Mērķis: " + escapeHtml(r.target_time) : ""}</span>`;
+  raceResultInfo.innerHTML = `<strong>${escapeHtml(r.name)}</strong><span>${formatDateLV(r.date)}${r.distance ? " · " + escapeHtml(r.distance) : ""}${r.location ? " · " + escapeHtml(r.location) : ""}${r.target_time ? " · Mērķis: " + escapeHtml(r.target_time) : ""}</span>`;
   editingRaceDistance = r.distance || "";
   raceResultTime.value = r.result_time || "";
   raceResultPace.value = r.result_pace || "";
@@ -194,9 +194,11 @@ function renderRaceTabFromRaces(allRaces, tab) {
         ${tab === "past" && r.result_comment ? `<div class="race-comment-block"><div class="race-comment-label">Komentārs pēc sacensībām</div><p class="race-notes">${escapeHtml(r.result_comment)}</p></div>` : ""}
         ${isAthleteOwner ? `<div class="race-list-actions">
           <button class="secondary-action-sm" data-race-edit="${r.id}" type="button">✏️ Rediģēt</button>
-          ${tab === "upcoming" && !hasResult
-            ? `<button class="secondary-action-sm" data-race-log="${r.id}" type="button">📝 Pievienot rezultātu</button>`
-            : ""}
+          <!-- Both tabs, with or without a result: a finished race sits in
+               "past", and the button used to be upcoming-only and no-result-only,
+               so a saved time could never be corrected and an old race could
+               never be given one at all. -->
+          <button class="secondary-action-sm" data-race-log="${r.id}" type="button">${hasResult ? "✏️ Labot rezultātu" : "📝 Pievienot rezultātu"}</button>
           ${tab === "past" && hasResult && distanceToMeters(r.distance)
             ? `<button class="secondary-action-sm" data-race-record="${r.id}" type="button">🏅 Saglabāt kā rekordu</button>`
             : ""}
