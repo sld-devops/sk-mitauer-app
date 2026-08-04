@@ -299,6 +299,27 @@ function trendMonthStart(date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
+// How many of one week's seven days fall in each month it touches.
+// Kilometres and hours are typed in once for the whole week, so a week that
+// straddles a month boundary (27 July - 2 August) has nothing saying which of
+// the 86 km were run on the 1st and 2nd - it is split by day count, 5/7 to
+// July and 2/7 to August. Before this the whole week went to the month holding
+// its Monday, which lifted the old month and left the new one empty for its
+// first days.
+//
+// Days are counted, not shares: adding 1/7 seven times comes to
+// 0.9999999999999998, and a whole week must keep every metre of its 100 km.
+function trendWeekMonthDays(weekStartStr) {
+  const days = {};
+  const d = new Date(weekStartStr + "T00:00:00");
+  for (let i = 0; i < 7; i++) {
+    const key = trendDateISO(trendMonthStart(d));
+    days[key] = (days[key] || 0) + 1;
+    d.setDate(d.getDate() + 1);
+  }
+  return days;
+}
+
 async function getWeeklyTrend(athleteId, numWeeks) {
   const endDate = trendMonday(new Date());
   endDate.setDate(endDate.getDate() + 6);
@@ -412,20 +433,29 @@ async function getMonthlyTrend(athleteId, numMonths) {
     }
   }
 
+  // A week starting up to six days before the range can still put days inside
+  // the first month (27 July - 2 August feeds August), so it has to be fetched
+  // or those first days come back empty.
+  const summaryFrom = new Date(startDate);
+  summaryFrom.setDate(summaryFrom.getDate() - 6);
   const { data: summaries } = await supabase
     .from("weekly_summaries")
     .select("week_start, run_km, run_min, vfs_sfs_min, velo_min")
     .eq("athlete_id", athleteId)
-    .gte("week_start", startStr)
+    .gte("week_start", trendDateISO(summaryFrom))
     .lte("week_start", endStr);
   if (summaries) {
     for (const s of summaries) {
-      const monthKey = trendDateISO(trendMonthStart(new Date(s.week_start + "T00:00:00")));
-      if (months[monthKey]) {
-        if (s.run_km) months[monthKey].run_km += s.run_km;
-        if (s.run_min) months[monthKey].run_min += s.run_min;
-        if (s.vfs_sfs_min) months[monthKey].vfs_sfs_min += s.vfs_sfs_min;
-        if (s.velo_min) months[monthKey].velo_min += s.velo_min;
+      // Whole weeks - the vast majority - land in one month with a share of
+      // 7/7, which is exactly 1, and behave exactly as before.
+      const parts = trendWeekMonthDays(s.week_start);
+      for (const monthKey in parts) {
+        const share = parts[monthKey] / 7;
+        if (!months[monthKey]) continue;
+        if (s.run_km) months[monthKey].run_km += s.run_km * share;
+        if (s.run_min) months[monthKey].run_min += s.run_min * share;
+        if (s.vfs_sfs_min) months[monthKey].vfs_sfs_min += s.vfs_sfs_min * share;
+        if (s.velo_min) months[monthKey].velo_min += s.velo_min * share;
       }
     }
   }
