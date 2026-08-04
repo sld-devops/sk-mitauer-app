@@ -227,8 +227,14 @@ function renderRestrictionCards() {
     }
   }
 
-  const list = restrictions.length
-    ? restrictions.map(r => {
+  // Only current and upcoming restrictions are listed. A restriction that has
+  // already passed is history, not something to act on — it stays visible in
+  // the week/month calendar so it can still be looked back at, but it is not
+  // left cluttering this panel. `restrictions` itself is untouched, so the
+  // calendar renderers keep seeing every row.
+  const pastCount = restrictions.length - activeRestrictions.length;
+  const list = activeRestrictions.length
+    ? activeRestrictions.map(r => {
         const period = r.end_date
           ? `${formatDateLV(r.start_date)} — ${formatDateLV(r.end_date)}`
           : formatDateLV(r.start_date);
@@ -247,6 +253,10 @@ function renderRestrictionCards() {
           </div>
         `;
       }).join("")
+    : "";
+
+  const pastNote = pastCount
+    ? `<div class="restriction-past-note">Pagājušie ierobežojumi (${pastCount}) šeit vairs netiek rādīti — tie paliek redzami nedēļas un mēneša skatā.</div>`
     : "";
 
   const editing = restrictionEditingId ? restrictions.find(x => x.id === restrictionEditingId) : null;
@@ -279,6 +289,7 @@ function renderRestrictionCards() {
 
   body.innerHTML = `
     <div class="restriction-list">${list}</div>
+    ${pastNote}
     ${form}
   `;
 
