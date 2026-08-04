@@ -1157,9 +1157,16 @@ function clearOtherSourceSelections(picked) {
   }
 }
 
+// The same corner icon the calendar cards use, so the preview already shows
+// what the saved training will look like: the hand-picked icon if there is one,
+// otherwise the automatic one derived from the title.
+function previewBadgeHtml(training) {
+  return `<span class="plan-type-badge">${training.custom_icon || badgeForTitle(training.title)}</span>`;
+}
+
 function renderCustomPreview() {
   const training = getGeneratedTraining();
-  customPreview.innerHTML = `<strong>${displayTitle(training.title)}</strong><span>${formatDetailsForCard(training.details).replace(/\n/g, "<br>")}</span>`;
+  customPreview.innerHTML = `${previewBadgeHtml(training)}<strong>${displayTitle(training.title)}</strong><span>${formatDetailsForCard(training.details).replace(/\n/g, "<br>")}</span>`;
 }
 
 function renderSourcePicker() {
@@ -1171,7 +1178,12 @@ function renderCustomBuilder() {
   const type = customType.value;
   const customTypeTrigger = document.querySelector("#customTypeDropdown .dropdown-selected");
   if (customTypeTrigger) {
-    customTypeTrigger.textContent = customType.options[customType.selectedIndex]?.textContent || "Izvēlies treniņa tipu";
+    const optionText = customType.options[customType.selectedIndex]?.textContent || "Izvēlies treniņa tipu";
+    // Once an icon has been picked, the trigger shows that icon instead of the
+    // type's default one, so the choice is visible without opening anything.
+    // The list itself keeps the default - there the icon labels the type.
+    const pickedIcon = getSelectedIcon("customIconPicker");
+    customTypeTrigger.textContent = pickedIcon ? pickedIcon + " " + type : optionText;
   }
   document.querySelectorAll("#customTypeDropdown .type-dropdown-item").forEach((item) => {
     item.classList.toggle("selected", item.dataset.value === type);
@@ -1380,7 +1392,7 @@ function renderEditPlanBuilder() {
 function renderEditPlanPreview() {
   const training = getEditPlanTraining();
   const preview = document.getElementById("epPreview");
-  preview.innerHTML = `<strong>${displayTitle(training.title)}</strong><span>${formatDetailsForCard(training.details).replace(/\n/g, "<br>")}</span>`;
+  preview.innerHTML = `${previewBadgeHtml(training)}<strong>${displayTitle(training.title)}</strong><span>${formatDetailsForCard(training.details).replace(/\n/g, "<br>")}</span>`;
 }
 
 // "Iesildīšanās: 15min; 130-145; ar Drills" -> ["15min", "130-145", "ar Drills"].
@@ -1499,6 +1511,9 @@ function parsePlanToForm(plan) {
   }
   renderEditPlanBuilder();
   setSelectedIcon("epIconPicker", plan.custom_icon || "");
+  // The builder above already drew the preview, but the icon lands only now,
+  // and the preview shows it - so it has to be redrawn once more.
+  renderEditPlanPreview();
 }
 
 function loadTemplateToForm(template) {
@@ -1799,6 +1814,10 @@ document.addEventListener("click", (e) => {
   if (!picker) return;
   picker.querySelectorAll(".icon-btn").forEach(b => b.classList.remove("selected"));
   btn.classList.add("selected");
+  // Clicking an icon fires no input/change event, so the preview (and the
+  // builder's dropdown label) has to be redrawn by hand here.
+  if (picker.id === "customIconPicker") renderSourcePicker();
+  else if (picker.id === "epIconPicker") renderEditPlanPreview();
 });
 
 // showPlannedPrefix puts the planned task ("6x400m + 4x200m") above the

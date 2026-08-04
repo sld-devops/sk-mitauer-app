@@ -1360,25 +1360,28 @@ h4 {
 
 .icon-picker {
   display: inline-flex;
-  gap: 3px;
+  gap: 8px;
   vertical-align: middle;
 }
 .icon-btn {
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fff;
   cursor: pointer;
-  font-size: 16px;
-  line-height: 26px;
+  font-size: 20px;
+  line-height: 32px;
   text-align: center;
   transition: background 0.15s, border-color 0.15s;
 }
 .icon-btn:hover {
-  background: var(--surface);
+  background: var(--lime);
+  border-color: var(--lime-dark);
 }
+/* Must stay after :hover - both selectors are (0,2,0), so source order is what
+   keeps the chosen icon looking chosen while the pointer is over it. */
 .icon-btn.selected {
   background: var(--race-bg);
   border-color: var(--accent);
@@ -1873,6 +1876,23 @@ label {
   display: grid;
   gap: 6px;
   padding: 12px;
+  position: relative;
+}
+
+/* Same corner icon the calendar cards carry, so the preview shows what the
+   saved training will look like. .plan-type-badge is already absolute.
+   Scoped to the two training previews on purpose - #raceResultInfo shares the
+   .generated-preview class but has no icon, so it must keep its full width. */
+#customPreview .plan-type-badge,
+#epPreview .plan-type-badge {
+  right: 10px;
+  top: 10px;
+}
+
+/* Keeps a long title from running underneath the icon. */
+#customPreview strong,
+#epPreview strong {
+  padding-right: 26px;
 }
 
 .preview-label {
