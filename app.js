@@ -3696,89 +3696,134 @@ saveLogBtn.addEventListener("click", async () => {
     console.error(e);
   }
 });
-function addExtraIntervalRow(container, defaultDist, defaultPace) {
-  const sectionRow = container.closest('.log-section-row') || container;
-  const currentCount = sectionRow.querySelectorAll('[data-log-interval]').length;
-  const row = document.createElement('div');
-  row.className = 'extra-interval-row';
-  const distInput = document.createElement('input');
-  distInput.className = 'log-extra-dist';
-  distInput.placeholder = defaultDist || '400m';
-  const paceInput = document.createElement('input');
-  paceInput.className = 'log-interval-pace';
-  paceInput.dataset.logInterval = currentCount;
-  paceInput.placeholder = defaultPace || 'min/km';
-  row.appendChild(distInput);
-  row.appendChild(paceInput);
-  const fg = sectionRow.querySelector('.field-grid');
-  if (fg) {
-    fg.appendChild(row);
-  } else {
-    const lastSeg = sectionRow.querySelector('.var-seg-log-row:last-child');
-    if (lastSeg) lastSeg.after(row);
-    else sectionRow.appendChild(row);
-  }
-  const targetLine = sectionRow.querySelector('.log-target')?.textContent || '';
-  const paceStr = extractPace(targetLine);
-  const bounds = paceStr ? parsePaceBounds(paceStr) : null;
-  if (bounds) {
-    function validate() {
-      const v = parseAthleteInput(paceInput.value);
-      paceInput.classList.remove('pace-fast', 'pace-good', 'pace-slow', 'pace-warn');
-      if (!v) return;
-      const c = getPaceColor(v, bounds);
-      if (c) paceInput.classList.add('pace-' + c);
-    }
-    paceInput.addEventListener('input', validate);
-    validate();
-  }
+// A variable-interval session is drawn as one .var-seg-log-group per repeated
+// block (6x400m, 4x200m) and one .var-seg-log-row per segment run once. Each of
+// those owns its boxes, and an extra interval belongs to the block it was added
+// under - not to the section as a whole. A plain same-length session has no
+// blocks, so the section row is its own single host.
+function logDialogHosts(sectionEl) {
+  const segs = [...sectionEl.querySelectorAll(".var-seg-log-group, .var-seg-log-row")];
+  return segs.length ? segs : [sectionEl];
 }
-function logDialogAddExtraButtons() {
-  logFormContent.querySelectorAll('.log-section-row').forEach(row => {
-    const hasInterval = row.querySelector('[data-log-interval]');
-    if (!hasInterval) return;
-    const targetText = row.querySelector('.log-target')?.textContent || '';
-    const distMatch = targetText.match(/Pamatdaļa:\s*(\d+)x(\S+)/);
-    const defaultDist = distMatch ? distMatch[2] : '400m';
-    const defaultPace = extractPace(targetText) || 'min/km';
-    const btn = document.createElement('button');
-    btn.className = 'extra-interval-btn';
-    btn.textContent = '+ Pievienot papildus intervālu';
-    btn.type = 'button';
-    btn.addEventListener('click', () => addExtraIntervalRow(row, defaultDist, defaultPace));
-    const fg = row.querySelector('.field-grid');
-    if (fg) {
-      fg.after(btn);
-    } else {
-      row.appendChild(btn);
-    }
+
+// What an extra interval added under this host should default to.
+function logDialogHostDefaults(hostEl, sectionEl) {
+  const label = hostEl.querySelector(".log-target")?.textContent
+    || hostEl.querySelector(".var-seg-log-label")?.textContent
+    || sectionEl.querySelector(".log-target")?.textContent
+    || "";
+  const repMatch = label.match(/(\d+)x([^\s(]+)/);
+  const bareMatch = label.match(/^\s*([^\s@]+)\s*@/);
+  const pace = hostEl.querySelector("[data-log-interval]")?.dataset.targetPace
+    || extractPace(label)
+    || "";
+  return { dist: repMatch ? repMatch[2] : bareMatch ? bareMatch[1] : "400m", pace };
+}
+
+// data-log-interval is only ever read in document order, but keeping the
+// numbers in step makes the form readable while debugging.
+function renumberSectionIntervals(sectionEl) {
+  sectionEl.querySelectorAll("[data-log-interval]").forEach((inp, i) => {
+    inp.dataset.logInterval = String(i);
   });
 }
-function logDialogFillIntervals(sectionEl, intervals) {
-  const existing = sectionEl.querySelectorAll('[data-log-interval]');
-  const needed = intervals.length - existing.length;
-  if (needed > 0) {
-    const targetText = sectionEl.querySelector('.log-target')?.textContent || '';
-    const distMatch = targetText.match(/Pamatdaļa:\s*(\d+)x(\S+)/);
-    const defaultDist = distMatch ? distMatch[2] : '400m';
-    const defaultPace = extractPace(targetText) || 'min/km';
-    for (let e = 0; e < needed; e++) addExtraIntervalRow(sectionEl, defaultDist, defaultPace);
+
+function addExtraIntervalRow(hostEl, defaultDist, defaultPace) {
+  const sectionRow = hostEl.closest(".log-section-row") || hostEl;
+  const row = document.createElement("div");
+  row.className = "extra-interval-row";
+  const distInput = document.createElement("input");
+  distInput.className = "log-extra-dist";
+  distInput.placeholder = defaultDist || "400m";
+  const paceInput = document.createElement("input");
+  paceInput.className = "log-interval-pace";
+  paceInput.dataset.logInterval = "0";
+  if (defaultPace) paceInput.dataset.targetPace = defaultPace;
+  paceInput.placeholder = defaultPace || "min/km";
+  row.appendChild(distInput);
+  row.appendChild(paceInput);
+
+  const fg = hostEl.querySelector(".field-grid");
+  if (fg) {
+    fg.appendChild(row);
+  } else if (hostEl.classList.contains("var-seg-log-row")) {
+    // Behind any extras already added to this same one-off segment.
+    let anchor = hostEl;
+    while (anchor.nextElementSibling?.classList.contains("extra-interval-row")) {
+      anchor = anchor.nextElementSibling;
+    }
+    anchor.after(row);
+  } else {
+    hostEl.appendChild(row);
   }
-  sectionEl.querySelectorAll('[data-log-interval]').forEach((inp, i) => {
-    if (intervals[i]) {
-      const extraRow = inp.closest('.extra-interval-row');
-      if (extraRow) {
-        const val = intervals[i];
-        const spaceIdx = val.indexOf(' ');
-        if (spaceIdx > -1 && spaceIdx < val.length - 1) {
-          extraRow.querySelector('.log-extra-dist').value = val.substring(0, spaceIdx);
-          inp.value = val.substring(spaceIdx + 1).trim();
-        } else {
-          inp.value = val;
-        }
-      } else {
-        inp.value = intervals[i];
-      }
+  renumberSectionIntervals(sectionRow);
+
+  const bounds = defaultPace ? parsePaceBounds(defaultPace) : null;
+  if (bounds) attachPaceColouring(paceInput, bounds);
+  return row;
+}
+
+function addExtraIntervalButton(hostEl, sectionEl) {
+  const { dist, pace } = logDialogHostDefaults(hostEl, sectionEl);
+  const btn = document.createElement("button");
+  btn.className = "extra-interval-btn";
+  btn.textContent = "+ Pievienot papildus intervālu";
+  btn.type = "button";
+  btn.addEventListener("click", () => addExtraIntervalRow(hostEl, dist, pace));
+  const fg = hostEl.querySelector(".field-grid");
+  if (fg) fg.after(btn);
+  else hostEl.appendChild(btn);
+}
+
+function logDialogAddExtraButtons() {
+  logFormContent.querySelectorAll(".log-section-row").forEach(row => {
+    if (!row.querySelector("[data-log-interval]")) return;
+    // One button per block, so an extra 400m and an extra 200m each land under
+    // their own block. There used to be a single button, and because it went
+    // after the section's *first* .field-grid it only ever appeared under the
+    // first block and added there.
+    const groups = [...row.querySelectorAll(".var-seg-log-group")];
+    if (groups.length) groups.forEach(group => addExtraIntervalButton(group, row));
+    else addExtraIntervalButton(row, row);
+  });
+}
+
+function logDialogFillIntervals(sectionEl, intervals) {
+  // An extra is stored as "<distance> <time>" and a planned one as just the
+  // time, which is how the two are told apart when the log is reopened. The
+  // list is walked block by block so each extra goes back under the block it
+  // was added to; appending them all to the first block shifted every later
+  // value into the wrong box.
+  const isExtra = (v) => typeof v === "string" && v.indexOf(" ") > -1;
+  const hosts = logDialogHosts(sectionEl);
+  let i = 0;
+  hosts.forEach((host, idx) => {
+    i += host.querySelectorAll("[data-log-interval]").length;
+    const { dist, pace } = logDialogHostDefaults(host, sectionEl);
+    const last = idx === hosts.length - 1;
+    // Everything left over at the end belongs to the last block, extra-shaped
+    // or not - that is what an older log with a longer list means.
+    while (i < intervals.length && (isExtra(intervals[i]) || last)) {
+      addExtraIntervalRow(host, dist, pace);
+      i++;
+    }
+  });
+
+  // The DOM now matches the saved order again, so fill straight through.
+  sectionEl.querySelectorAll("[data-log-interval]").forEach((inp, idx) => {
+    const val = intervals[idx];
+    if (!val) return;
+    const extraRow = inp.closest(".extra-interval-row");
+    if (!extraRow) {
+      inp.value = val;
+      return;
+    }
+    const spaceIdx = val.indexOf(" ");
+    if (spaceIdx > -1 && spaceIdx < val.length - 1) {
+      extraRow.querySelector(".log-extra-dist").value = val.substring(0, spaceIdx);
+      inp.value = val.substring(spaceIdx + 1).trim();
+    } else {
+      inp.value = val;
     }
   });
 }
@@ -3813,7 +3858,7 @@ function openPlanLogDialog(planId) {
               <div class="log-target">${count}x${escapeHtml(seg.length)}${seg.pace ? "(" + escapeHtml(seg.pace) + ")" : ""}</div>
               <div class="field-grid">`;
             for (let r = 0; r < count; r++) {
-              html += `<label>${r + 1}. atkārtojums <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>`;
+              html += `<label>${r + 1}. atkārtojums <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" data-target-pace="${escapeHtml(seg.pace || "")}" /></label>`;
               globalIdx++;
             }
             html += `</div></div>`;
@@ -3821,7 +3866,7 @@ function openPlanLogDialog(planId) {
             const label = seg.length + (seg.pace ? " @" + seg.pace : "");
             html += `<div class="var-seg-log-row">
               <span class="var-seg-log-label">${escapeHtml(label)}</span>
-              <label>Temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>
+              <label>Temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" data-target-pace="${escapeHtml(seg.pace || "")}" /></label>
             </div>`;
             globalIdx++;
           }
@@ -3945,7 +3990,7 @@ function openLogDialog(dateStr) {
                 <div class="log-target">${count}x${escapeHtml(seg.length)}${seg.pace ? "(" + escapeHtml(seg.pace) + ")" : ""}</div>
                 <div class="field-grid">`;
               for (let r = 0; r < count; r++) {
-                html += `<label>${r + 1}. atkārtojums <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>`;
+                html += `<label>${r + 1}. atkārtojums <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" data-target-pace="${escapeHtml(seg.pace || "")}" /></label>`;
                 globalIdx++;
               }
               html += `</div></div>`;
@@ -3953,7 +3998,7 @@ function openLogDialog(dateStr) {
               const label = seg.length + (seg.pace ? " @" + seg.pace : "");
               html += `<div class="var-seg-log-row">
                 <span class="var-seg-log-label">${escapeHtml(label)}</span>
-                <label>Temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>
+                <label>Temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" data-target-pace="${escapeHtml(seg.pace || "")}" /></label>
               </div>`;
               globalIdx++;
             }
@@ -4190,37 +4235,44 @@ function buildPaceBoundsMap(planDetails) {
   });
   return map;
 }
+// Colours one box against the pace it is actually meant to hit. Safe to call
+// twice on the same box - an extra interval row wires itself up when it is
+// created, and attachIntervalPaceValidation() then sweeps the whole form once
+// the saved values are in, which is what colours them on opening.
+function attachPaceColouring(inp, bounds) {
+  function validate() {
+    const v = parseAthleteInput(inp.value);
+    inp.classList.remove("pace-fast", "pace-good", "pace-slow", "pace-warn");
+    if (!v) return;
+    const c = getPaceColor(v, bounds);
+    if (c) inp.classList.add("pace-" + c);
+  }
+  if (inp.dataset.paceWired !== "1") {
+    inp.dataset.paceWired = "1";
+    inp.addEventListener("input", validate);
+  }
+  validate();
+}
+
 function attachIntervalPaceValidation() {
   document.querySelectorAll("[data-log-section]").forEach((sectionEl) => {
     const targetLine = sectionEl.querySelector(".log-target")?.textContent || "";
     const paceStr = extractPace(targetLine);
-    if (!paceStr) return;
-    const bounds = parsePaceBounds(paceStr);
-    if (!bounds) return;
-    const ins = sectionEl.querySelectorAll("[data-log-interval]");
-    ins.forEach((inp) => {
-      function validate() {
-        const v = parseAthleteInput(inp.value);
-        inp.classList.remove("pace-fast", "pace-good", "pace-slow", "pace-warn");
-        if (!v) return;
-        const c = getPaceColor(v, bounds);
-        if (c) inp.classList.add("pace-" + c);
-      }
-      inp.addEventListener("input", validate);
-      validate();
+    const sectionBounds = paceStr ? parsePaceBounds(paceStr) : null;
+
+    sectionEl.querySelectorAll("[data-log-interval]").forEach((inp) => {
+      // A variable-interval session has a different target pace per block, but
+      // the section's line only carries the first one - reading the pace off
+      // that line judged the 200m times against the 400m target, so they were
+      // coloured wrong until the card was saved and re-rendered. Each box now
+      // carries its own target.
+      const own = inp.dataset.targetPace;
+      const bounds = own ? parsePaceBounds(own) : sectionBounds;
+      if (bounds) attachPaceColouring(inp, bounds);
     });
+
     const paceInp = sectionEl.querySelector(".log-actual-pace");
-    if (paceInp) {
-      function validatePace() {
-        const v = parseAthleteInput(paceInp.value);
-        paceInp.classList.remove("pace-fast", "pace-good", "pace-slow", "pace-warn");
-        if (!v) return;
-        const c = getPaceColor(v, bounds);
-        if (c) paceInp.classList.add("pace-" + c);
-      }
-      paceInp.addEventListener("input", validatePace);
-      validatePace();
-    }
+    if (paceInp && sectionBounds) attachPaceColouring(paceInp, sectionBounds);
   });
 }
 
