@@ -1959,6 +1959,33 @@ label {
   padding: 14px;
 }
 
+/* The calendar's own top and bottom edges. Side by side the seven columns'
+   borders join into one line across the week, so it is obvious where the
+   calendar starts and ends - a little heavier than the 2px between the days.
+   Excluded from the stacked (vertical) layout, where every column would then
+   draw its own line and double up with the separators. */
+.calendar-grid:not(.calendar-mobile) .day-column {
+  border-top: 3px solid var(--muted);
+  border-bottom: 3px solid var(--muted);
+}
+
+/* The stretch of that top line above today is red, matching the red lines down
+   today's two sides. Both selectors have to carry the .calendar-grid prefix -
+   the plain .day-column.today rule below would lose to the shorthand above. */
+.calendar-grid:not(.calendar-mobile) .day-column.today {
+  border-top-color: var(--accent);
+}
+
+/* In the stacked layout only the outer two edges are the calendar's own; the
+   line between two days is already the previous day's bottom border. */
+.calendar-mobile .day-column:first-child {
+  border-top: 3px solid var(--muted);
+}
+
+.calendar-mobile .day-column.today:first-child {
+  border-top-color: var(--accent);
+}
+
 .day-column:last-child {
   border-right: 0;
   box-shadow: none;
@@ -1996,6 +2023,13 @@ label {
 .calendar-mobile .day-column.today:last-child {
   border-bottom: 0;
   box-shadow: none;
+}
+
+/* The last stacked day used to end with no border at all; it now carries the
+   calendar's bottom edge. Must stay after the two `border-bottom: 0` rules
+   above - it matches their specificity, so source order is what decides. */
+.calendar-grid.calendar-mobile .day-column:last-child {
+  border-bottom: 3px solid var(--muted);
 }
 
 .day-column.today .day-name {
