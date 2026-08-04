@@ -2053,7 +2053,41 @@ function renderCalendar() {
   });
 
   renderWeeklySummary();
+  growAllCommentBoxes();
 }
+
+// A coach's comment must always be readable in full. A textarea does not size
+// itself to its content, so a long comment used to sit hidden inside a two-row
+// box with a scrollbar - and in the weekly summary, where the athlete's copy is
+// `disabled`, most browsers will not even let it be scrolled.
+//
+// Deliberately uncapped, unlike growDiaryTextarea() in panels/diary.js: the
+// whole point here is that nothing is cut off.
+function growCommentBox(el) {
+  if (!el) return;
+  el.style.height = "auto";
+  // Inside a hidden container everything measures 0 - leave the box at its
+  // default height rather than collapsing it to nothing.
+  if (!el.scrollHeight) {
+    el.style.height = "";
+    return;
+  }
+  // styles.css sets `* { box-sizing: border-box }`, so the height has to
+  // include the borders that scrollHeight leaves out.
+  el.style.height = el.scrollHeight + (el.offsetHeight - el.clientHeight) + "px";
+}
+
+const COMMENT_BOX_SELECTOR =
+  "textarea.inline-comment, textarea.rest-day-athlete-comment, #weeklySummary .ws-comments textarea";
+
+function growAllCommentBoxes() {
+  document.querySelectorAll(COMMENT_BOX_SELECTOR).forEach(growCommentBox);
+}
+
+// Grow while typing too, so a coach writing a long comment sees all of it.
+document.addEventListener("input", (e) => {
+  if (e.target.matches?.(COMMENT_BOX_SELECTOR)) growCommentBox(e.target);
+});
 
 function renderWeeklySummary() {
   const ws = document.getElementById("weeklySummary");
