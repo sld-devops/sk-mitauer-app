@@ -1387,12 +1387,17 @@ h4 {
   border-color: var(--accent);
 }
 
+/* A plain wrapper - the green box used to sit here, around the label and the
+   card together. It is now on the card itself, so the label reads as a heading
+   outside the frame, the same way "ATSILDĪŠANĀS" does next to it. */
 .preview-compact {
-  background: var(--surface);
-  border: 1px solid #b8c0cc;
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.preview-compact .preview-label {
+  margin-top: 0;
 }
 
 .preview-compact .generated-preview {
@@ -1879,10 +1884,20 @@ label {
   position: relative;
 }
 
+/* The green the wrapper used to have, lightened 20% towards white (--surface
+   #eef7d9 -> #f1f9e1), now on the card itself. Scoped to the two training
+   previews on purpose - #raceResultInfo shares the .generated-preview class
+   and stays white. */
+#customPreview,
+#epPreview {
+  background: #f1f9e1;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+}
+
 /* Same corner icon the calendar cards carry, so the preview shows what the
    saved training will look like. .plan-type-badge is already absolute.
-   Scoped to the two training previews on purpose - #raceResultInfo shares the
-   .generated-preview class but has no icon, so it must keep its full width. */
+   Scoped for the same reason - #raceResultInfo has no icon, so it must keep
+   its full width. */
 #customPreview .plan-type-badge,
 #epPreview .plan-type-badge {
   right: 10px;
@@ -1895,10 +1910,14 @@ label {
   padding-right: 26px;
 }
 
+/* Same heading style as .section-label ("IESILDĪŠANĀS", "ATSILDĪŠANĀS"), so the
+   preview is captioned like every other block in the builder. */
 .preview-label {
-  font-size: 0.85rem;
   color: var(--muted);
-  margin: 8px 0 4px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  margin: 12px 0 4px;
+  text-transform: uppercase;
 }
 
 .calendar-grid {
