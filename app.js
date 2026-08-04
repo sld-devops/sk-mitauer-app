@@ -470,13 +470,6 @@ function getVarSegmentData(container) {
   return segments;
 }
 
-function syncVarLapsState(segmentList, lapsEl) {
-  const segments = getVarSegmentData(segmentList);
-  const hasMultiRep = segments.some(s => s.reps > 1);
-  lapsEl.disabled = hasMultiRep;
-  if (hasMultiRep) lapsEl.value = "1";
-}
-
 function isVarIntervalLine(line) {
   const mainIdx = line.indexOf("Pamatdaļa:");
   if (mainIdx === -1) return false;
@@ -505,7 +498,7 @@ function parseVarIntervalPaceBounds(line) {
 
 function parseSegmentsFromVarLine(line) {
   const mainIdx = line.indexOf("Pamatdaļa:");
-  if (mainIdx === -1) return { segments: [], laps: 1, restBetween: "", isGrouped: false };
+  if (mainIdx === -1) return { segments: [], laps: 1, restBetween: "" };
   let after = line.slice(mainIdx + "Pamatdaļa:".length).trim();
 
   let restBetween = "";
@@ -523,8 +516,14 @@ function parseSegmentsFromVarLine(line) {
   }
 
   const parts = after.split(" + ").map(s => s.trim()).filter(Boolean);
-  const isGrouped = parts.some(p => /^\d+x/i.test(p));
 
+  // reps and laps are two different things and both are honoured:
+  // "6x400m + 4x200m × 3" is six 400s and four 200s, the whole block three
+  // times over. reps is what the segment's own "Nx" says (1 without one) and
+  // laps is the "× N" at the end. Reps used to be overwritten with the lap
+  // count on an ungrouped line, which turned "400m + 200m × 3"
+  // (400,200,400,200,400,200) into "3x400m + 3x200m" (400,400,400,200,200,200)
+  // as soon as the coach reopened and saved it - a different session.
   const segRegex = /^(?:(\d+)x)?(\S+)\(([^)]+)\)(?:\s*caur\s+(.+))?$/;
   const segments = parts.map(p => {
     const m = p.match(segRegex);
@@ -533,33 +532,32 @@ function parseSegmentsFromVarLine(line) {
         length: m[2].trim(),
         pace: m[3].trim(),
         rest: (m[4] || "").trim(),
-        reps: isGrouped ? (parseInt(m[1]) || 1) : 1
+        reps: parseInt(m[1]) || 1
       };
     }
     return { length: p, pace: "", rest: "", reps: 1 };
   });
 
-  if (!isGrouped) {
-    segments.forEach(s => { s.reps = laps; });
-  }
-  return { segments, laps: isGrouped ? 1 : laps, restBetween, isGrouped };
+  return { segments, laps, restBetween };
 }
 
 function buildVarIntervalMain(segmentListEl, lapsEl, restEl) {
   const segments = getVarSegmentData(segmentListEl);
   if (!segments.length) return "";
-  const isGrouped = segments.some(s => s.reps > 1);
+  // "Nx" is written only where it says something - a block of segments each
+  // run once keeps its bare lengths, the way it always did.
+  const anyMultiRep = segments.some(s => s.reps > 1);
   const parts = segments.map(s => {
-    let p = isGrouped ? `${s.reps}x${s.length}` : s.length;
+    let p = anyMultiRep ? `${s.reps}x${s.length}` : s.length;
     if (s.pace) p += `(${s.pace})`;
     if (s.rest) p += ` caur ${s.rest}`;
     return p;
   });
   let main = "Pamatdaļa: " + parts.join(" + ");
-  if (!isGrouped) {
-    const laps = lapsEl.value.trim();
-    if (laps) main += ` × ${laps}`;
-  }
+  // The lap count rides alongside the per-segment reps now, instead of being
+  // dropped whenever any segment had more than one rep.
+  const laps = parseInt(lapsEl.value.trim()) || 1;
+  if (laps > 1) main += ` × ${laps}`;
   const rest = restEl.value.trim();
   if (rest) main += `; caur blokiem ${rest}`;
   return main;
@@ -574,7 +572,6 @@ function parseVarIntervalMain(mainText, segmentListEl, lapsEl, restEl) {
   }
   lapsEl.value = String(result.laps);
   if (result.restBetween) restEl.value = result.restBetween;
-  syncVarLapsState(segmentListEl, lapsEl);
 }
 
 function getSelectedAthleteId() {
@@ -1253,7 +1250,6 @@ function renderCustomBuilder() {
 
   if (isVarInterval) {
     if (!varSegmentList.children.length) addVarSegmentRow(varSegmentList);
-    syncVarLapsState(varSegmentList, varLaps);
   } else {
     clearVarSegments(varSegmentList);
   }
@@ -1339,7 +1335,6 @@ function renderEditPlanBuilder() {
 
   if (isVarInterval) {
     if (!document.getElementById("epVarSegmentList").children.length) addVarSegmentRow(document.getElementById("epVarSegmentList"));
-    syncVarLapsState(document.getElementById("epVarSegmentList"), document.getElementById("epVarLaps"));
   } else {
     clearVarSegments(document.getElementById("epVarSegmentList"));
   }
@@ -1670,7 +1665,12 @@ function getPlannedIntervalBlocks(planDetails) {
     if (!line.includes("Pamatdaļa:")) continue;
     if (isVarIntervalLine(line)) {
       const result = parseSegmentsFromVarLine(line);
-      return result.segments.map((seg) => (result.isGrouped ? seg.reps : 1));
+      // With laps the whole pattern comes round again, so 6x400m + 4x200m x 2
+      // is run as 6, 4, 6, 4 - four blocks, not two.
+      const pattern = result.segments.map((seg) => seg.reps);
+      const blocks = [];
+      for (let lap = 0; lap < Math.max(1, result.laps); lap++) blocks.push(...pattern);
+      return blocks;
     }
     const m = line.match(/Pamatdaļa:\s*(\d+)x(\S+)/);
     if (m) return [parseInt(m[1])];
@@ -3108,7 +3108,6 @@ document.addEventListener("click", async (event) => {
 
 varSegmentList.addEventListener("input", () => {
   renderCustomPreview();
-  syncVarLapsState(varSegmentList, varLaps);
 });
 document.getElementById("varAddSegment")?.addEventListener("click", () => {
   addVarSegmentRow(varSegmentList);
@@ -3490,7 +3489,6 @@ document.getElementById("saveEditPlanBtn")?.addEventListener("click", async () =
 });
 document.getElementById("epVarSegmentList")?.addEventListener("input", () => {
   renderEditPlanPreview();
-  syncVarLapsState(document.getElementById("epVarSegmentList"), document.getElementById("epVarLaps"));
 });
 document.getElementById("epIncludeWarmup")?.addEventListener("change", () => renderEditPlanPreview());
 document.getElementById("epIncludeCooldown")?.addEventListener("change", () => renderEditPlanPreview());
@@ -3773,26 +3771,32 @@ function openPlanLogDialog(planId) {
       html += `<div class="log-section-row" data-log-section="Pamatdaļa">
         <div class="log-target">${line}</div>`;
       let globalIdx = 0;
-      result.segments.forEach((seg) => {
-        const count = result.isGrouped ? seg.reps : 1;
-        if (count > 1) {
-          html += `<div class="var-seg-log-group">
-            <div class="log-target">${count}x${escapeHtml(seg.length)}${seg.pace ? "(" + escapeHtml(seg.pace) + ")" : ""}</div>
-            <div class="field-grid">`;
-          for (let r = 0; r < count; r++) {
-            html += `<label>${r + 1}. atkārtojums <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>`;
+      const lapCount = Math.max(1, result.laps);
+      // The whole block comes round again on every lap, so each lap gets its
+      // own boxes, in the order they are actually run.
+      for (let lap = 0; lap < lapCount; lap++) {
+        if (lapCount > 1) html += `<div class="var-seg-lap-label">${lap + 1}. aplis</div>`;
+        result.segments.forEach((seg) => {
+          const count = seg.reps;
+          if (count > 1) {
+            html += `<div class="var-seg-log-group">
+              <div class="log-target">${count}x${escapeHtml(seg.length)}${seg.pace ? "(" + escapeHtml(seg.pace) + ")" : ""}</div>
+              <div class="field-grid">`;
+            for (let r = 0; r < count; r++) {
+              html += `<label>${r + 1}. atkārtojums <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>`;
+              globalIdx++;
+            }
+            html += `</div></div>`;
+          } else {
+            const label = seg.length + (seg.pace ? " @" + seg.pace : "");
+            html += `<div class="var-seg-log-row">
+              <span class="var-seg-log-label">${escapeHtml(label)}</span>
+              <label>Temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>
+            </div>`;
             globalIdx++;
           }
-          html += `</div></div>`;
-        } else {
-          const label = seg.length + (seg.pace ? " @" + seg.pace : "");
-          html += `<div class="var-seg-log-row">
-            <span class="var-seg-log-label">${escapeHtml(label)}</span>
-            <label>Temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>
-          </div>`;
-          globalIdx++;
-        }
-      });
+        });
+      }
       html += `</div>`;
     } else {
       let intervalMatch = line.match(/Pamatdaļa:\s*(\d+)x(\S+)/);
@@ -3900,26 +3904,31 @@ function openLogDialog(dateStr) {
         html += `<div class="log-section-row" data-log-section="Pamatdaļa">
           <div class="log-target">${line}</div>`;
         let globalIdx = 0;
-        result.segments.forEach((seg) => {
-          const count = result.isGrouped ? seg.reps : 1;
-          if (count > 1) {
-            html += `<div class="var-seg-log-group">
-              <div class="log-target">${count}x${escapeHtml(seg.length)}${seg.pace ? "(" + escapeHtml(seg.pace) + ")" : ""}</div>
-              <div class="field-grid">`;
-            for (let r = 0; r < count; r++) {
-              html += `<label>${r + 1}. atkārtojums <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>`;
+        const lapCount = Math.max(1, result.laps);
+        // Same as in openLogDialog: one set of boxes per lap.
+        for (let lap = 0; lap < lapCount; lap++) {
+          if (lapCount > 1) html += `<div class="var-seg-lap-label">${lap + 1}. aplis</div>`;
+          result.segments.forEach((seg) => {
+            const count = seg.reps;
+            if (count > 1) {
+              html += `<div class="var-seg-log-group">
+                <div class="log-target">${count}x${escapeHtml(seg.length)}${seg.pace ? "(" + escapeHtml(seg.pace) + ")" : ""}</div>
+                <div class="field-grid">`;
+              for (let r = 0; r < count; r++) {
+                html += `<label>${r + 1}. atkārtojums <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>`;
+                globalIdx++;
+              }
+              html += `</div></div>`;
+            } else {
+              const label = seg.length + (seg.pace ? " @" + seg.pace : "");
+              html += `<div class="var-seg-log-row">
+                <span class="var-seg-log-label">${escapeHtml(label)}</span>
+                <label>Temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>
+              </div>`;
               globalIdx++;
             }
-            html += `</div></div>`;
-          } else {
-            const label = seg.length + (seg.pace ? " @" + seg.pace : "");
-            html += `<div class="var-seg-log-row">
-              <span class="var-seg-log-label">${escapeHtml(label)}</span>
-              <label>Temps <input class="log-interval-pace var-seg-pace-input" data-log-interval="${globalIdx}" /></label>
-            </div>`;
-            globalIdx++;
-          }
-        });
+          });
+        }
         html += `</div>`;
       } else {
         let intervalMatch = line.match(/Pamatdaļa:\s*(\d+)x(\S+)/);
@@ -4030,8 +4039,10 @@ function getPlannedMainPartSummary(details) {
   for (const line of lines) {
     if (!line.includes("Pamatdaļa:")) continue;
     if (isVarIntervalLine(line)) {
-      const { segments } = parseSegmentsFromVarLine(line);
-      return segments.map(s => `${s.reps}x${s.length}`).join(" + ");
+      const { segments, laps } = parseSegmentsFromVarLine(line);
+      // "1x400m" is noise - a segment run once is just its length.
+      const summary = segments.map(s => (s.reps > 1 ? `${s.reps}x${s.length}` : s.length)).join(" + ");
+      return laps > 1 ? `${summary} × ${laps}` : summary;
     }
     const m = line.match(/Pamatdaļa:\s*(\d+)x(\S+)/);
     if (m) return `${m[1]}x${m[2]}`;
@@ -4047,10 +4058,10 @@ function getPlannedIntervalCount(details) {
     if (!line.trim()) return;
     if (isVarIntervalLine(line)) {
       const result = parseSegmentsFromVarLine(line);
-      result.segments.forEach(seg => {
-        count += result.isGrouped ? seg.reps : 1;
-      });
-      if (!result.isGrouped && result.laps > 1) count *= result.laps;
+      // Per line, so the lap count cannot multiply what an earlier line added.
+      let lineCount = 0;
+      result.segments.forEach(seg => { lineCount += seg.reps; });
+      count += lineCount * Math.max(1, result.laps);
       return;
     }
     const m = line.match(/Pamatdaļa:\s*(\d+)x(\S+)/);

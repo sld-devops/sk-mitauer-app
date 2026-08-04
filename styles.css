@@ -2591,6 +2591,16 @@ label {
   margin-top: 6px;
 }
 
+/* Only shown when the block repeats, to keep the laps apart in the log form. */
+.var-seg-lap-label {
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 800;
+  margin-top: 10px;
+  padding-top: 8px;
+}
+
 .var-seg-log-label {
   font-size: 0.85rem;
   font-weight: 600;

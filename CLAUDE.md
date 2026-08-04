@@ -62,6 +62,16 @@ Two roles: `coach` and `athlete` (`currentProfile.role`, checked via `isCoach()`
 
 Related: the parenthetical on an interval line is the **pace** and only the pace — `caur 2min` is rest and always stays. When no pace is written, the line reads `Pamatdaļa: 6x400m; caur 2min`, which is why the length is matched with `/(\d+)x([^\s;()]+)/`; the older `(\d+)x(\S+)` swallowed the `;` and loaded the length as `"400m;"`.
 
+### A variable-interval main part has two independent counts
+
+`Pamatdaļa: 6x400m(76-76s) caur 1.5 + 4x200m(32-33) caur 1.5 × 3; caur blokiem 3min` — the `Nx` on each segment is **Reizes** (how many times that segment runs in one pass), the `× N` at the end is **Apļi** (how many times the whole block comes round), and `caur blokiem` is the rest between laps. `parseSegmentsFromVarLine()` / `buildVarIntervalMain()` in `app.js` are the only two places that know this.
+
+Until 2026-08-05 the two could not coexist. `buildVarIntervalMain` dropped the lap count outright whenever any segment had reps > 1, and `syncVarLapsState()` therefore **disabled** the "Apļi" input and forced it to 1 — which, since a real interval session always has reps > 1, meant the field could never be used at all. That function is gone; laps and reps are now written and read side by side.
+
+The same code had a silent data bug: an ungrouped line (`400m + 200m × 3`, i.e. 400,200,400,200,400,200) was parsed by copying the lap count onto **every segment's reps**, so reopening and saving it rewrote the training as `3x400m + 3x200m` — 400,400,400,200,200,200, a different session. `reps` now always comes from the segment's own `Nx` and nothing else.
+
+Downstream, the total is always `reps × laps`: `getPlannedIntervalBlocks()` repeats the segment pattern once per lap (`6x400m + 4x200m × 3` → `[6,4,6,4,6,4]`), `getPlannedIntervalCount()` multiplies per line, and both log-dialog builders wrap their segment loop in a lap loop with a `.var-seg-lap-label` heading, so `data-log-interval` still runs 0..n-1 unbroken across laps. The `isGrouped` flag the parser used to return is gone — every caller had been using it to decide whether `reps` could be trusted.
+
 **`parsePlanToForm()` (the "Rediģēt treniņu" dialog) had the same two bugs plus a worse one, all fixed 2026-08-02.** It seeded every input with a hardcoded example (`"45 min"`, `"145-155"`, `"4:15/km"`, `"600 m"`, `"6"`, `"3:45/km"`, `"2 min"`, `"15 min"`, `"130-145"`, `"120-135"`) and then only overwrote the fields the plan happened to mention. So editing `Pamatdaļa: 60 min; 120-130` showed a pace of `4:15/km` that was never in the plan — and because the preview and the save build the details string from the inputs, **saving wrote that invented pace into the training**. Rules now:
 
 - Every field is cleared to `""` first, then filled from the plan; the `value="…"` attributes were stripped from the eleven `ep*` inputs in `index.html` too (the new-training builder never had them — the edit dialog was the odd one out).
