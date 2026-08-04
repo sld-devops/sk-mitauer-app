@@ -1961,25 +1961,27 @@ label {
 
 /* The calendar's own top and bottom edges. Side by side the seven columns'
    borders join into one line across the week, so it is obvious where the
-   calendar starts and ends - a little heavier than the 2px between the days.
+   calendar starts and ends - same 2px as the lines between the days.
    Excluded from the stacked (vertical) layout, where every column would then
    draw its own line and double up with the separators. */
 .calendar-grid:not(.calendar-mobile) .day-column {
-  border-top: 3px solid var(--muted);
-  border-bottom: 3px solid var(--muted);
+  border-top: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
 }
 
-/* The stretch of that top line above today is red, matching the red lines down
-   today's two sides. Both selectors have to carry the .calendar-grid prefix -
-   the plain .day-column.today rule below would lose to the shorthand above. */
+/* Today's stretch of both lines is red, closing the red lines already running
+   down its two sides into a box. This selector has to carry the .calendar-grid
+   prefix - the plain .day-column.today rule below would lose to the shorthand
+   above. */
 .calendar-grid:not(.calendar-mobile) .day-column.today {
   border-top-color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 /* In the stacked layout only the outer two edges are the calendar's own; the
    line between two days is already the previous day's bottom border. */
 .calendar-mobile .day-column:first-child {
-  border-top: 3px solid var(--muted);
+  border-top: 2px solid var(--muted);
 }
 
 .calendar-mobile .day-column.today:first-child {
@@ -2029,7 +2031,11 @@ label {
    calendar's bottom edge. Must stay after the two `border-bottom: 0` rules
    above - it matches their specificity, so source order is what decides. */
 .calendar-grid.calendar-mobile .day-column:last-child {
-  border-bottom: 3px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+}
+
+.calendar-grid.calendar-mobile .day-column.today:last-child {
+  border-bottom-color: var(--accent);
 }
 
 .day-column.today .day-name {
