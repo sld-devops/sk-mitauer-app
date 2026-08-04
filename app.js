@@ -4327,7 +4327,8 @@ function attachIntervalStepper(inp, targetStr) {
 
   const btns = document.createElement("span");
   btns.className = "int-step-btns";
-  [["up", "▲", 1], ["down", "▼", -1]].forEach(([name, glyph, dir]) => {
+  // Down first, so left is less and right is more.
+  [["down", "▼", -1], ["up", "▲", 1]].forEach(([name, glyph, dir]) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "int-step-btn int-step-" + name;

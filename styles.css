@@ -2713,29 +2713,35 @@ label {
 }
 
 .int-step-wrap input {
-  padding-right: 30px;
+  padding-right: 76px;
 }
 
+/* Side by side, not stacked: one above the other gave each arrow half the box
+   height, which is too small a target to hit reliably with a thumb. Across,
+   each one gets the full height and as much width as the box can spare, with a
+   gap between them so a near miss lands on nothing rather than on the wrong
+   arrow. Down is on the left, up on the right. */
 .int-step-btns {
-  bottom: 3px;
+  bottom: 4px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  gap: 6px;
   position: absolute;
-  right: 3px;
-  top: 3px;
-  width: 24px;
+  right: 4px;
+  top: 4px;
 }
 
 .int-step-btn {
   background: none;
-  border: 0;
-  border-radius: 4px;
+  border: 1px solid rgba(21, 23, 26, 0.14);
+  border-radius: 5px;
   color: var(--muted);
   cursor: pointer;
-  flex: 1;
-  font-size: 0.6rem;
+  flex: none;
+  font-size: 0.75rem;
   line-height: 1;
   padding: 0;
+  width: 30px;
 }
 
 .int-step-btn:hover {
@@ -2746,6 +2752,14 @@ label {
 /* The wrapper is the flex item now, not the input inside it. */
 .extra-interval-row .int-step-wrap {
   flex: 1;
+}
+
+/* An extra interval is a whole row of its own inside the two-column grid. It
+   holds a distance box as well as a time box, so left in one column it made
+   that column wide and squeezed the opposite one down to 90px - not enough
+   room for the number next to the arrows on a narrow screen. */
+#logFormContent .field-grid > .extra-interval-row {
+  grid-column: 1 / -1;
 }
 
 .log-actual-pace {
