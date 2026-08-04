@@ -2826,7 +2826,9 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
 // --- Panel header click (whole area toggles, not just arrow) ---
 document.querySelectorAll(".panel .panel-header, .stats-collapsible .panel-header").forEach((header) => {
   header.addEventListener("click", (e) => {
-    if (e.target.closest(".collapse-toggle")) return;
+    // Any button in the header does its own thing and must not also toggle the
+    // panel - the arrow has its own handler, and #createUserBtn opens a dialog.
+    if (e.target.closest("button")) return;
     const btn = header.querySelector(".collapse-toggle");
     if (btn) btn.click();
   });

@@ -82,7 +82,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=164" />
+    <link rel="stylesheet" href="styles.css?v=165" />
   </head>
   <body>
     <div id="authView">
@@ -139,11 +139,14 @@
           <section class="panel collapsible collapsed" id="adminPanel" hidden>
             <div class="panel-header">
               <h2>Sportistu pārvaldība</h2>
+              <!-- "Pievienot" lives in the header so a new athlete can be created
+                   without opening the panel; opening it is only needed to reset a
+                   password or delete someone. -->
+              <button id="createUserBtn" class="secondary-action panel-add-btn" type="button">Pievienot</button>
               <button class="collapse-toggle" type="button" aria-label="Rādīt administrēšanu">▶</button>
             </div>
             <div class="panel-body">
               <div id="adminAthleteList"></div>
-              <button id="createUserBtn" class="secondary-action panel-add-btn" type="button">Pievienot</button>
             </div>
           </section>
 
@@ -953,6 +956,6 @@
     <script src="panels/weekly-review.js"></script>
     <script src="panels/ruffier-test.js?v=2"></script>
     <script src="panels/self-log.js?v=1"></script>
-    <script src="app.js?v=51"></script>
+    <script src="app.js?v=52"></script>
   </body>
 </html>

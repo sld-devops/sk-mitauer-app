@@ -4886,6 +4886,13 @@ textarea:disabled {
   margin-bottom: 10px;
 }
 
+/* The margins above are for standing at the bottom of a list. In a panel header
+   the button has to sit level with the heading instead. */
+.panel-header .panel-add-btn {
+  margin: 0;
+  flex: none;
+}
+
 .labtest-row {
   position: relative;
   display: flex;
