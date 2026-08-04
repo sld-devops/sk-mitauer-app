@@ -1308,26 +1308,45 @@ h4 {
   align-items: start;
 }
 
+/* The "Rediģēt treniņu" dialog gets the same dashed frames as the builder, so
+   its warm-up / main part / cool-down read as separate blocks too. */
 #warmupSection,
 .main-content-column,
 #cooldownSection,
-#customNameRow {
+#customNameRow,
+#epWarmupSection,
+.ep-main-column,
+#epCooldownSection {
   border: 2px dashed #677e99;
   border-radius: 8px;
   padding: 12px;
   background: #fff;
 }
 
+/* The dialog is one narrow column, so the frames stack with a gap between. */
+#epWarmupSection,
+.ep-main-column,
+#epCooldownSection {
+  margin-bottom: 14px;
+}
+
 #warmupSection .section-label,
 .main-content-column .section-label,
-#cooldownSection .section-label {
+#cooldownSection .section-label,
+#epWarmupSection .section-label,
+.ep-main-column .section-label,
+#epCooldownSection .section-label {
   margin: 0;
 }
 
 #warmupSection > :not([hidden]) ~ :not([hidden]),
 .main-content-column > :not([hidden]) ~ :not([hidden]),
 #cooldownSection > :not([hidden]) ~ :not([hidden]),
-#mainFields > :not([hidden]) ~ :not([hidden]) {
+#mainFields > :not([hidden]) ~ :not([hidden]),
+#epWarmupSection > :not([hidden]) ~ :not([hidden]),
+.ep-main-column > :not([hidden]) ~ :not([hidden]),
+#epCooldownSection > :not([hidden]) ~ :not([hidden]),
+#epMainFields > :not([hidden]) ~ :not([hidden]) {
   margin-top: 12px;
 }
 

@@ -82,7 +82,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=169" />
+    <link rel="stylesheet" href="styles.css?v=170" />
   </head>
   <body>
     <div id="authView">
@@ -640,6 +640,10 @@
           </label>
         </div>
 
+        <!-- Wraps the whole main part in one dashed frame, the way
+             .main-content-column does in the training builder. Only one of the
+             three variants below is ever visible at a time. -->
+        <div class="ep-main-column">
         <div id="epIntervalFields">
           <p class="section-label">Pamatdaļa</p>
           <div class="field-grid">
@@ -705,6 +709,7 @@
           Nosaukums
           <input id="epCustomName" type="text" placeholder="Fartleks, Progresīvais, u.c." />
         </label>
+        </div>
 
         <div id="epCooldownSection">
           <p class="section-label">Atsildīšanās</p>
