@@ -97,6 +97,9 @@ function buildIntervalHistory() {
   const today = formatDateISO(new Date());
   const logByPlanId = new Map();
   allLogEntries.forEach(l => {
+    // Skip the athlete's own records of unplanned trainings — they have no
+    // plan_id, so they would all pile up under one null key.
+    if (!l.plan_id) return;
     if (!logByPlanId.has(l.plan_id)) logByPlanId.set(l.plan_id, l);
   });
 

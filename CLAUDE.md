@@ -151,6 +151,25 @@ Each finished race in the panel's past tab has a 🏅 button (`data-race-record`
 - **A slower time asks before overwriting** (owner's choice 2026-08-02); a faster one just replaces. `raceTimeToSeconds()` returns 0 for anything it can't read, and the check is skipped in that case rather than assuming an order.
 - Manual record add/edit through the sidebar dialog is untouched — this is an additional entry point, not a replacement.
 
+### The athlete can record a training the coach never planned
+
+`panels/self-log.js`, added 2026-08-04. Before it, the athlete could only log execution against an existing plan — an empty day showed `Pašlaik plāns vēl nav sastādīts` and nothing else, so when the coach hadn't got round to Monday and Tuesday the athlete had to wait for a plan and hope it matched what they actually did.
+
+- **It is a normal `log_entries` row with no `plan_id`.** That shape was always allowed by the schema and the renderers were already null-safe for it; nothing could *create* one. `openLogDialog(dateStr)` still exists and still refuses on a day with no plans — it is the edit path for the old-style plan-less log, not this feature.
+- **The type and the free text live inside `log_data` under a `_self` marker**, not in new columns — the owner can't run migrations (same reasoning as `pace_hr_map._meta`). `isSelfLog()` / `getSelfLogData()` are the only two functions that should ever know that shape. `feeling` and `notes` use the columns they always use.
+- **The coach's reply goes to `day_notes.coach_comment`**, reusing the existing `data-comment-day` textarea and `saveCommentTextarea`. Safe only because a self-record appears **only on an otherwise-empty day**, so there can be at most one per day. `renderCalendar` passes `dayCommentTaken` into `renderLogCard` so a health entry or a restriction — which already render a `data-comment-day` box — don't end up with two textareas bound to the same date.
+- **The button is shown only on a completely empty day, today or earlier** (`canAddSelfLog`). Rest days and restrictions are deliberate statements — the owner's reasoning is that a restriction is set by the athlete themselves for a day they *know* they can't train, so an execution record there would contradict its whole purpose.
+- **Save inserts first and deletes the old row afterwards**, not the delete-then-insert `saveLogBtn` uses, so a refused insert can't destroy the athlete's existing record. It also deliberately does **not** reuse `saveLogBtn`'s no-plan branch, which deletes *every* log entry for the date including plan-linked ones.
+- **The form is rendered by `renderCalendar`, and typing must not re-render** — `selfLogFormDate`/`selfLogEditingId` are the only state, read at save time from the DOM. Same inline pattern as Restrictions/Lab tests.
+- **The five feeling labels come from `FEELING_OPTIONS` in `app.js`**, shared with `getRatingHtml()`. They are stored verbatim in `log_entries.feeling` and `feelingBadgeHtml()` colours by exact string match, so there must never be a second copy. The inline form shows only the first word (`"Grūti"`), one per row — two per row clips `"Normāli"` at a day column's ~104px.
+- **The type dropdown uses the raw type name, not `displayTitle()`** — `displayTitle` strips the parenthetical, which would render both interval types as an identical `"Intervāli"`. The *card* title does use `displayTitle`, matching plan cards.
+- Month view renders it with its own title and icon (it used to be untitled with a generic 📝); adding one is week-view only. `buildIntervalHistory()` now skips logs with no `plan_id`, which would otherwise all collide on a single null key.
+- The self-log CSS sits at the **end** of `styles.css` on purpose: `.session-card` / `.task-card` / `.session-card h3` are later in the file than the `.log-card` block it was first written next to, and were winning on equal specificity.
+
+### The restrictions panel lists only current and upcoming entries
+
+`renderRestrictionCards()` maps `activeRestrictions` (the same list the badge count already used), not `restrictions` — changed 2026-08-04 at the owner's request, because a season's worth of expired entries made the panel unusable. Past entries are **not** deleted and still render in the week and month calendars; `.restriction-past-note` tells the reader where they went. Don't filter the `restrictions` global itself — the calendar renderers read it directly.
+
 ### Restrictions have day-part granularity
 
 A `restrictions` row can block a whole day or just one part (`time_of_day`: null = whole day, else `morning`/`afternoon`/`evening`). Check `isTimeSlotRestricted(dateStr, tod)`, `isDayFullyRestricted(dateStr)`, and `getRestrictedTods(dateStr)` in `panels/restrictions.js` before adding new scheduling logic that touches restrictions — `app.js`'s calendar renderers (`renderCalendar`/`renderMonthViewInline`) just call these as global functions, same as any other panel's exported helpers.

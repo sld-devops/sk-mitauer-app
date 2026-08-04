@@ -2395,6 +2395,8 @@ label {
   border-color: var(--accent);
 }
 
+
+
 .log-line {
   color: var(--ink);
   font-size: 0.92rem;
@@ -5439,4 +5441,156 @@ body.is-dragging .session-card.is-draggable {
   .chart-table-wrap {
     padding: 8px 10px;
   }
+}
+
+/* ---- Athlete's own record of an unplanned training (panels/self-log.js) ----
+   Lives inside a ~155px day column, so everything here is a compact variant of
+   an existing style rather than a new look. */
+.self-log-add-btn {
+  background: #fff;
+  border-style: dashed;
+  font-size: 0.82rem;
+  padding: 7px 6px;
+  margin-top: 4px;
+}
+
+.self-log-form {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  box-shadow: 0 3px 8px rgba(21, 23, 26, 0.18), 0 1px 3px rgba(21, 23, 26, 0.12);
+}
+
+.self-log-form-title {
+  font-size: 0.9rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.self-log-field-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 3px;
+  margin-top: 8px;
+}
+
+.self-log-field-label:first-of-type {
+  margin-top: 0;
+}
+
+.self-log-form select,
+.self-log-form textarea {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  padding: 6px 8px;
+  width: 100%;
+}
+
+.self-log-form select:focus,
+.self-log-form textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.self-log-form textarea {
+  resize: vertical;
+}
+
+.self-log-form .self-log-text {
+  min-height: 110px;
+}
+
+/* One per row: at ~104px of usable width inside a day column, two side by side
+   clip "Normāli" no matter how small the type gets. */
+.self-log-rating {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Compact form of .feeling-option — the five full sentences used in the log
+   dialog do not fit here, so only the first word is shown (the stored value is
+   still the full sentence; see selfLogRatingHtml). */
+.self-log-form .feeling-option.self-log-feeling {
+  box-sizing: border-box;
+  display: block;
+  font-size: 0.76rem;
+  margin-bottom: 0;
+  padding: 5px 8px;
+  width: 100%;
+}
+
+.self-log-form-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.self-log-form-actions .add-day-button,
+.self-log-form-actions .cancel-action {
+  flex: 1;
+  font-size: 0.85rem;
+  margin-bottom: 0;
+  padding: 8px 6px;
+  width: auto;
+}
+
+/* Save is the primary action here, so it gets the lime the app uses for
+   saves; Atcelt stays the shared grey .cancel-action beside it. */
+.self-log-form-actions .self-log-save-btn {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: var(--lime-dark);
+}
+
+.self-log-form-actions .self-log-save-btn:hover {
+  background: var(--lime-dark);
+  color: #fff;
+}
+
+.session-card.self-log-card {
+  border: 3px solid #b8d4b8;
+}
+
+/* Only one badge sits in this card's corner (no time-of-day / moved badges),
+   so the title does not need the 50px gutter a plan card reserves. */
+.session-card.self-log-card h3 {
+  padding-right: 24px;
+}
+
+.self-log-badge {
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--muted);
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+
+.task-card.self-log-text-view {
+  border-color: #b8d4b8;
+}
+
+.month-self-log-note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.restriction-past-note {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+  margin-top: 8px;
 }

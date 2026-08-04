@@ -1891,7 +1891,11 @@ function renderPlanCard(plan) {
   `;
 }
 
-function renderLogCard(log) {
+function renderLogCard(log, dayCommentTaken) {
+  // The athlete's own record of an unplanned training draws its own card
+  // (see panels/self-log.js) — it has a title of its own and free text, not
+  // the section/duration/pulse rows a plan-linked log has.
+  if (isSelfLog(log)) return renderSelfLogCard(log, dayCommentTaken);
   const data = log.log_data || [];
   if (!data.length && !log?.feeling && !log?.feeling_tags && !log?.notes) return "";
   const plan = log.plan_id ? plans.find(p => p.id === log.plan_id) : null;
@@ -1928,6 +1932,20 @@ function renderCalendar() {
       const todayClass = dateStr === todayStr ? " today" : "";
       const dayHealth = healthEntries.find(e => dateStr >= e.start_date && dateStr <= (e.end_date || e.start_date));
       const dayRestrictionReason = restrictions.find(r => dateStr >= r.start_date && dateStr <= (r.end_date || r.start_date))?.reason;
+      // The athlete's own record of an unplanned training (panels/self-log.js).
+      // While one is being edited its card is hidden, because the inline form
+      // takes its place in the same day column.
+      const daySelfLogs = dayLog.filter(l => !l.plan_id && isSelfLog(l) && l.id !== selfLogEditingId);
+      const selfLogFormOpen = selfLogFormDate === dateStr && activeRole === "athlete";
+      const showSelfLogAdd = !selfLogFormOpen && !daySelfLogs.length && canAddSelfLog(dateStr, {
+        hasPlans: dayPlans.length > 0,
+        hasRaces: dayRaces.length > 0,
+        fullyRestricted,
+        isRestDay: !!dayNote?.is_rest_day,
+      });
+      // A restriction or a health entry already puts a coach-comment textarea
+      // on this day; the self-log card must not add a second one for the same date.
+      const dayCommentTaken = !!(fullyRestricted || dayHealth);
       const raceHtml = dayRaces.length
         ? `<div class="race-list">
             <div class="race-section-header">🏁 ${dateStr >= todayStr ? "Gaidāmās sacensības" : "Aizvadītās sacensības"}</div>
@@ -1969,6 +1987,10 @@ function renderCalendar() {
               ? ""
               : fullyRestricted
                 ? `<div class="day-restriction-text">🚫 ${escapeHtml(dayRestrictionReason)}</div>`
+                : selfLogFormOpen
+                  ? renderSelfLogForm(dateStr)
+                : daySelfLogs.length
+                  ? ""
                 : activeRole === "coach"
                   ? `${dayNote?.is_rest_day
                     ? `<div class="day-rest-text">🌴 Brīvdiena<textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Trenera komentārs...">${dayNote?.coach_comment || ""}</textarea></div>`
@@ -1976,9 +1998,9 @@ function renderCalendar() {
                   }`
                   : dayNote?.is_rest_day
                     ? `<div class="day-rest-text">🌴 Brīvdiena${dayNote?.coach_comment ? "<br>" + escapeHtml(dayNote.coach_comment) : ""}</div><textarea class="rest-day-athlete-comment" data-rest-athlete-comment="${dateStr}" placeholder="Kā pagāja atpūtas diena?" rows="1">${dayNote?.athlete_comment || ""}</textarea>`
-                    : `<div class="empty-day">Pašlaik plāns vēl nav sastādīts</div>`
+                    : `<div class="empty-day">Pašlaik plāns vēl nav sastādīts</div>${showSelfLogAdd ? `<button class="add-day-button self-log-add-btn" data-self-log-add="${dateStr}" type="button">📝 Pierakstīt izpildīto</button>` : ""}`
           }
-          ${dayLog.filter(l => !l.plan_id).map(renderLogCard).join("")}
+          ${dayLog.filter(l => !l.plan_id && l.id !== selfLogEditingId).map(l => renderLogCard(l, dayCommentTaken)).join("")}
           ${dayHealth ? `<div class="day-health-text">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
           ${(fullyRestricted || dayHealth) && activeRole === "coach"
             ? `<div class="comment-label">Trenera komentārs</div><textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Komentārs...">${dayNote?.coach_comment || ""}</textarea>`
@@ -2171,9 +2193,35 @@ function renderMonthViewInline() {
         const paceBoundsMap = buildPaceBoundsMap(plan?.details);
         const plannedIntervalCount = getPlannedIntervalCount(plan?.details);
         const logData = l.log_data || [];
-        const titleHtml = plan ? `<strong>${displayTitle(plan.title)}</strong>` : "";
         const feelingBadge = l.feeling || l.feeling_tags ? feelingBadgeHtml(l.feeling, l.feeling_tags) : "";
         const logNotes = l.notes ? `<div class="log-notes">${l.notes}</div>` : "";
+
+        // The athlete's own record of an unplanned training has no plan to take
+        // a title from — it carries its own (panels/self-log.js). Without this
+        // it showed up here untitled, with a generic 📝.
+        const selfData = isSelfLog(l) ? getSelfLogData(l) : null;
+        if (selfData) {
+          const lines = (selfData.text || "").split("\n").filter((t) => t.trim());
+          const selfTitleHtml = `<strong>${escapeHtml(displayTitle(selfData.title || ""))}</strong>`;
+          return `
+        <div class="month-plan month-log">
+          <span class="month-type-badge">${selfData.icon || badgeForTitle(selfData.title)}</span>
+          <div class="month-plan-summary">
+            ${selfTitleHtml}
+            <span>${lines.length ? escapeHtml(lines[0]) : "—"}</span>
+          </div>
+          <div class="month-plan-full">
+            ${selfTitleHtml}
+            <div class="month-self-log-note">📝 Sportista ieraksts</div>
+            ${lines.map((t) => `<div>${escapeHtml(t)}</div>`).join("")}
+            ${feelingBadge}
+            ${logNotes}
+          </div>
+        </div>
+      `;
+        }
+
+        const titleHtml = plan ? `<strong>${displayTitle(plan.title)}</strong>` : "";
         return `
         <div class="month-plan month-log">
           <span class="month-type-badge">${plan ? (plan.custom_icon || badgeForTitle(plan.title)) : "📝"}</span>
@@ -3032,6 +3080,32 @@ calendarGrid.addEventListener("click", async (event) => {
   const deletePlanBtn = event.target.closest("[data-delete-plan]");
   const deleteRaceBtn = event.target.closest("[data-delete-race-btn], [data-race]");
 
+  // The athlete's own record of an unplanned training (panels/self-log.js).
+  // These sit here, in the shared day-cell handler, for the same reason the
+  // race branches do — the buttons are part of the day column, not of a panel.
+  const selfLogAddBtn = event.target.closest("[data-self-log-add]");
+  if (selfLogAddBtn) {
+    startSelfLogEdit(selfLogAddBtn.dataset.selfLogAdd, null);
+    return;
+  }
+
+  const selfLogEditBtn = event.target.closest("[data-self-log-edit]");
+  if (selfLogEditBtn) {
+    const log = logEntries.find(l => l.id === selfLogEditBtn.dataset.selfLogEdit);
+    if (log) startSelfLogEdit(log.date, log.id);
+    return;
+  }
+
+  if (event.target.closest("[data-self-log-cancel]")) {
+    cancelSelfLogEdit();
+    return;
+  }
+
+  if (event.target.closest("[data-self-log-save]")) {
+    await saveSelfLogForm();
+    return;
+  }
+
   if (logPlanButton) {
     openPlanLogDialog(logPlanButton.dataset.logPlan);
     return;
@@ -3083,7 +3157,12 @@ calendarGrid.addEventListener("click", async (event) => {
   if (deleteLogBtn) {
     if (!confirm("Dzēst šo izpildījuma ierakstu?")) return;
     try {
-      await deleteLogEntry(deleteLogBtn.dataset.deleteLog);
+      const deletedId = deleteLogBtn.dataset.deleteLog;
+      await deleteLogEntry(deletedId);
+      if (selfLogEditingId === deletedId) {
+        selfLogEditingId = null;
+        selfLogFormDate = null;
+      }
       await loadNonTemplateData();
     } catch (e) {
       alert("Neizdevās dzēst: " + (e.message || e));
@@ -3422,14 +3501,20 @@ function getActivityType(title) {
   return "run";
 }
 
+// The five feeling options, shared by the log dialog and by the athlete's own
+// inline record (panels/self-log.js). The `label` strings are what gets stored
+// in log_entries.feeling and what feelingBadgeHtml() colours by, so they must
+// stay byte-identical in both places — hence one list, not two copies.
+const FEELING_OPTIONS = [
+  { label: "Slikti — kājas nemaz nevilka, motivācija zema.", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
+  { label: "Grūti — izpildīju ar piepūli, neīpaši pozitīvi.", bg: "var(--violet-bg)", border: "var(--violet)", color: "var(--violet-dark)" },
+  { label: "Normāli — varēja ripot labāk, bet nebija slikti, jutos pieņemami.", bg: "var(--info-accent-bg)", border: "var(--info-accent)", color: "var(--info-accent-dark)" },
+  { label: "Ļoti labi — jutos pārliecināts fiziski un psiholoģiski, garīgais labs.", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning-dark)" },
+  { label: "Lieliski — viena no labākajām dienām, pilns enerģijas.", bg: "var(--lime-bg)", border: "var(--lime)", color: "var(--lime-dark)" },
+];
+
 function getRatingHtml(planTitle, customIcon) {
-  const items = [
-    { label: "Slikti — kājas nemaz nevilka, motivācija zema.", bg: "var(--danger-bg)", border: "var(--danger)", color: "var(--danger)" },
-    { label: "Grūti — izpildīju ar piepūli, neīpaši pozitīvi.", bg: "var(--violet-bg)", border: "var(--violet)", color: "var(--violet-dark)" },
-    { label: "Normāli — varēja ripot labāk, bet nebija slikti, jutos pieņemami.", bg: "var(--info-accent-bg)", border: "var(--info-accent)", color: "var(--info-accent-dark)" },
-    { label: "Ļoti labi — jutos pārliecināts fiziski un psiholoģiski, garīgais labs.", bg: "var(--warning-bg)", border: "var(--warning)", color: "var(--warning-dark)" },
-    { label: "Lieliski — viena no labākajām dienām, pilns enerģijas.", bg: "var(--lime-bg)", border: "var(--lime)", color: "var(--lime-dark)" },
-  ];
+  const items = FEELING_OPTIONS;
   let html = `<div class="feeling-tags-group">
     <div class="feeling-tags-label">Pašsajūtas novērtējums</div>`;
   items.forEach((o) => {
