@@ -1981,8 +1981,13 @@ function renderCalendar() {
       // takes its place in the same day column.
       const daySelfLogs = dayLog.filter(l => !l.plan_id && isSelfLog(l) && l.id !== selfLogEditingId);
       const selfLogFormOpen = selfLogFormDate === dateStr && activeRole === "athlete";
+      // A plan dragged here from another day does not mean this day was
+      // planned - the coach planned it for a different date, and the athlete
+      // may well have trained on top of it. Only a plan that was made for this
+      // date counts as "the coach filled this day in".
+      const dayOwnPlans = dayPlans.filter(p => !p.original_date || p.original_date === p.date);
       const showSelfLogAdd = !selfLogFormOpen && !daySelfLogs.length && canAddSelfLog(dateStr, {
-        hasPlans: dayPlans.length > 0,
+        hasPlans: dayOwnPlans.length > 0,
         hasRaces: dayRaces.length > 0,
         fullyRestricted,
         isRestDay: !!dayNote?.is_rest_day,
@@ -2032,7 +2037,7 @@ function renderCalendar() {
               : fullyRestricted
                 ? `<div class="day-restriction-text">🚫 ${escapeHtml(dayRestrictionReason)}</div>`
                 : selfLogFormOpen
-                  ? renderSelfLogForm(dateStr)
+                  ? ""
                 : daySelfLogs.length
                   ? ""
                 : activeRole === "coach"
@@ -2042,9 +2047,14 @@ function renderCalendar() {
                   }`
                   : dayNote?.is_rest_day
                     ? `<div class="day-rest-text">🌴 Brīvdiena${dayNote?.coach_comment ? "<br>" + escapeHtml(dayNote.coach_comment) : ""}</div><textarea class="rest-day-athlete-comment" data-rest-athlete-comment="${dateStr}" placeholder="Kā pagāja atpūtas diena?" rows="1">${dayNote?.athlete_comment || ""}</textarea>`
-                    : `<div class="empty-day">Pašlaik plāns vēl nav sastādīts</div>${showSelfLogAdd ? `<button class="add-day-button self-log-add-btn" data-self-log-add="${dateStr}" type="button">📝 Pierakstīt izpildīto</button>` : ""}`
+                    : `<div class="empty-day">Pašlaik plāns vēl nav sastādīts</div>`
           }
           ${dayLog.filter(l => !l.plan_id && l.id !== selfLogEditingId).map(l => renderLogCard(l, dayCommentTaken)).join("")}
+          ${selfLogFormOpen
+            ? renderSelfLogForm(dateStr)
+            : showSelfLogAdd
+              ? `<button class="add-day-button self-log-add-btn" data-self-log-add="${dateStr}" type="button">📝 Pierakstīt izpildīto</button>`
+              : ""}
           ${dayHealth ? `<div class="day-health-text">⚕ ${escapeHtml(dayHealth.description)}</div>` : ""}
           ${(fullyRestricted || dayHealth) && activeRole === "coach"
             ? `<div class="comment-label">Trenera komentārs</div><textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Komentārs...">${dayNote?.coach_comment || ""}</textarea>`

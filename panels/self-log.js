@@ -42,6 +42,10 @@ function selfLogTypes() {
 // or earlier, and only days the coach has left completely empty — a rest day
 // or a restriction is a deliberate statement by the coach (and restrictions
 // are set by the athlete themselves), so they are not overwritten here.
+//
+// ctx.hasPlans counts only plans made *for* this date. A plan moved here from
+// another day leaves the day itself unplanned, and the athlete may have trained
+// on top of it, so the button stays (owner's request 2026-08-05).
 function canAddSelfLog(dateStr, ctx) {
   return (
     activeRole === "athlete" &&
