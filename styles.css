@@ -2703,6 +2703,51 @@ label {
   border-color: var(--warning);
   color: var(--warning);
 }
+/* Up/down arrows sitting inside an interval time box - the same construction as
+   .pw-toggle in a password field: a relative wrapper, the buttons pinned to the
+   right, and room made for them with padding. They stay transparent so the
+   box's own pace colour still shows through underneath them. */
+.int-step-wrap {
+  display: block;
+  position: relative;
+}
+
+.int-step-wrap input {
+  padding-right: 30px;
+}
+
+.int-step-btns {
+  bottom: 3px;
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  width: 24px;
+}
+
+.int-step-btn {
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  flex: 1;
+  font-size: 0.6rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.int-step-btn:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+/* The wrapper is the flex item now, not the input inside it. */
+.extra-interval-row .int-step-wrap {
+  flex: 1;
+}
+
 .log-actual-pace {
   width: 160px;
 }

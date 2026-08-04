@@ -3770,6 +3770,7 @@ function addExtraIntervalRow(hostEl, defaultDist, defaultPace) {
 
   const bounds = defaultPace ? parsePaceBounds(defaultPace) : null;
   if (bounds) attachPaceColouring(paceInput, bounds);
+  attachIntervalStepper(paceInput, defaultPace || "");
   return row;
 }
 
@@ -4264,6 +4265,89 @@ function attachPaceColouring(inp, bounds) {
   validate();
 }
 
+// One interval session is 20+ boxes filled in by hand on a phone, all within a
+// second of each other, so every interval box gets its own up/down arrows.
+const INTERVAL_STEP_SECONDS = 0.2;
+
+// The middle of the planned range, in seconds. parsePaceBounds() centres its
+// green band on that value in both cases - a range keeps its own ends, a single
+// number gets a band around itself - so averaging the two ends gives the middle
+// either way. null when nothing usable was written.
+function intervalTargetMiddle(targetStr) {
+  const b = targetStr ? parsePaceBounds(targetStr) : null;
+  if (!b) return null;
+  return ((b.min.m * 60 + b.min.s) + (b.max.m * 60 + b.max.s)) / 2;
+}
+
+function formatIntervalStep(totalSec, useClock) {
+  if (totalSec < 0) totalSec = 0;
+  if (useClock) {
+    const t = Math.round(totalSec);
+    return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+  }
+  // Rounded, or 73 + 0.2 + 0.2 comes out as 73.39999999999999.
+  return (Math.round(totalSec * 10) / 10).toFixed(1);
+}
+
+// Wraps one interval box in its own little up/down stepper. The first press on
+// an empty box drops in the exact middle of the planned range - deliberately
+// nothing is shown before that, so the box still reads as empty and can be
+// typed into by hand.
+function attachIntervalStepper(inp, targetStr) {
+  if (inp.dataset.stepWired === "1") return;
+  inp.dataset.stepWired = "1";
+
+  // A target written as minutes:seconds (3:20-3:25 for 1000m intervals) steps
+  // by a whole second - 0.2 of a second cannot be written in that notation.
+  const useClock = !!targetStr && targetStr.indexOf(":") > -1;
+  const stepBy = useClock ? 1 : INTERVAL_STEP_SECONDS;
+  const middle = intervalTargetMiddle(targetStr);
+
+  function step(dir) {
+    const cur = parseAthleteInput(inp.value);
+    let total;
+    if (cur) {
+      total = cur.m * 60 + cur.s + dir * stepBy;
+    } else if (inp.value.trim()) {
+      return; // Something unreadable is typed in there - don't overwrite it.
+    } else if (middle !== null) {
+      total = middle; // First press starts at the middle itself, not middle ± step.
+    } else {
+      return; // No pace planned, nothing typed - nothing to step from yet.
+    }
+    inp.value = formatIntervalStep(total, useClock);
+    // Same event typing fires, so the pace colouring updates immediately.
+    inp.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  const wrap = document.createElement("span");
+  wrap.className = "int-step-wrap";
+  inp.parentNode.insertBefore(wrap, inp);
+  wrap.appendChild(inp);
+
+  const btns = document.createElement("span");
+  btns.className = "int-step-btns";
+  [["up", "▲", 1], ["down", "▼", -1]].forEach(([name, glyph, dir]) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "int-step-btn int-step-" + name;
+    btn.textContent = glyph;
+    btn.tabIndex = -1; // Tabbing runs box to box, not through 40 arrows.
+    btn.setAttribute("aria-label", name === "up" ? "Palielināt" : "Samazināt");
+    // Keeps the caret in the box, so clicking and typing can be mixed.
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", () => step(dir));
+    btns.appendChild(btn);
+  });
+  wrap.appendChild(btns);
+
+  inp.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    step(e.key === "ArrowUp" ? 1 : -1);
+  });
+}
+
 function attachIntervalPaceValidation() {
   document.querySelectorAll("[data-log-section]").forEach((sectionEl) => {
     const targetLine = sectionEl.querySelector(".log-target")?.textContent || "";
@@ -4279,6 +4363,9 @@ function attachIntervalPaceValidation() {
       const own = inp.dataset.targetPace;
       const bounds = own ? parsePaceBounds(own) : sectionBounds;
       if (bounds) attachPaceColouring(inp, bounds);
+      // Same resolved target, so the arrows start from the value the box is
+      // coloured against.
+      attachIntervalStepper(inp, own || paceStr || "");
     });
 
     const paceInp = sectionEl.querySelector(".log-actual-pace");

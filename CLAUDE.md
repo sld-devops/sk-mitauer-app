@@ -77,6 +77,18 @@ The same code had a silent data bug: an ungrouped line (`400m + 200m × 3`, i.e.
 
 Downstream, the total is always `reps × laps`: `getPlannedIntervalBlocks()` repeats the segment pattern once per lap (`6x400m + 4x200m × 3` → `[6,4,6,4,6,4]`), `getPlannedIntervalCount()` multiplies per line, and both log-dialog builders wrap their segment loop in a lap loop with a `.var-seg-lap-label` heading, so `data-log-interval` still runs 0..n-1 unbroken across laps. The `isGrouped` flag the parser used to return is gone — every caller had been using it to decide whether `reps` could be trusted.
 
+### Interval time boxes step themselves
+
+Every `[data-log-interval]` box carries its own ▲/▼ arrows (`attachIntervalStepper()`, added 2026-08-05) — one session is 20+ near-identical numbers typed by hand on a phone.
+
+- **The first press on an empty box drops in the exact middle of that box's planned range**, and only then. Nothing is shown before the athlete asks for it — that was the owner's explicit condition, so the box still reads as empty and can be typed into. Not a placeholder either.
+- **The middle comes from `parsePaceBounds()`, not from a second parser.** That function centres its green band on the same value in both cases — a range keeps its own ends, a bare number gets a band around itself — so averaging `bounds.min` and `bounds.max` gives the middle either way.
+- **The step is 0.2s, except on a `mm:ss` target (`3:20-3:25`), where it is 1s** and the value is written back in the same notation. A tenth of a second cannot be written as `mm:ss`.
+- **It is wired in `attachIntervalPaceValidation()` off the same resolved target as the colouring** (`inp.dataset.targetPace || extractPace(section line)`), which is what makes a 200m box start from the 200m middle rather than the 400m one, in every lap, in both log-dialog builders. `addExtraIntervalRow()` wires its own box the same way. Don't add a third place that guesses the target.
+- **Stepping dispatches a real `input` event** so the pace colouring updates immediately. Safe here because the colouring listener only sets classes; do not copy this into the HR-zones panel, where two handlers write each other's `.value`.
+- Guards worth keeping: an unreadable value already in the box is left alone rather than replaced, and a box with no planned pace does nothing until something is typed. `dataset.stepWired` makes the wiring idempotent — `attachIntervalPaceValidation()` sweeps rows that `logDialogFillIntervals()` already created.
+- The arrows sit inside the box (`.int-step-wrap`, the same construction as `.pw-toggle` in a password field) and are transparent, so the box's pace colour still shows through.
+
 **`parsePlanToForm()` (the "Rediģēt treniņu" dialog) had the same two bugs plus a worse one, all fixed 2026-08-02.** It seeded every input with a hardcoded example (`"45 min"`, `"145-155"`, `"4:15/km"`, `"600 m"`, `"6"`, `"3:45/km"`, `"2 min"`, `"15 min"`, `"130-145"`, `"120-135"`) and then only overwrote the fields the plan happened to mention. So editing `Pamatdaļa: 60 min; 120-130` showed a pace of `4:15/km` that was never in the plan — and because the preview and the save build the details string from the inputs, **saving wrote that invented pace into the training**. Rules now:
 
 - Every field is cleared to `""` first, then filled from the plan; the `value="…"` attributes were stripped from the eleven `ep*` inputs in `index.html` too (the new-training builder never had them — the edit dialog was the odd one out).
