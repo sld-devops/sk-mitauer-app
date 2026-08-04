@@ -1136,13 +1136,14 @@ function renderFrequentTable() {
 // The training builder can be filled from three places — the two template
 // dropdowns and this table. Picking one has to visibly release the others, or
 // the form's contents look like they came from whichever label was left
-// standing.
+// standing. "type" is the fourth case: picking a training type starts an empty
+// one, so it releases both of the others.
 function clearOtherSourceSelections(picked) {
   if (picked !== "frequent" && selectedFrequentKey) {
     selectedFrequentKey = null;
     renderFrequentTable();
   }
-  if (picked === "frequent") {
+  if (picked === "frequent" || picked === "type") {
     selectedTemplateId = null;
     ["allTemplatesDropdown", "athleteTemplatesDropdown"].forEach((id) => {
       const el = document.getElementById(id);
@@ -1151,6 +1152,10 @@ function clearOtherSourceSelections(picked) {
       el.querySelector(".dropdown-selected").textContent = "Izvēlies sagatavi...";
       el.querySelectorAll(".template-dropdown-item").forEach((i) => i.classList.remove("selected"));
     });
+    // These two belong to the released template; render() sets them from
+    // selectedTemplateId, but it does not run on this path.
+    document.getElementById("updateTemplateBtn").hidden = true;
+    document.getElementById("deleteTemplateBtn").hidden = true;
   }
 }
 
@@ -1511,28 +1516,20 @@ function parsePlanToForm(plan) {
   renderEditPlanPreview();
 }
 
-function loadTemplateToForm(template) {
-  const name = template.name || "";
-  const details = template.details || "";
-
-  function setVal(id, val) {
+// Empties every field in the training builder. Picking a type from the
+// "Izveidot jaunu treniņu" dropdown means "I am starting a new one", so nothing
+// of the previous training may be left behind; loadTemplateToForm() runs it too
+// before filling the form from a template.
+function clearCustomBuilderFields() {
+  const setVal = (id, val) => {
     const el = document.getElementById(id);
     if (el) el.value = val;
-  }
-  function setChecked(id, val) {
+  };
+  const setChecked = (id, val) => {
     const el = document.getElementById(id);
     if (el) el.checked = val;
-  }
+  };
 
-  const knownTypes = ["Atjaunojošais/lēnais skrējiens", "Vidējas intensitātes skrējiens", "Garais skrējiens", "Intervāli", SAME_INTERVAL_TYPE, VAR_INTERVAL_TYPE, "Tempa skrējiens", OTHER_RUN_TYPE, "VFS", "SFS", "Velo", "Cits"];
-  const isKnownType = knownTypes.includes(name);
-  let type = name;
-  if (!isKnownType) type = OTHER_RUN_TYPE;
-  if (name === "Intervālu treniņš") type = "Intervāli";
-  setVal("customType", type);
-  setVal("customName", isKnownType ? "" : name);
-
-  // Reset form defaults
   clearVarSegments(varSegmentList);
   setChecked("includeWarmup", true);
   setChecked("includeCooldown", true);
@@ -1542,6 +1539,7 @@ function loadTemplateToForm(template) {
   setChecked("raceNutrition", false);
   setChecked("spikes", false);
   setChecked("raceShoes", false);
+  setVal("customName", "");
   setVal("warmupDuration", "");
   setVal("warmupPulse", "");
   setVal("warmupAdditional", "");
@@ -1557,6 +1555,33 @@ function loadTemplateToForm(template) {
   setVal("restDuration", "");
   setVal("customFreeText", "");
   setVal("mainAdditional", "");
+  setVal("varLaps", "");
+  setVal("varRestBetweenLaps", "");
+  setSelectedIcon("customIconPicker", "");
+}
+
+function loadTemplateToForm(template) {
+  const name = template.name || "";
+  const details = template.details || "";
+
+  function setVal(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  }
+  function setChecked(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.checked = val;
+  }
+
+  clearCustomBuilderFields();
+
+  const knownTypes = ["Atjaunojošais/lēnais skrējiens", "Vidējas intensitātes skrējiens", "Garais skrējiens", "Intervāli", SAME_INTERVAL_TYPE, VAR_INTERVAL_TYPE, "Tempa skrējiens", OTHER_RUN_TYPE, "VFS", "SFS", "Velo", "Cits"];
+  const isKnownType = knownTypes.includes(name);
+  let type = name;
+  if (!isKnownType) type = OTHER_RUN_TYPE;
+  if (name === "Intervālu treniņš") type = "Intervāli";
+  setVal("customType", type);
+  setVal("customName", isKnownType ? "" : name);
 
   const lines = details.split("\n").map(l => l.trim()).filter(Boolean);
 
@@ -3062,6 +3087,11 @@ customTypeDropdownList.innerHTML = Array.from(customType.options)
 customTypeDropdownList.addEventListener("click", (e) => {
   const item = e.target.closest(".type-dropdown-item");
   if (!item) return;
+  // Picking a type is the start of a new training, so the builder comes up
+  // empty - it used to keep whatever the previous type or template had left in
+  // the boxes, which read as if the app had prefilled them.
+  clearCustomBuilderFields();
+  clearOtherSourceSelections("type");
   customType.value = item.dataset.value;
   document.getElementById("customTypeDropdown").classList.remove("open");
   customType.dispatchEvent(new Event("change"));

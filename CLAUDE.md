@@ -96,6 +96,15 @@ A collapsible panel (`#frequentPanel`) in the main column just below the trainin
 - **Cells are addressed by index (`data-frequent-idx`), never by their key.** The key is a whole multi-line training and a newline does not survive a round trip through an HTML attribute — an earlier version used `data-frequent-key` and every click silently did nothing. (The key also once contained a real NUL byte as its separator, which made `grep` treat `app.js` as a binary file and report zero matches for anything. It is `\u0000` now; if a search of `app.js` ever comes back mysteriously empty, check for stray control characters before doubting the search.)
 - **Picking a cell clears both template dropdowns** via `clearOtherSourceSelections("frequent")`, and picking a template clears the highlighted cell; the table and the two dropdowns are alternative sources for the same builder form.
 
+### Picking a training type empties the builder
+
+Choosing anything in the "Izveidot jaunu treniņu" dropdown calls `clearCustomBuilderFields()` and `clearOtherSourceSelections("type")` before setting the type (2026-08-05). Until then the boxes kept whatever the previous type or the last loaded template had left in them, which read as if the app had prefilled the form with invented values — the owner reported it as exactly that.
+
+- `clearCustomBuilderFields()` is the "Reset form defaults" block lifted out of `loadTemplateToForm()`, which still calls it (first thing, before it sets `customType`/`customName`). Add any new builder input to that one function, not to a second list. It also clears `customName`, `varLaps`, `varRestBetweenLaps` and the custom icon, none of which the old inline block touched.
+- The clearing must **not** move into `renderCustomBuilder()`/`renderSourcePicker()`: those run on every full `render()` and would wipe a half-typed training. Only the dropdown's own click handler clears.
+- `"type"` also releases the template selection and hides "Saglabāt izmaiņas"/"Dzēst sagatavi" — those belong to a template, and `render()` (which normally sets them from `selectedTemplateId`) does not run on this path.
+- The `customType` `change` listener that ticks Drills for interval/tempo/other-run types runs *after* the clear, so those per-type defaults still apply. That checkbox being on for a fresh interval session is intended, not leftover state.
+
 ### HR zones: the percent column is derived, and `.zone-row` is shared
 
 "Sirdsritma darba zonas" (`renderHrZones()` in `panels/profile.js`) gained a third input per row on 2026-08-02 showing each zone as a percentage of max HR, editable in **both** directions: typing pulse fills the percent, typing percent (`71-78`, `71-78%`, or a single number → only "no") fills the pulse boxes. Things to know:
