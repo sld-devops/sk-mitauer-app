@@ -95,7 +95,19 @@ html {
   box-sizing: border-box;
 }
 
+/* A word that cannot fit its box is split mid-word instead of being painted
+   out over the border. Inherited, so it covers every text box in the app at
+   once - the individual rules that already do this (.session-card p,
+   .log-line, ...) stay where they are and simply agree with it.
+   `break-word`, deliberately not `anywhere`: it does not shrink any element's
+   intrinsic width, so no flex/grid column changes size because of it, and it
+   only ever kicks in for a word that would otherwise overflow. Elements held
+   on one line with `white-space: nowrap` are unaffected. The reason this is
+   needed at all is that a browser only breaks at a space by itself, and a run
+   like `paskriet/30min` has none - a slash followed by a digit is explicitly
+   not a break opportunity (UAX #14), so it was drawn whole, past the border. */
 body {
+  overflow-wrap: break-word;
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
