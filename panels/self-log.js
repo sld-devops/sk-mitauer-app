@@ -41,23 +41,26 @@ function selfLogTypes() {
   return TEMPLATE_GROUPS.flatMap((g) => g.types).filter((t) => t !== "Intervāli");
 }
 
-// Can this athlete add a record to this day? One condition only: they are
-// looking at their own calendar. The coach never gets this button — a record of
-// what the athlete did is made by the athlete.
+// Can this athlete add a record to this day? Two conditions: they are looking at
+// their own calendar, and the day has already happened. The coach never gets this
+// button — a record of what the athlete did is made by the athlete — and tomorrow
+// has nothing to record yet.
 //
 // Everything else was dropped on 2026-08-05 at the owner's request: the button
-// used to appear only on a day the coach had left completely empty, today or
-// earlier, with no record on it yet. That meant a second training on the same
-// day could not be written down at all, nor anything on top of a planned
-// session, nor anything on a day marked as a rest day. It is now unconditional,
-// including on a future day — the athlete decides what is worth recording, and a
-// wrong record can simply be deleted.
+// used to appear only on a day the coach had left completely empty, with no
+// record on it yet. That meant a second training on the same day could not be
+// written down at all, nor anything on top of a planned session, nor anything on
+// a day marked as a rest day. Those rules are gone; only the date one came back
+// (same day, owner's follow-up).
 //
-// Callers no longer pass anything about the day. If you find yourself wanting to
-// add a condition back, add it in renderCalendar's `showSelfLogAdd` instead of
-// growing this back into a set of rules.
-function canAddSelfLog() {
-  return activeRole === "athlete" && currentUser?.id === getSelectedAthleteId();
+// If you find yourself wanting another condition, put it in renderCalendar's
+// `showSelfLogAdd` rather than growing this back into a set of rules.
+function canAddSelfLog(dateStr) {
+  return (
+    activeRole === "athlete" &&
+    currentUser?.id === getSelectedAthleteId() &&
+    dateStr <= formatDateISO(new Date())
+  );
 }
 
 function startSelfLogEdit(dateStr, logId) {

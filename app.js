@@ -1981,11 +1981,12 @@ function renderCalendar() {
       // takes its place in the same day column.
       const daySelfLogs = dayLog.filter(l => !l.plan_id && isSelfLog(l) && l.id !== selfLogEditingId);
       const selfLogFormOpen = selfLogFormDate === dateStr && activeRole === "athlete";
-      // Only the open form hides the button, and only on its own day: the day
-      // itself no longer decides. Whatever is already on it - a planned session,
-      // a race, a rest day, a restriction, or three records made earlier today -
-      // the athlete can still write down one more (owner's request 2026-08-05).
-      const showSelfLogAdd = !selfLogFormOpen && canAddSelfLog();
+      // What is already on the day no longer decides - a planned session, a race,
+      // a rest day, a restriction, or three records made earlier today, the
+      // athlete can still write down one more (owner's request 2026-08-05). Only
+      // the open form hides the button, and only on its own day; canAddSelfLog
+      // keeps tomorrow and later out.
+      const showSelfLogAdd = !selfLogFormOpen && canAddSelfLog(dateStr);
       // Every day-level comment box in this column is bound to the same date, so
       // exactly one of them may exist. These are the ones rendered below by
       // something other than a self-log card; the card loop then claims it for
