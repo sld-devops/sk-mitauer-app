@@ -757,7 +757,7 @@ async function loadNonTemplateData() {
     await safeGet(acknowledgeNotCompletedPlans(athleteId), undefined);
   }
   await safeGet(refreshAthleteNotCompletedSet(), undefined);
-  // Coach only — the 📔 lives in the athlete dropdown, which the athlete's own
+  // Coach only — the 📒 lives in the athlete dropdown, which the athlete's own
   // view never renders, so this would be a query with nowhere to show.
   if (activeRole === "coach") {
     await safeGet(refreshAthleteDiarySet(), undefined);
@@ -927,7 +927,7 @@ function renderAthleteDropdown() {
     if (selectedAthlete) {
       const selectedHealthBadge = athleteHealthSet.has(selectedAthlete.id) ? '<span class="health-dropdown-badge">⚕</span> ' : "";
       const selectedNotCompletedBadge = athleteNotCompletedSet.has(selectedAthlete.id) ? '<span class="not-completed-icon">!</span> ' : "";
-      const selectedDiaryBadge = athleteDiarySet.has(selectedAthlete.id) ? '<span class="diary-dropdown-badge" title="Jauns dienasgrāmatas ieraksts">📔</span> ' : "";
+      const selectedDiaryBadge = athleteDiarySet.has(selectedAthlete.id) ? '<span class="diary-dropdown-badge" title="Jauns dienasgrāmatas ieraksts">📒</span> ' : "";
       selected.innerHTML = `<span class="athlete-name">${selectedHealthBadge}${selectedNotCompletedBadge}${selectedDiaryBadge}${selectedAthlete.full_name}</span><span class="athlete-indicators">${weekIndicators(selectedAthlete.id)}</span>`;
     } else {
       selected.innerHTML = "";
@@ -941,7 +941,7 @@ function renderAthleteDropdown() {
       const isSelected = a.id === athleteSelect.value;
       const healthBadge = athleteHealthSet.has(a.id) ? '<span class="health-dropdown-badge">⚕</span> ' : "";
       const notCompletedBadge = athleteNotCompletedSet.has(a.id) ? '<span class="not-completed-icon">!</span> ' : "";
-      const diaryBadge = athleteDiarySet.has(a.id) ? '<span class="diary-dropdown-badge" title="Jauns dienasgrāmatas ieraksts">📔</span> ' : "";
+      const diaryBadge = athleteDiarySet.has(a.id) ? '<span class="diary-dropdown-badge" title="Jauns dienasgrāmatas ieraksts">📒</span> ' : "";
       return `<div class="athlete-row ${isSelected ? "selected" : ""}" data-athlete-id="${a.id}">
         <span class="athlete-name">${healthBadge}${notCompletedBadge}${diaryBadge}${a.full_name}</span>
         <span class="athlete-indicators">${weekIndicators(a.id)}</span>
@@ -2826,7 +2826,7 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
           markAllEntriesRead(athleteId, diaryEntries);
           panel.classList.toggle("has-entries", false);
           panel.querySelector(".panel-header").dataset.count = "0";
-          // The 📔 next to the name is the same "unread" state as this counter,
+          // The 📒 next to the name is the same "unread" state as this counter,
           // so it has to go at the same moment.
           athleteDiarySet.delete(athleteId);
           renderAthleteDropdown();

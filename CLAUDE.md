@@ -180,11 +180,11 @@ Added 2026-08-05. `<input type="date">` draws its calendar from the **browser's*
 
 ### Three icons ride in front of the athlete's name
 
-`⚕` (a health-journal entry in force **today**), `!` (the athlete ticked "Neizpildīts treniņš" and the coach hasn't opened them since), and `📔` (an unread diary entry, added 2026-08-05). All three are coach-only, computed into `athleteHealthSet` / `athleteNotCompletedSet` / `athleteDiarySet` in `app.js`.
+`⚕` (a health-journal entry in force **today**), `!` (the athlete ticked "Neizpildīts treniņš" and the coach hasn't opened them since), and `📒` (an unread diary entry, added 2026-08-05). All three are coach-only, computed into `athleteHealthSet` / `athleteNotCompletedSet` / `athleteDiarySet` in `app.js`.
 
 - **They are cross-athlete, so they are loaded in `initApp()` too**, not only from `loadNonTemplateData()` — that function returns immediately while the dropdown still says "Izvēlies sportistu...", which left the list with no icons at all until someone was picked.
 - **Only the coach may clear the `!`.** `acknowledgeNotCompletedPlans()` is guarded on `activeRole === "coach"`; it used to run for the athlete as well, so an athlete who ticked "Neizpildīts treniņš" wiped their own warning the next time they opened their calendar and the coach never saw it.
-- **`📔` reuses the Diary panel's own read state** (`readDiaryEntryIds` / `isEntryRead()` in `panels/diary.js`, localStorage, per browser) — no new table, no new column. `getAllDiaryEntryIds()` in `db.js` fetches ids only. The diary branch of the collapse handler deletes the athlete from `athleteDiarySet` and re-renders the dropdown, so the icon and the panel's red counter always go out together.
+- **`📒` reuses the Diary panel's own read state** (`readDiaryEntryIds` / `isEntryRead()` in `panels/diary.js`, localStorage, per browser) — no new table, no new column. `getAllDiaryEntryIds()` in `db.js` fetches ids only. The diary branch of the collapse handler deletes the athlete from `athleteDiarySet` and re-renders the dropdown, so the icon and the panel's red counter always go out together.
 
 ### Sidebar panels are locked until a coach picks an athlete
 
