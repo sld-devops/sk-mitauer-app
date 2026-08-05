@@ -6,10 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Toma Komasa Sportistu Portāls</title>
     <script>
-      // "Desktop view on a phone" — the default. Pinning the layout viewport to a
-      // fixed width makes a phone lay the page out like a monitor and scale it to
-      // fit, exactly like the browser's own "Request desktop site". Must run
+      // "Desktop view on a phone" — opt in, per device. Pinning the layout viewport
+      // to a fixed width makes a phone lay the page out like a monitor and scale it
+      // to fit, exactly like the browser's own "Request desktop site". Must run
       // before first paint, hence inline in <head> rather than in app.js.
+      //
+      // This used to be the default (2026-08-03) and was turned back into an opt-in
+      // on 2026-08-05 at the owner's request: someone opening the app on a phone
+      // for the first time should get the phone layout, not a shrunken monitor.
+      // Only an explicit "desktop" — written by the header button — pins anything.
       //
       // Why 1200: it must clear the 1040px mobile breakpoint in styles.css to get
       // the two-column desktop layout at all, and smaller means larger text on the
@@ -25,7 +30,7 @@
         } catch (e) {
           mode = null;
         }
-        if (mode !== "mobile") {
+        if (mode === "desktop") {
           document
             .querySelector('meta[name="viewport"]')
             .setAttribute("content", "width=" + window.DESKTOP_VIEW_WIDTH);
@@ -963,6 +968,6 @@
     <script src="panels/weekly-review.js"></script>
     <script src="panels/ruffier-test.js?v=2"></script>
     <script src="panels/self-log.js?v=2"></script>
-    <script src="app.js?v=59"></script>
+    <script src="app.js?v=60"></script>
   </body>
 </html>

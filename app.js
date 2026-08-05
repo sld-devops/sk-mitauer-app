@@ -2932,11 +2932,15 @@ document.getElementById("plannerBackdrop")?.addEventListener("click", () => {
 // at load time, so switching reloads the page rather than trying to restyle live.
 // Named screenViewMode, not viewMode — `viewMode` is already taken by the
 // week/month calendar switch (app.js:48).
+// Must agree with the <head> script's `mode === "desktop"` test: anything other
+// than an explicit, button-written "desktop" means the phone layout, so a device
+// that has never touched the button gets its own layout rather than a shrunken
+// monitor. Getting these two out of step would put the wrong word on the button.
 function getScreenViewMode() {
   try {
-    return localStorage.getItem("screenViewMode") === "mobile" ? "mobile" : "desktop";
+    return localStorage.getItem("screenViewMode") === "desktop" ? "desktop" : "mobile";
   } catch (e) {
-    return "desktop";
+    return "mobile";
   }
 }
 
