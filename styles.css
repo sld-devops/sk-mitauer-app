@@ -872,6 +872,10 @@ h4 {
   font-size: 1.1rem;
   color: #3b82f6;
 }
+.diary-dropdown-badge {
+  margin-right: 4px;
+  font-size: 0.95rem;
+}
 .athlete-indicators {
   display: flex;
   gap: 4px;
@@ -879,7 +883,7 @@ h4 {
 }
 .week-slot {
   align-items: center;
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: 5px;
   color: var(--muted);
   display: flex;
@@ -897,20 +901,31 @@ h4 {
 .week-slot.week-slot-no-plans {
   border-color: var(--danger);
 }
+/* The week block type colours the frame (and the tick) as soon as the coach
+   picks a type, whether or not the week is finished — the fill is what says
+   "the whole week is planned". These must stay *after* .week-slot-done, since
+   both are (0,2,0): source order is what keeps a typed week from turning the
+   plain green. */
+.week-slot.week-slot-type-load {
+  border: 3px solid darkorange;
+  color: darkorange;
+}
 .week-slot.week-slot-done.week-slot-type-load {
   background: rgba(255, 140, 0, 0.14);
-  border: 2px solid darkorange;
-  color: darkorange;
+}
+.week-slot.week-slot-type-competition {
+  border: 3px solid var(--race);
+  color: var(--race-dark);
 }
 .week-slot.week-slot-done.week-slot-type-competition {
   background: var(--race-bg);
-  border: 2px solid var(--race);
-  color: var(--race-dark);
+}
+.week-slot.week-slot-type-rest {
+  border: 3px solid gold;
+  color: var(--warning-dark);
 }
 .week-slot.week-slot-done.week-slot-type-rest {
   background: rgba(255, 215, 0, 0.18);
-  border: 2px solid gold;
-  color: var(--warning-dark);
 }
 
 

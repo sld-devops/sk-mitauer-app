@@ -665,6 +665,16 @@ async function getDiaryEntries(athleteId) {
   return data || [];
 }
 
+// Ids only, for every athlete at once — enough to tell whether a name in the
+// athlete dropdown needs the "unread diary entry" icon, without pulling the
+// entries' text across. Same shape as getAthleteHealthCounts.
+async function getAllDiaryEntryIds() {
+  const { data } = await supabase
+    .from("diary_entries")
+    .select("id, athlete_id");
+  return data || [];
+}
+
 async function insertDiaryEntry(data) {
   const { data: result, error } = await supabase
     .from("diary_entries")

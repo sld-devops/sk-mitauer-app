@@ -67,6 +67,22 @@ let weeklyReviews = [];
 let athleteNextWeeksPlans = {};
 let athleteHealthSet = new Set();
 let athleteNotCompletedSet = new Set();
+let athleteDiarySet = new Set();
+
+// Which athletes have a diary entry the coach has not read yet. "Read" is the
+// same per-browser record the Diary panel's red counter already uses
+// (readDiaryEntryIds / isEntryRead in panels/diary.js), so the icon and the
+// counter always agree and nothing new is stored in the database.
+async function refreshAthleteDiarySet() {
+  try {
+    const rows = await getAllDiaryEntryIds();
+    athleteDiarySet = new Set(
+      rows.filter(e => !isEntryRead(e.athlete_id, e.id)).map(e => e.athlete_id)
+    );
+  } catch (e) {
+    athleteDiarySet = new Set();
+  }
+}
 
 async function refreshAthleteNotCompletedSet() {
   try {
@@ -634,20 +650,26 @@ async function loadAllData() {
   await loadNonTemplateData();
 }
 
+// The four boxes next to each athlete's name: this week and the next three.
+// (It used to start at *next* Monday, so the week the coach is actually looking
+// at was never one of the four.)
 async function refreshWeekStatuses(athleteIds) {
   if (!athleteIds) {
     athleteIds = athletes.filter(a => a.role !== "coach").map(a => a.id);
   }
   if (!athleteIds.length) return;
-  const nextWeekMonday = new Date(getMonday(new Date()));
-  nextWeekMonday.setDate(nextWeekMonday.getDate() + 7);
-  const startStr = formatDateISO(nextWeekMonday);
-  [weekStatuses, weekBlockTypesByAthlete] = await Promise.all([
+  const startStr = formatDateISO(getMonday(new Date()));
+  const [statuses, blockTypes] = await Promise.all([
     getWeekStatuses(athleteIds, startStr),
     getWeekBlockTypesForAthletes(athleteIds, startStr),
   ]);
-  const selectedId = getSelectedAthleteId();
-  if (selectedId) renderAthleteDropdown();
+  // Merged, never replaced: selecting an athlete refreshes that one athlete
+  // (loadNonTemplateData passes a single id), and a plain assignment there threw
+  // away everyone else's boxes — the whole list then rendered as empty red
+  // squares until the ↻ button was pressed.
+  Object.assign(weekStatuses, statuses);
+  Object.assign(weekBlockTypesByAthlete, blockTypes);
+  renderAthleteDropdown();
 }
 
 async function loadNonTemplateData() {
@@ -727,8 +749,19 @@ async function loadNonTemplateData() {
   allLogEntries = allLogEntriesRes;
 
   await safeGet(refreshAthleteHealthSet(), undefined);
-  await safeGet(acknowledgeNotCompletedPlans(athleteId), undefined);
+  // "The coach has seen it" — so only the coach may clear the ! next to a name.
+  // This used to run for the athlete too, which meant an athlete who ticked
+  // "Neizpildīts treniņš" wiped their own warning the next time they opened
+  // their calendar, before the coach ever saw it.
+  if (activeRole === "coach") {
+    await safeGet(acknowledgeNotCompletedPlans(athleteId), undefined);
+  }
   await safeGet(refreshAthleteNotCompletedSet(), undefined);
+  // Coach only — the 📔 lives in the athlete dropdown, which the athlete's own
+  // view never renders, so this would be a query with nowhere to show.
+  if (activeRole === "coach") {
+    await safeGet(refreshAthleteDiarySet(), undefined);
+  }
 
   if (logEntries.length && (!weeklySummary || (!weeklySummary.run_km && !weeklySummary.run_min && !weeklySummary.vfs_sfs_min && !weeklySummary.velo_min))) {
     const autoRunKm = logEntries.reduce((s, e) => s + (e.distance_km || 0), 0);
@@ -814,7 +847,17 @@ async function initApp() {
     render();
 
     await loadAllData();
-    if (activeRole === "coach") await refreshWeekStatuses();
+    // The three name badges are cross-athlete, so they must not wait for an
+    // athlete to be selected — loadNonTemplateData (which also refreshes them)
+    // returns immediately while the dropdown still says "Izvēlies sportistu...".
+    if (activeRole === "coach") {
+      await Promise.all([
+        refreshAthleteHealthSet(),
+        refreshAthleteNotCompletedSet(),
+        refreshAthleteDiarySet(),
+      ]);
+      await refreshWeekStatuses();
+    }
   } catch (e) {
     console.error("initApp error:", e);
   }
@@ -854,16 +897,27 @@ function renderAthleteDropdown() {
   if (trigger) trigger.hidden = false;
   if (!trigger || !list || !selected) return;
 
+  // One box per week: this week and the next three.
+  //   - the tick appears only when the whole week is covered (a training, a
+  //     marked rest day or a race on all seven days) — getWeekStatuses decides;
+  //   - the frame takes the week block type's colour as soon as the type is set,
+  //     whether or not the week is finished (owner's call 2026-08-05), and the
+  //     tick is drawn in that same colour;
+  //   - a week with no type is red until it is finished, then green.
   function weekIndicators(athleteId) {
     const statuses = weekStatuses[athleteId];
     if (!statuses) return '<span class="week-slot week-slot-no-plans"></span><span class="week-slot week-slot-no-plans"></span><span class="week-slot week-slot-no-plans"></span><span class="week-slot week-slot-no-plans"></span>';
     const blockTypes = weekBlockTypesByAthlete[athleteId] || [];
-    const anyFull = statuses.some(Boolean);
     return statuses
       .map((full, i) => {
         const blockType = blockTypes[i];
-        const typeClass = full && blockType ? ` week-slot-type-${blockType}` : "";
-        return `<span class="week-slot ${full ? "week-slot-done" : ""}${!anyFull ? " week-slot-no-plans" : ""}${typeClass}">${full ? "✓" : ""}</span>`;
+        const classes = ["week-slot"];
+        if (full) classes.push("week-slot-done");
+        if (blockType) classes.push(`week-slot-type-${blockType}`);
+        // The red "nothing planned yet" frame is only for a week the coach has
+        // not marked in any way — a typed week shows its own colour instead.
+        else if (!full) classes.push("week-slot-no-plans");
+        return `<span class="${classes.join(" ")}">${full ? "✓" : ""}</span>`;
       })
       .join("");
   }
@@ -873,7 +927,8 @@ function renderAthleteDropdown() {
     if (selectedAthlete) {
       const selectedHealthBadge = athleteHealthSet.has(selectedAthlete.id) ? '<span class="health-dropdown-badge">⚕</span> ' : "";
       const selectedNotCompletedBadge = athleteNotCompletedSet.has(selectedAthlete.id) ? '<span class="not-completed-icon">!</span> ' : "";
-      selected.innerHTML = `<span class="athlete-name">${selectedHealthBadge}${selectedNotCompletedBadge}${selectedAthlete.full_name}</span><span class="athlete-indicators">${weekIndicators(selectedAthlete.id)}</span>`;
+      const selectedDiaryBadge = athleteDiarySet.has(selectedAthlete.id) ? '<span class="diary-dropdown-badge" title="Jauns dienasgrāmatas ieraksts">📔</span> ' : "";
+      selected.innerHTML = `<span class="athlete-name">${selectedHealthBadge}${selectedNotCompletedBadge}${selectedDiaryBadge}${selectedAthlete.full_name}</span><span class="athlete-indicators">${weekIndicators(selectedAthlete.id)}</span>`;
     } else {
       selected.innerHTML = "";
     }
@@ -886,8 +941,9 @@ function renderAthleteDropdown() {
       const isSelected = a.id === athleteSelect.value;
       const healthBadge = athleteHealthSet.has(a.id) ? '<span class="health-dropdown-badge">⚕</span> ' : "";
       const notCompletedBadge = athleteNotCompletedSet.has(a.id) ? '<span class="not-completed-icon">!</span> ' : "";
+      const diaryBadge = athleteDiarySet.has(a.id) ? '<span class="diary-dropdown-badge" title="Jauns dienasgrāmatas ieraksts">📔</span> ' : "";
       return `<div class="athlete-row ${isSelected ? "selected" : ""}" data-athlete-id="${a.id}">
-        <span class="athlete-name">${healthBadge}${notCompletedBadge}${a.full_name}</span>
+        <span class="athlete-name">${healthBadge}${notCompletedBadge}${diaryBadge}${a.full_name}</span>
         <span class="athlete-indicators">${weekIndicators(a.id)}</span>
       </div>`;
     })
@@ -2770,6 +2826,10 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
           markAllEntriesRead(athleteId, diaryEntries);
           panel.classList.toggle("has-entries", false);
           panel.querySelector(".panel-header").dataset.count = "0";
+          // The 📔 next to the name is the same "unread" state as this counter,
+          // so it has to go at the same moment.
+          athleteDiarySet.delete(athleteId);
+          renderAthleteDropdown();
         }
       }
     }

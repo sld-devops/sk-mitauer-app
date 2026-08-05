@@ -169,6 +169,23 @@ Added 2026-08-05. `<input type="date">` draws its calendar from the **browser's*
 - **`popup.addEventListener("click", e => e.preventDefault())` is load-bearing.** Every date field sits inside a `<label>`, and clicking a plain `<div>` inside a label makes the browser forward a second synthetic click to the label's control — so picking a day closed the calendar and instantly reopened it.
 - Dates are built with a local-time helper, never `toISOString()`, which shifts to UTC and can land on the previous day.
 
+### The four boxes next to an athlete's name
+
+`weekIndicators()` inside `renderAthleteDropdown()` (`app.js`) draws one `.week-slot` per week — **this week and the next three** — fed by `weekStatuses` / `weekBlockTypesByAthlete`, both filled by `refreshWeekStatuses()`. Three bugs were fixed here on 2026-08-05; all three are easy to reintroduce.
+
+- **`refreshWeekStatuses(ids)` must merge, never assign.** `loadNonTemplateData()` calls it with a single id, and `getWeekStatuses` returns a map keyed only by the ids it was asked about — so the old `[weekStatuses, weekBlockTypesByAthlete] = await Promise.all(...)` threw away every *other* athlete's boxes the moment the coach picked someone. `weekIndicators` then hit its `if (!statuses)` fallback and the whole list rendered as four empty red squares, which is exactly how the owner reported it. `Object.assign` both.
+- **The range starts at *this* Monday.** It used to start at next Monday, so the week the coach was actually looking at was never one of the four. `getWeekStatuses`/`getWeekBlockTypesForAthletes` in `db.js` both take that start and walk 4 weeks from it.
+- **A tick means all seven days are covered** — a plan, an `is_rest_day` day note, or a race on every day (confirmed with the owner, kept as is). **The frame colour is independent of that**: it follows the week's block type as soon as the coach sets one, finished or not, and the tick is drawn in the same colour. A week with no type is red until finished, then green. The `.week-slot-type-*` rules in `styles.css` must therefore stay **after** `.week-slot-done` — both are (0,2,0), so source order is what stops a typed week turning plain green. A cleared type is stored as `""` (not null), which is falsy and correctly falls back to the red frame.
+- The old `anyFull` flag is gone: an unfinished week used to be red only when *none* of the four was finished, and neutral grey otherwise — the same state with two looks.
+
+### Three icons ride in front of the athlete's name
+
+`⚕` (a health-journal entry in force **today**), `!` (the athlete ticked "Neizpildīts treniņš" and the coach hasn't opened them since), and `📔` (an unread diary entry, added 2026-08-05). All three are coach-only, computed into `athleteHealthSet` / `athleteNotCompletedSet` / `athleteDiarySet` in `app.js`.
+
+- **They are cross-athlete, so they are loaded in `initApp()` too**, not only from `loadNonTemplateData()` — that function returns immediately while the dropdown still says "Izvēlies sportistu...", which left the list with no icons at all until someone was picked.
+- **Only the coach may clear the `!`.** `acknowledgeNotCompletedPlans()` is guarded on `activeRole === "coach"`; it used to run for the athlete as well, so an athlete who ticked "Neizpildīts treniņš" wiped their own warning the next time they opened their calendar and the coach never saw it.
+- **`📔` reuses the Diary panel's own read state** (`readDiaryEntryIds` / `isEntryRead()` in `panels/diary.js`, localStorage, per browser) — no new table, no new column. `getAllDiaryEntryIds()` in `db.js` fetches ids only. The diary branch of the collapse handler deletes the athlete from `athleteDiarySet` and re-renders the dropdown, so the icon and the panel's red counter always go out together.
+
 ### Sidebar panels are locked until a coach picks an athlete
 
 `updateSidebarPanelLock()` in `app.js` (called at the end of `render()`) puts a `panel-locked` class on every `.planner-panel .collapsible` **except `#adminPanel`** while `activeRole === "coach"` and `getSelectedAthleteId()` is empty; the `.collapse-toggle` click handler returns early on that class. Added 2026-08-02 — before it, a coach who hadn't picked anyone could open a dozen panels and find them all blank.
