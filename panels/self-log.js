@@ -11,9 +11,12 @@
 // migrations (same reasoning as pace_hr_map._meta in panels/profile.js).
 // feeling / notes use the columns they already use everywhere else.
 //
-// The coach's reply is NOT stored here — it goes to day_notes.coach_comment
-// via the existing data-comment-day textarea, because a self-record only ever
-// appears on an otherwise-empty day, so there can be at most one per day.
+// The coach's reply is NOT stored here — it goes to day_notes.coach_comment via
+// the existing data-comment-day textarea, so it belongs to the *day*, not to the
+// record. A day can hold several records (2026-08-05), and they all share that
+// one comment: only the first card renders the box, and renderCalendar decides
+// which card that is (`dayCommentTaken`). A per-record reply would need a column
+// on log_entries, which the owner cannot add.
 
 const SELF_LOG_SECTION = "_self";
 
@@ -38,24 +41,23 @@ function selfLogTypes() {
   return TEMPLATE_GROUPS.flatMap((g) => g.types).filter((t) => t !== "Intervāli");
 }
 
-// Can this athlete add a record to this day? Only their own days, only today
-// or earlier, and only days the coach has left completely empty — a rest day
-// or a restriction is a deliberate statement by the coach (and restrictions
-// are set by the athlete themselves), so they are not overwritten here.
+// Can this athlete add a record to this day? One condition only: they are
+// looking at their own calendar. The coach never gets this button — a record of
+// what the athlete did is made by the athlete.
 //
-// ctx.hasPlans counts only plans made *for* this date. A plan moved here from
-// another day leaves the day itself unplanned, and the athlete may have trained
-// on top of it, so the button stays (owner's request 2026-08-05).
-function canAddSelfLog(dateStr, ctx) {
-  return (
-    activeRole === "athlete" &&
-    currentUser?.id === getSelectedAthleteId() &&
-    dateStr <= formatDateISO(new Date()) &&
-    !ctx.hasPlans &&
-    !ctx.hasRaces &&
-    !ctx.fullyRestricted &&
-    !ctx.isRestDay
-  );
+// Everything else was dropped on 2026-08-05 at the owner's request: the button
+// used to appear only on a day the coach had left completely empty, today or
+// earlier, with no record on it yet. That meant a second training on the same
+// day could not be written down at all, nor anything on top of a planned
+// session, nor anything on a day marked as a rest day. It is now unconditional,
+// including on a future day — the athlete decides what is worth recording, and a
+// wrong record can simply be deleted.
+//
+// Callers no longer pass anything about the day. If you find yourself wanting to
+// add a condition back, add it in renderCalendar's `showSelfLogAdd` instead of
+// growing this back into a set of rules.
+function canAddSelfLog() {
+  return activeRole === "athlete" && currentUser?.id === getSelectedAthleteId();
 }
 
 function startSelfLogEdit(dateStr, logId) {
@@ -116,9 +118,10 @@ function renderSelfLogForm(dateStr) {
     </div>`;
 }
 
-// dayCommentTaken: the day already shows a data-comment-day textarea for a
-// restriction or a health entry, so this card must not render a second one
-// bound to the same date.
+// dayCommentTaken: something on this day already shows a data-comment-day
+// textarea — a restriction, a health entry, a rest day, a race, or simply an
+// earlier self-log card — so this card must not render a second one bound to the
+// same date. Two of them would be two boxes writing over each other's text.
 function renderSelfLogCard(log, dayCommentTaken) {
   const d = getSelfLogData(log);
   const title = d.title || "";
