@@ -94,6 +94,24 @@ function selfLogRatingHtml(selected) {
   return `<div class="self-log-field-label">Pašsajūta</div><div class="self-log-rating">${opts}</div>`;
 }
 
+// The same three choices, the same wording and the same colours as a planned
+// training's time of day (TOD_ORDER / todLabel in app.js) and as the
+// restrictions form — one system, not a second one. Stored in the "_self"
+// object next to the type and the text; no new column, so no migration.
+const SELF_LOG_TODS = [
+  { value: "morning", label: "🌄 Rīts" },
+  { value: "afternoon", label: "☀️ Pusdiena" },
+  { value: "evening", label: "🌇 Vakars" },
+];
+
+function selfLogTodHtml(selected) {
+  const opts = SELF_LOG_TODS.map((t) => `
+    <label class="tod-radio-label tod-${t.value}">
+      <input type="radio" name="selfLogTod" value="${t.value}" ${t.value === selected ? "checked" : ""} /> ${t.label}
+    </label>`).join("");
+  return `<div class="self-log-field-label">Dienas laiks</div><div class="tod-radio-group">${opts}</div>`;
+}
+
 function renderSelfLogForm(dateStr) {
   const existing = selfLogEditingId ? logEntries.find((l) => l.id === selfLogEditingId) : null;
   const d = getSelfLogData(existing);
@@ -109,6 +127,7 @@ function renderSelfLogForm(dateStr) {
       <div class="self-log-form-title">${existing ? "Labot ierakstu" : "Ko izpildīji?"}</div>
       <div class="self-log-field-label">Treniņa veids</div>
       <select class="self-log-type">${options}</select>
+      ${selfLogTodHtml(d.tod || "")}
       <div class="self-log-field-label">Izpildītais</div>
       <textarea class="self-log-text" rows="5" placeholder="Piemēram:&#10;15min iesildīšanās&#10;Drills&#10;10km, 4:45/km&#10;10min atsildīšanās">${escapeHtml(d.text || "")}</textarea>
       ${selfLogRatingHtml(existing?.feeling || "")}
@@ -134,6 +153,10 @@ function renderSelfLogCard(log, dayCommentTaken) {
     .filter((l) => l.trim())
     .map((l) => `<div>${escapeHtml(l)}</div>`)
     .join("");
+  // Same badge, same place as a plan card's (renderPlanCard in app.js). A record
+  // saved before the time of day existed simply has none, exactly like a
+  // training the coach never gave one to.
+  const todBadge = d.tod ? `<span class="tod-badge tod-${d.tod}">${todLabel(d.tod)}</span>` : "";
   const feelingBadge = log.feeling || log.feeling_tags ? feelingBadgeHtml(log.feeling, log.feeling_tags) : "";
   const notesHtml = log.notes ? `<div class="log-notes">${escapeHtml(log.notes)}</div>` : "";
   const athleteIsOwner = activeRole === "athlete" && currentUser?.id === getSelectedAthleteId();
@@ -151,6 +174,7 @@ function renderSelfLogCard(log, dayCommentTaken) {
   return `
     <article class="session-card self-log-card">
       <h3>${escapeHtml(displayTitle(title))}</h3>
+      ${todBadge}
       <span class="plan-type-badge">${icon}</span>
       <div class="self-log-badge">📝 Sportista ieraksts</div>
       ${textHtml ? `<div class="task-card self-log-text-view">${textHtml}</div>` : ""}
@@ -158,7 +182,7 @@ function renderSelfLogCard(log, dayCommentTaken) {
       ${notesHtml}
       ${coachBlock}
       ${athleteIsOwner
-        ? `<div class="card-actions"><div class="log-actions"><button class="edit-log-btn" data-self-log-edit="${log.id}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${log.id}" type="button">✕</button></div></div>`
+        ? `<div class="card-actions"><div class="log-actions"><button class="edit-log-btn icon-action-btn" data-self-log-edit="${log.id}" type="button" title="Rediģēt">✏️</button><button class="log-delete-btn icon-action-btn is-delete" data-delete-log="${log.id}" type="button" title="Dzēst">✕</button></div></div>`
         : ""}
     </article>`;
 }
@@ -171,6 +195,8 @@ async function saveSelfLogForm() {
   if (!dateStr || !athleteId) return;
 
   const title = form.querySelector(".self-log-type")?.value || "";
+  const todEl = form.querySelector('input[name="selfLogTod"]:checked');
+  const tod = todEl ? todEl.value : "";
   const text = form.querySelector(".self-log-text")?.value.trim() || "";
   const feelingEl = form.querySelector('input[name="selfLogRating"]:checked');
   const feeling = feelingEl ? feelingEl.value : null;
@@ -179,6 +205,11 @@ async function saveSelfLogForm() {
   if (!text && !feeling && !notes) {
     alert("Ieraksti, ko izpildīji.");
     form.querySelector(".self-log-text")?.focus();
+    return;
+  }
+  if (!tod) {
+    alert("Norādi dienas laiku.");
+    form.querySelector(".tod-radio-group")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     return;
   }
 
@@ -193,7 +224,7 @@ async function saveSelfLogForm() {
       athlete_id: athleteId,
       date: dateStr,
       activity_type: getActivityType(title),
-      log_data: [{ section: SELF_LOG_SECTION, title, icon: badgeForTitle(title), text }],
+      log_data: [{ section: SELF_LOG_SECTION, title, icon: badgeForTitle(title), tod, text }],
       feeling,
       feeling_tags: null,
       notes,

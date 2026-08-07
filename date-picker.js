@@ -117,7 +117,17 @@ function openDatePicker(input, display) {
   // label's control - which is this field, so picking a day closed the calendar
   // and immediately reopened it. Cancelling the click's default action stops
   // that forwarding; the popup's own buttons are type="button" and unaffected.
-  popup.addEventListener("click", (e) => e.preventDefault());
+  //
+  // The click also stops here rather than carrying on to the document-level
+  // "clicked outside, close it" listener above. The ← / → buttons replace the
+  // popup's whole contents, so by the time the click reached that listener the
+  // button that was pressed no longer existed - closest(".dp-wrap") found
+  // nothing, the click read as one from outside the calendar, and switching
+  // month closed the calendar instead of changing it.
+  popup.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
   // Appended beside the field rather than to <body>: half of these fields live
   // inside a <dialog>, and a body-level popup would be painted underneath it.
   display.parentElement.appendChild(popup);

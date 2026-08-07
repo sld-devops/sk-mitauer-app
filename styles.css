@@ -2207,25 +2207,6 @@ label {
   margin-top: 4px;
 }
 
-.edit-race-btn,
-.delete-race-btn {
-  background: none;
-  border: 0;
-  cursor: pointer;
-  font-size: 0.85rem;
-  line-height: 1;
-  padding: 2px 4px;
-  border-radius: 4px;
-  color: var(--muted);
-}
-
-.edit-race-btn:hover,
-.delete-race-btn:hover {
-  background: rgba(0,0,0,0.06);
-  color: var(--accent);
-}
-
-
 
 .race-section-header {
   font-size: 0.75rem;
@@ -2368,6 +2349,60 @@ label {
   width: 100%;
 }
 
+/* ---- Icon-only edit / delete buttons ----
+   One look for every bare ✏️ and ✕ that sits on a card or a list row: no box,
+   no fill, muted until it is pointed at, and red only when it deletes. This was
+   the restrictions panel's look and is now everyone's (owner's call 2026-08-07)
+   — a plan card had a 44px filled circle beside a framed ✕, a log card a 40px
+   outlined box, a race chip a third size again, so the same two actions looked
+   like three different things on one screen.
+
+   Add BOTH classes in the markup and keep whatever class the element already
+   had: several of those are how the JS finds the button (`.edit-restriction-btn`
+   …) and are load-bearing. Don't restyle `.delete-action` to get here — that
+   class is also the full-size "Dzēst" button in dialogs and panel forms. */
+.icon-action-btn {
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 2px 6px;
+}
+
+.icon-action-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--accent);
+}
+
+.icon-action-btn.is-delete:hover {
+  background: var(--danger-bg, #fef2f2);
+  color: var(--danger, #dc2626);
+}
+
+/* Calendar exception (owner's call 2026-08-07): the same buttons, 20% larger.
+   Everywhere else these sit in a sidebar panel used at a desk; in a day column
+   they are tapped on a phone, and at the shared size (~30x18) that is a poor
+   thumb target. Every number here is exactly 1.2x the base above — keep it that
+   way rather than picking new round numbers, or the two drift apart.
+   .card-actions / .log-actions / .race-actions exist only inside the week
+   calendar's day cards, which is what makes this an exception and not a
+   second style. */
+.card-actions .icon-action-btn,
+.log-actions .icon-action-btn,
+.race-actions .icon-action-btn {
+  font-size: 1.08rem;
+  padding: 2.4px 7.2px;
+}
+
+/* The feeling badge above carries a top margin but no bottom one, so the row of
+   buttons was drawn hard against it. */
+.card-actions {
+  margin-top: 8px;
+}
+
 .time-of-day-buttons {
   margin-bottom: 12px;
 }
@@ -2504,22 +2539,6 @@ label {
   display: flex;
   gap: 4px;
 }
-
-.edit-log-btn {
-  background: none;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  line-height: 1;
-  padding: 6px 10px;
-  min-height: 40px;
-}
-
-.edit-log-btn:hover {
-  border-color: var(--accent);
-}
-
 
 
 .log-line {
@@ -3017,17 +3036,6 @@ label {
 .card-actions {
   display: flex;
   gap: 6px;
-}
-
-.card-actions .icon-button {
-  font-size: 0.9rem;
-  height: 40px;
-  width: 40px;
-}
-
-.card-actions .delete-action {
-  font-size: 0.85rem;
-  padding: 3px 6px;
 }
 
 .card-actions .secondary-action {
@@ -4548,32 +4556,6 @@ textarea:disabled {
   align-items: center;
   gap: 4px;
 }
-.delete-restriction-btn {
-  color: var(--muted);
-  font-size: 0.9rem;
-  padding: 2px 6px;
-  background: none;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.delete-restriction-btn:hover {
-  background: var(--danger-bg, #fef2f2);
-  color: var(--danger, #dc2626);
-}
-.edit-restriction-btn {
-  color: var(--muted);
-  font-size: 0.9rem;
-  padding: 2px 6px;
-  background: none;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.edit-restriction-btn:hover {
-  background: rgba(0,0,0,0.06);
-  color: var(--accent);
-}
 .restriction-form {
   margin-top: 12px;
   padding-top: 12px;
@@ -4776,6 +4758,18 @@ textarea:disabled {
   text-align: center;
 }
 
+/* The `margin: 0` above also clears .panel-add-btn's own margin-bottom, which is
+   what holds every other panel's "Pievienot" clear of the panel's bottom edge —
+   .planner-panel .panel has no bottom padding of its own, so these four panels'
+   buttons sat flush against the frame while Polar/Paštesti/Dienasgrāmata/Rekordi
+   had 10px. Given back to the row rather than to each button, so a row that
+   wraps onto a second line does not get the gap in the middle of itself. */
+.health-form-actions,
+.labtest-form-actions,
+.restriction-form-actions {
+  margin-bottom: 10px;
+}
+
 #healthJournalPanel.has-entries .panel-header {
   position: relative;
 }
@@ -4839,25 +4833,6 @@ textarea:disabled {
   align-items: center;
   gap: 4px;
 }
-.diary-edit-btn,
-.diary-delete-btn {
-  background: none;
-  border: none;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 0.9rem;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-.diary-edit-btn:hover {
-  color: var(--accent);
-  background: rgba(0,0,0,0.06);
-}
-.diary-delete-btn:hover {
-  background: var(--danger-bg, #fef2f2);
-  color: var(--danger, #dc2626);
-}
-
 .diary-form {
   margin-top: 12px;
   padding-top: 12px;
@@ -5558,10 +5533,15 @@ body.is-dragging .session-card.is-draggable {
   transition: all 0.15s;
   white-space: nowrap;
 }
+/* The same three colours the calendar already uses for a time of day — .tod-badge
+   on a card and .time-of-day-buttons .add-day-button in an empty day. These used
+   to be their own set (morning pink, evening violet), so the same word was one
+   colour in the restrictions panel and another one day later in the week view.
+   If any of the three ever changes, change it in all three places. */
 .tod-radio-label.tod-morning {
-  background: #fce7f3;
-  color: #9b1c47;
-  border-color: #f9a8d4;
+  background: #fff7d6;
+  color: #5a4a00;
+  border-color: #f0d97a;
 }
 .tod-radio-label.tod-afternoon {
   background: #e0f2fe;
@@ -5569,9 +5549,9 @@ body.is-dragging .session-card.is-draggable {
   border-color: #7dd3fc;
 }
 .tod-radio-label.tod-evening {
-  background: #e4e0f7;
-  color: #4c1d95;
-  border-color: #c4b5fd;
+  background: #fce7f3;
+  color: #9b1c47;
+  border-color: #f9a8d4;
 }
 .tod-radio-label.tod-all {
   background: var(--surface);
@@ -5601,14 +5581,11 @@ body.is-dragging .session-card.is-draggable {
   cursor: not-allowed;
 }
 
+/* Colour, size and shape all come from .tod-badge — this is only the position:
+   the badge stands beside the date on one line, so .tod-badge's margin-top
+   (which is for sitting under a card title) has to go. */
 .restriction-tod-badge {
-  display: inline-block;
-  font-size: 0.7rem;
-  padding: 1px 6px;
-  border-radius: 10px;
-  background: rgba(201, 31, 47, 0.1);
-  color: var(--accent);
-  font-weight: 600;
+  margin-top: 0;
 }
 
 .switch-badge {
@@ -5653,6 +5630,14 @@ body.is-dragging .session-card.is-draggable {
   font-size: 0.82rem;
   padding: 7px 6px;
   margin-top: 4px;
+}
+
+/* The same hover every ordinary button in the app has (.secondary-action, e.g.
+   "Iepriekšējā nedēļa"). .add-day-button carries the transition but no hover of
+   its own, and this button overrides the background to white, so it needs its
+   own rule or nothing happens under the pointer at all. */
+.self-log-add-btn:hover {
+  background: var(--surface-hover);
 }
 
 .self-log-form {
@@ -5709,6 +5694,35 @@ body.is-dragging .session-card.is-draggable {
   min-height: 110px;
 }
 
+/* Same three choices as a restriction's time of day, but stacked: at ~104px of
+   usable width inside a day column, "☀️ Pusdiena" alone fills the row, and
+   .tod-radio-label is white-space: nowrap, so side by side they overflow the
+   card rather than wrapping. Same reason as .self-log-rating below. */
+.self-log-form .tod-radio-group {
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 0;
+}
+
+.self-log-form .tod-radio-label {
+  box-sizing: border-box;
+  font-size: 0.76rem;
+  padding: 5px 7px;
+  white-space: normal;
+  width: 100%;
+}
+
+/* The radio circle itself is hidden, exactly as .feeling-option does it a few
+   rules down — measured, "☀️ Pusdiena" plus a circle is 117px wide in a 103px
+   column and got cut off. The checked state is the dark border and ring
+   .tod-radio-label:has(input:checked) already draws. */
+.self-log-form .tod-radio-label input[type="radio"] {
+  height: 0;
+  opacity: 0;
+  position: absolute;
+  width: 0;
+}
+
 /* One per row: at ~104px of usable width inside a day column, two side by side
    clip "Normāli" no matter how small the type gets. */
 .self-log-rating {
@@ -5761,8 +5775,9 @@ body.is-dragging .session-card.is-draggable {
   border: 3px solid #b8d4b8;
 }
 
-/* Only one badge sits in this card's corner (no time-of-day / moved badges),
-   so the title does not need the 50px gutter a plan card reserves. */
+/* Only one badge sits in this card's corner (no "moved from" badge, and the
+   time-of-day badge sits in the flow below the title, not in the corner), so
+   the title does not need the 50px gutter a plan card reserves. */
 .session-card.self-log-card h3 {
   padding-right: 24px;
 }

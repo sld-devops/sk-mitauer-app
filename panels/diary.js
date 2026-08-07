@@ -79,8 +79,8 @@ function renderDiary() {
     ? diaryEntries.map(e => `
         <div class="diary-entry${canEdit ? " diary-entry-editable" : ""}" data-entry-id="${e.id}">
           ${canEdit ? `<div class="diary-entry-actions">
-            <button class="diary-edit-btn" data-edit-diary="${e.id}" type="button" title="Rediģēt">✏️</button>
-            <button class="diary-delete-btn" data-delete-diary="${e.id}" type="button" title="Dzēst">✕</button>
+            <button class="diary-edit-btn icon-action-btn" data-edit-diary="${e.id}" type="button" title="Rediģēt">✏️</button>
+            <button class="diary-delete-btn icon-action-btn is-delete" data-delete-diary="${e.id}" type="button" title="Dzēst">✕</button>
           </div>` : ""}
           <div class="diary-entry-header">
             <span class="diary-entry-date">${formatDateLV(e.date)}</span>

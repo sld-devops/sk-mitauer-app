@@ -238,12 +238,15 @@ function renderRestrictionCards() {
         const period = r.end_date
           ? `${formatDateLV(r.start_date)} — ${formatDateLV(r.end_date)}`
           : formatDateLV(r.start_date);
-        const todBadge = r.time_of_day ? `<span class="restriction-tod-badge">${todLabel(r.time_of_day)}</span>` : "";
+        // The shared .tod-badge, same as a plan card and the athlete's own
+        // record, so Rīts/Pusdiena/Vakars is one colour app-wide and stays that
+        // way. .restriction-tod-badge is only the position beside the date now.
+        const todBadge = r.time_of_day ? `<span class="tod-badge restriction-tod-badge tod-${r.time_of_day}">${todLabel(r.time_of_day)}</span>` : "";
         return `
           <div class="restriction-card${canEdit ? " restriction-card-editable" : ""}">
             ${canEdit ? `<div class="restriction-card-actions">
-              <button class="edit-restriction-btn" data-edit-restriction="${r.id}" type="button" title="Rediģēt">✏️</button>
-              <button class="delete-restriction-btn" data-restriction="${r.id}" type="button" title="Dzēst">✕</button>
+              <button class="edit-restriction-btn icon-action-btn" data-edit-restriction="${r.id}" type="button" title="Rediģēt">✏️</button>
+              <button class="delete-restriction-btn icon-action-btn is-delete" data-restriction="${r.id}" type="button" title="Dzēst">✕</button>
             </div>` : ""}
             <div class="restriction-card-header">
               <span class="restriction-dates">${period}</span>

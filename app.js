@@ -1965,12 +1965,12 @@ function renderPlanCard(plan) {
         ${hasPamatdala ? `<div class="task-card">${formatDetailsForCard(plan.details).replace(/\n/g, "<br>")}<textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" placeholder="Trenera komentārs...">${plan.coach_comment || ""}</textarea></div>` : `<textarea class="inline-comment" data-comment-plan="${plan.id}" data-comment-type="coach" placeholder="Trenera komentārs...">${plan.coach_comment || ""}</textarea>`}
         ${logBlock}
         ${notCompleted ? `<div class="not-completed-badge"><span class="not-completed-icon">!</span> Sportists atzīmēja kā neizpildītu</div>${plan.athlete_comment ? `<div class="log-notes not-completed-comment">${plan.athlete_comment}</div>` : ""}` : ""}
-        <div class="card-actions"><button class="icon-button" data-edit-plan="${plan.id}" type="button">✏️</button><button class="delete-action" data-delete-plan="${plan.id}" type="button">✕</button></div>
+        <div class="card-actions"><button class="icon-action-btn" data-edit-plan="${plan.id}" type="button" title="Rediģēt">✏️</button><button class="icon-action-btn is-delete" data-delete-plan="${plan.id}" type="button" title="Dzēst">✕</button></div>
       </article>
     `;
   }
 
-  const logActions = planLog ? `<div class="log-actions"><button class="edit-log-btn" data-log-plan="${plan.id}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${planLog.id}" type="button">✕</button></div>` : "";
+  const logActions = planLog ? `<div class="log-actions"><button class="edit-log-btn icon-action-btn" data-log-plan="${plan.id}" type="button" title="Rediģēt">✏️</button><button class="log-delete-btn icon-action-btn is-delete" data-delete-log="${planLog.id}" type="button" title="Dzēst">✕</button></div>` : "";
 
   const logBlock = planLog
     ? `<div class="log-card log-inline">${planLogData.length ? renderLogEntryLines(planLogData, paceBoundsMap, plannedIntervalCount, plan.details) : ""}${feelingBadge}${planLogNotes}</div>`
@@ -2005,7 +2005,7 @@ function renderLogCard(log, dayCommentTaken) {
   const feelingBadge = log?.feeling || log?.feeling_tags ? feelingBadgeHtml(log.feeling, log.feeling_tags) : "";
   const logNotes = log?.notes ? `<div class="log-notes">${log.notes}</div>` : "";
   const athleteIsOwner = (activeRole === "athlete") && currentUser.id === getSelectedAthleteId();
-  const logActions = athleteIsOwner ? `<div class="log-actions"><button class="edit-log-btn" data-log-day="${log.date}" type="button">✏️</button><button class="delete-action log-delete-btn" data-delete-log="${log.id}" type="button">✕</button></div>` : "";
+  const logActions = athleteIsOwner ? `<div class="log-actions"><button class="edit-log-btn icon-action-btn" data-log-day="${log.date}" type="button" title="Rediģēt">✏️</button><button class="log-delete-btn icon-action-btn is-delete" data-delete-log="${log.id}" type="button" title="Dzēst">✕</button></div>` : "";
   return `<div class="session-card log-card">${items}${feelingBadge}${logNotes}${athleteIsOwner ? `<div class="card-actions">${logActions}</div>` : ""}</div>`;
 }
 
@@ -2081,7 +2081,7 @@ function renderCalendar() {
                 ${activeRole === "coach" && !dayPlans.length && raceIdx === dayRaces.length - 1
                   ? `<div class="comment-label">Trenera komentārs/padomi</div><textarea class="inline-comment" data-comment-day="${dateStr}" placeholder="Komentārs...">${dayNote?.coach_comment || ""}</textarea>`
                   : ""}
-                ${activeRole !== "coach" ? `<div class="race-actions"><button class="edit-race-btn" data-edit-race="${r.id}" type="button" title="Rediģēt">✏️</button><button class="delete-race-btn" data-race="${r.id}" type="button" title="Dzēst">✕</button></div>` : ""}
+                ${activeRole !== "coach" ? `<div class="race-actions"><button class="edit-race-btn icon-action-btn" data-edit-race="${r.id}" type="button" title="Rediģēt">✏️</button><button class="delete-race-btn icon-action-btn is-delete" data-race="${r.id}" type="button" title="Dzēst">✕</button></div>` : ""}
               </div>
             `}).join("")}
           </div>`
