@@ -45,7 +45,7 @@ function renderWeeklyReviewGrid() {
     <tr>
       <td class="weekly-review-name-col">${escapeHtml(a.full_name)}</td>
       ${weeks.map((w) => `
-        <td>${weeklyReviewedSet.has(weeklyReviewKey(a.id, w)) ? '<span class="weekly-review-check">✓</span>' : ""}</td>
+        <td>${weeklyReviewedSet.has(weeklyReviewKey(a.id, w)) ? '<input class="weekly-review-check" type="checkbox" checked tabindex="-1" aria-label="Apskatīta" />' : ""}</td>
       `).join("")}
     </tr>
   `).join("");

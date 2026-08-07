@@ -175,7 +175,9 @@ Added 2026-08-05. `<input type="date">` draws its calendar from the **browser's*
 
 - **`refreshWeekStatuses(ids)` must merge, never assign.** `loadNonTemplateData()` calls it with a single id, and `getWeekStatuses` returns a map keyed only by the ids it was asked about — so the old `[weekStatuses, weekBlockTypesByAthlete] = await Promise.all(...)` threw away every *other* athlete's boxes the moment the coach picked someone. `weekIndicators` then hit its `if (!statuses)` fallback and the whole list rendered as four empty red squares, which is exactly how the owner reported it. `Object.assign` both.
 - **The range starts at *this* Monday.** It used to start at next Monday, so the week the coach was actually looking at was never one of the four. `getWeekStatuses`/`getWeekBlockTypesForAthletes` in `db.js` both take that start and walk 4 weeks from it.
-- **A tick means all seven days are covered** — a plan, an `is_rest_day` day note, or a race on every day (confirmed with the owner, kept as is). **The frame colour is independent of that**: it follows the week's block type as soon as the coach sets one, finished or not, and the tick is drawn in the same colour. A week with no type is red until finished, then green. The `.week-slot-type-*` rules in `styles.css` must therefore stay **after** `.week-slot-done` — both are (0,2,0), so source order is what stops a typed week turning plain green. A cleared type is stored as `""` (not null), which is falsy and correctly falls back to the red frame.
+- **A cross means all seven days are covered** — a plan, an `is_rest_day` day note, or a race on every day (confirmed with the owner, kept as is; a self-log is not a plan and deliberately does not count). **The frame colour is independent of that**: it follows the week's block type as soon as the coach sets one, finished or not, and the cross is drawn in the same colour. A week with no type is red until finished, then neutral grey. The `.week-slot-type-*` rules in `styles.css` must therefore stay **after** `.week-slot-done` — both are (0,2,0), so source order is what stops a typed week turning plain grey.
+- **The mark is a corner-to-corner cross drawn in CSS, not a character** (changed 2026-08-07). It used to be a `✓` written into the span at `0.7rem`, which inside a 22px box with a 3px coloured frame was invisible from any distance — the owner reported seeing only the frame. `weekIndicators()` now emits an **empty** span and `.week-slot-done::before/::after` draw two 3px bars: `width: 200%`, rotated ±45°, `background: currentColor`, clipped by `overflow: hidden` on `.week-slot`. The over-long bars plus the clip are what make it reach the corners whatever the border width (2px untyped, 3px typed), and `currentColor` is what makes it follow the block-type colour without a fourth set of rules. A finished week with no type is `--info-bg`/`--ink` rather than green — green next to the orange/blue/yellow read as a fourth block type.
+- **Clearing a type deletes the row; it is not stored as `""`.** `week_block_types` has a check constraint accepting only the three real types, so the old "upsert an empty string" raised `week_block_types_block_type_check` and the coach got a raw Postgres error instead of the type coming off (fixed 2026-08-07 with `deleteWeekBlockType()` in `db.js`). Every reader does `?.block_type || ""`, so a missing row and an empty type mean the same thing downstream — don't "fix" this back by writing a placeholder value.
 - The old `anyFull` flag is gone: an unfinished week used to be red only when *none* of the four was finished, and neutral grey otherwise — the same state with two looks.
 
 ### Three icons ride in front of the athlete's name
@@ -345,6 +347,81 @@ The working recipe, refined over several sessions:
 - **`--screenshot` does not capture `<dialog>` content**, whether opened with `showModal()` or by setting the `open` attribute — the top layer simply isn't painted. Don't waste time trying to force it; verify dialogs by reading their fields and rendered text out of the dumped DOM instead.
 - **Top-level `let` in a classic script is not on `window`.** `window.currentProfile = x` from a probe creates a *different* binding that `app.js`'s `let currentProfile` never sees, and the render call then throws on null. Assign with the bare name (`currentProfile = x`).
 - **Delete the staged directory when done.**
+
+### The weekly summary was split into three places (2026-08-07)
+
+`.weekly-summary` / `#weeklySummary` is gone. One `weekly_summaries` row used to be
+drawn as one box below the calendar holding four figures, two comments and the
+coach's "Nedēļa apskatīta". Each of those now lives where it is actually used:
+
+- **The four figures** (`renderWeekNumbers`) sit in `#weekNumbers`, inside the
+  `#statsCollapsible` panel body **above** `#statsBar`. They are the only thing
+  those charts are drawn from, so they belong next to them. The panel itself was
+  moved up to sit directly under `#raceCalendarPanel` and still opens collapsed
+  on every load — there is no stored open/closed state and none was added.
+- **The two comments** (`renderWeekComments`) sit in `#weekComments`, a band
+  directly above the calendar grid: two columns on a desktop, one under the
+  other below 720px. Labels are the full "…par aizvadīto/gaidāmo nedēļu".
+- **"Nedēļa apskatīta"** moved into `#weekBlockTypeSelect`, after Atpūta behind a
+  `.week-nav-divider` — it is a statement about the week, like the three block
+  types beside it. Its markup is **static** in `index.html`, so its `change`
+  handler is wired once at load and `renderWeekReviewed()` only sets
+  `hidden`/`checked`. Do not re-wire it from a render function.
+
+Three things worth knowing before touching this:
+
+- **`renderWeeklySummary()` still exists** and still calls all of it, so the one
+  call site at the end of `renderCalendar()` is unchanged. Saving is still one
+  shared `change` handler (`wireWeeklySummarySave`) that reads both containers by
+  id — splitting the markup did not split the row.
+- **`#weekComments` and `#weekNumbers` are hidden in the month view**, the same
+  way `#weeklySummary` was; `#weekBlockTypeSelect` (and with it the checkbox) was
+  already hidden there.
+- **`.ws-comments label { display: grid }` outranks `.checkbox-row`'s
+  `inline-flex`** — while the checkbox still lived inside the comment heading it
+  rendered stacked, box above its own words. That is why it is not enough to drop
+  a `.checkbox-row` into that panel.
+
+**"Nedēļas izpilde ievadīta / neievadīta" — a badge with words, not a counter.**
+`renderWeekEntryBadge()` writes `#weekEntryBadge` in the stats panel header:
+red while none of the four figures is above zero, green once one is.
+
+- **Nothing new is stored for it.** `isWeekEntryFilled()` asks the figures
+  themselves — an untouched week simply has none. The owner cannot add a column,
+  and this needs no marker at all. An empty box is allowed and counts as 0, so a
+  week left entirely empty stays red; that was the owner's choice.
+- It reads the **live inputs** when they are on screen (so it flips while the
+  athlete types, off an `input` listener) and falls back to the stored row
+  otherwise. One function, not two code paths.
+- **Both roles see it** — the athlete as the reminder, the coach as the answer to
+  "has this week been filled in yet".
+- It is a real `<span>`, **not** the `::after { content: attr(data-count) }`
+  counter the seven sidebar panels use: a sentence cannot live in an attribute
+  badge. `.stats-header-text` wraps the title and the badge in a wrapping flex
+  row so that on a phone the badge drops under the title instead of pushing the
+  ▶ off the panel.
+- The auto-upsert at [app.js:766](app.js#L766) writes computed sums that are
+  always zero (see the stats section below), so it cannot flip this badge green.
+  If anything ever starts filling `distance_km`/`duration_min` in, that changes.
+
+### The collapse arrow rotates; the glyph is always ▶
+
+`.collapsible:not(.collapsed) .collapse-toggle { transform: rotate(90deg) }` plus
+`transform 0.2s` on the base class — the same movement `#mobileMenuBtn`'s
+`.menu-btn-arrow` already made. Until 2026-08-07 the JS swapped `textContent`
+between ▶ and ▼ in four places, which is why it jumped: **a replaced character
+cannot animate**. All four swaps are gone (the collapse handler, the training-bar
+toggle, `resetNewTrainingForm`, `updateSidebarPanelLock`); the aria-labels they
+also set stayed. `.training-bar:not(.collapsed) .collapse-toggle` already had the
+rotation and now inherits the transition too.
+
+Visible on four things only — `#trainingBar`, `#frequentPanel`,
+`#raceCalendarPanel`, `#statsCollapsible`. Sidebar panels hide the button
+outright (`.planner-panel .collapse-toggle { display: none }`), so nothing
+changes there. Measured headless: `--virtual-time-budget` does not advance a CSS
+transition reliably, so a transform read after a click comes back as the
+*starting* value; kill transitions with an injected `*{transition:none}` and read
+the final state instead of waiting.
 
 ### "Paveiktā statistika" is four hand-drawn SVG small multiples
 

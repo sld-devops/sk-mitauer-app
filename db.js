@@ -929,6 +929,20 @@ async function upsertWeekBlockType(data) {
   if (error) throw error;
 }
 
+// Clearing a week's block type deletes the row rather than writing an empty
+// string: week_block_types has a check constraint allowing only the three real
+// types, so "" was rejected and the coach got a raw Postgres error instead of
+// the type coming off. Every reader already does `?.block_type || ""`, so a
+// missing row and an empty type mean the same thing downstream.
+async function deleteWeekBlockType(athleteId, weekStart) {
+  const { error } = await supabase
+    .from("week_block_types")
+    .delete()
+    .eq("athlete_id", athleteId)
+    .eq("week_start", weekStart);
+  if (error) throw error;
+}
+
 async function getWeeklyReviews() {
   const { data, error } = await supabase
     .from("weekly_reviews")

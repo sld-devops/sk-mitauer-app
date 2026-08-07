@@ -687,7 +687,12 @@ h4 {
   display: none;
   width: fit-content;
   max-width: calc(100% - 32px);
-  margin: 12px 0 0 16px;
+  /* auto on both sides: it floats into the free space between "Uz šo nedēļu" and
+     the copy-week button, which is where the row's slack sits. */
+  margin: 0 auto;
+  align-self: center;
+  font-size: 0.85rem;
+  padding: 4px 12px;
 }
 
 .panel {
@@ -745,11 +750,18 @@ h4 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, transform 0.2s ease;
 }
 
 .collapse-toggle:hover {
   opacity: 1;
+}
+
+/* The arrow turns instead of switching between ▶ and ▼ - the same movement the
+   header's sidebar button already makes. The glyph in the HTML is always ▶ and
+   the JS toggle must not rewrite it: a swapped character cannot animate. */
+.collapsible:not(.collapsed) .collapse-toggle {
+  transform: rotate(90deg);
 }
 
 .panel .panel-body {
@@ -891,12 +903,38 @@ h4 {
   font-weight: 700;
   height: 22px;
   justify-content: center;
+  /* The finished-week cross is drawn as two over-long bars and clipped to the
+     box, which is what makes it run corner to corner whatever the border
+     width - a typed slot has a 3px border, an untyped one 2px. */
+  overflow: hidden;
+  position: relative;
   width: 22px;
 }
+/* Replaced the ✓ on 2026-08-07: at 0.7rem inside a 22px box with a thick
+   coloured frame it was invisible from any distance. currentColor, so the cross
+   follows whatever colour the block-type rules below set. */
+.week-slot.week-slot-done::before,
+.week-slot.week-slot-done::after {
+  background: currentColor;
+  content: "";
+  height: 3px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  width: 200%;
+}
+.week-slot.week-slot-done::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.week-slot.week-slot-done::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+/* A finished week with no type set is neutral, not green - green would read as
+   a fourth block-type colour next to the orange/blue/yellow ones. */
 .week-slot.week-slot-done {
-  background: var(--success-bg);
-  border-color: var(--success);
-  color: var(--success);
+  background: var(--info-bg);
+  border-color: var(--muted);
+  color: var(--ink);
 }
 .week-slot.week-slot-no-plans {
   border-color: var(--danger);
@@ -3617,24 +3655,23 @@ label {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- Weekly summary ---- */
-.weekly-summary {
-  border-top: 1px solid var(--line);
-  padding: 16px 18px;
-}
-
-.ws-header {
-  align-items: center;
-  display: flex;
-  font-size: 0.88rem;
-  font-weight: 800;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
+/* ---- Weekly figures (inside the stats panel) and weekly comments (above Monday) ----
+   These were one box below the calendar until 2026-08-07. The four figures now
+   sit in "Paveiktā statistika", because that is the only thing they are used
+   for; the two comments sit in their own band above Monday, because they are
+   written and read every week and were being missed at the foot of the page. */
+/* Sits on the coach's comment heading. flex-shrink: 0 so the tight space next
+   to a long heading wraps the whole checkbox onto its own line rather than
+   squeezing the box above its own words. */
 .ws-header-reviewed {
+  flex-shrink: 0;
   font-size: 0.85rem;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+#weekNumbers {
+  padding-top: 12px;
 }
 
 .ws-fields {
@@ -3642,6 +3679,7 @@ label {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  margin-bottom: 14px;
 }
 
 .ws-fields label {
@@ -3660,13 +3698,17 @@ label {
   color: var(--muted);
 }
 
+/* Side by side on a wide screen, stacked on a phone - two of these boxes at
+   phone width leave no room to read either. */
 .ws-comments {
-  border-top: 1px solid var(--line);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   display: grid;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 16px;
+  grid-template-columns: 1fr 1fr;
   margin-bottom: 12px;
-  padding-top: 14px;
+  padding: 14px 18px;
 }
 
 .ws-comments label {
@@ -3674,14 +3716,50 @@ label {
   gap: 6px;
 }
 
+.ws-comment-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: space-between;
+}
+
 .ws-comments textarea:disabled {
   background: #f0f0f0;
   color: var(--muted);
 }
 
-#weeklySummary .primary-action {
-  margin-top: 14px;
-  width: 100%;
+/* Says whether this week's four figures have been filled in. Both roles see it:
+   the athlete as the reminder, the coach as the answer to "has it been entered
+   yet". A written-out sentence, so unlike the other panels' badges it is a real
+   element, not a ::after counter - a long label cannot live in attr(data-count). */
+/* Title and badge share a wrapping row, so on a phone the badge drops onto a
+   second line under the title instead of pushing the ▶ off the panel. */
+.stats-header-text {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+}
+
+.week-entry-badge {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: 10px;
+  color: var(--danger);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+
+.week-entry-badge.is-filled {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+  color: var(--success);
 }
 
 /* ---- Profile editor zones ---- */
@@ -3880,10 +3958,16 @@ label {
   background: var(--panel-row-hover);
 }
 
+/* The register shows the very same tick the coach clicks in the week row - a
+   real checked checkbox in the same lime, not a ✓ character. It is a read-only
+   report, so pointer-events are off rather than the box being disabled, which
+   would grey the colour out. */
 .weekly-review-check {
-  color: var(--ink);
-  font-size: 1.3rem;
-  font-weight: 900;
+  accent-color: var(--lime);
+  height: 20px;
+  margin: 0;
+  pointer-events: none;
+  width: 20px;
 }
 
 #weekReviewedCheckbox {
@@ -5191,8 +5275,22 @@ textarea:disabled {
     max-width: 320px;
   }
 
+  /* Four of these side by side need ~490px and a phone panel has ~470 - the
+     last box was being cut off by the panel edge. Two per row instead. */
+  .ws-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
   .ws-fields label {
-    min-width: 100px;
+    min-width: 0;
+  }
+
+  /* One under the other on a phone - side by side there is no room to read
+     either comment. */
+  .ws-comments {
+    grid-template-columns: 1fr;
+    padding: 12px 14px;
   }
 
   .calendar-grid {

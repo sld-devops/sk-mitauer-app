@@ -917,7 +917,9 @@ function renderAthleteDropdown() {
         // The red "nothing planned yet" frame is only for a week the coach has
         // not marked in any way — a typed week shows its own colour instead.
         else if (!full) classes.push("week-slot-no-plans");
-        return `<span class="${classes.join(" ")}">${full ? "✓" : ""}</span>`;
+        // The box is empty; a finished week's cross is drawn by CSS off
+        // .week-slot-done, so it takes the block type's colour by itself.
+        return `<span class="${classes.join(" ")}"></span>`;
       })
       .join("");
   }
@@ -2178,7 +2180,7 @@ function growCommentBox(el) {
 }
 
 const COMMENT_BOX_SELECTOR =
-  "textarea.inline-comment, textarea.rest-day-athlete-comment, #weeklySummary .ws-comments textarea";
+  "textarea.inline-comment, textarea.rest-day-athlete-comment, #weekComments .ws-comments textarea";
 
 function growAllCommentBoxes() {
   document.querySelectorAll(COMMENT_BOX_SELECTOR).forEach(growCommentBox);
@@ -2189,9 +2191,49 @@ document.addEventListener("input", (e) => {
   if (e.target.matches?.(COMMENT_BOX_SELECTOR)) growCommentBox(e.target);
 });
 
+// One weekly_summaries row is now drawn in two different places: the four
+// figures inside the "Paveiktā statistika" panel (they are exactly what those
+// charts are made of), and the two comments in their own band above Monday, so
+// neither has to be scrolled to. Saving is still one shared handler reading both
+// by id - the elements sit in different containers, nothing else changed.
 function renderWeeklySummary() {
-  const ws = document.getElementById("weeklySummary");
-  if (!ws) return;
+  renderWeekComments();
+  renderWeekNumbers();
+  wireWeeklySummarySave();
+}
+
+// "Nedēļas izpilde ievadīta" is decided by the figures themselves: at least one
+// of the four is above zero. Nothing new is stored for this - the owner cannot
+// add a column - and nothing needs to be: a week nobody has touched has no
+// figures at all. An empty box is allowed and counts as 0, so a week left
+// entirely empty stays "neievadīta".
+//
+// Reads the live inputs when they are on screen, so the badge flips while the
+// athlete types, and falls back to the stored row otherwise (coach view, or
+// before the week has been rendered).
+function isWeekEntryFilled() {
+  const inputs = ["wsRunKm", "wsRunMin", "wsVfsSfs", "wsVelo"].map((id) => document.getElementById(id));
+  if (inputs.every(Boolean)) {
+    return inputs.some((el) => parseHoursMinutesInput(el.value) > 0);
+  }
+  const s = weeklySummary || {};
+  return [s.run_km, s.run_min, s.vfs_sfs_min, s.velo_min].some((v) => Number(v) > 0);
+}
+
+// Both roles see it: the athlete as a reminder, the coach as an answer to "has
+// this week been filled in yet" without having to ask.
+function renderWeekEntryBadge() {
+  const badge = document.getElementById("weekEntryBadge");
+  if (!badge) return;
+  const filled = isWeekEntryFilled();
+  badge.textContent = filled ? "Nedēļas izpilde ievadīta" : "Nedēļas izpilde neievadīta";
+  badge.classList.toggle("is-filled", filled);
+  badge.hidden = viewMode !== "week" || !getSelectedAthleteId();
+}
+
+function renderWeekNumbers() {
+  const box = document.getElementById("weekNumbers");
+  if (!box) return;
   const athleteId = getSelectedAthleteId();
   const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
 
@@ -2200,20 +2242,8 @@ function renderWeeklySummary() {
   const runMin = s.run_min || "";
   const vfsSfs = s.vfs_sfs_min || "";
   const velo = s.velo_min || "";
-  const coachComment = s.coach_comment ?? "";
-  const athleteComment = s.athlete_comment ?? "";
-  const weekStartStr = formatDateISO(currentWeekStart);
-  const isWeekReviewed = weeklyReviews.some(r => r.week_start === weekStartStr);
 
-  ws.innerHTML = `
-    <div class="ws-header">
-      <span>Nedēļas kopsavilkums</span>
-      ${activeRole === "coach" ? `<label class="checkbox-row ws-header-reviewed"><input type="checkbox" id="weekReviewedCheckbox" ${isWeekReviewed ? "checked" : ""}> Nedēļa apskatīta</label>` : ""}
-    </div>
-    <div class="ws-comments">
-      <label>Trenera komentārs <textarea id="wsCoachComment" rows="3" ${activeRole === "coach" ? "" : "disabled"}>${coachComment}</textarea></label>
-      <label>Sportista komentārs <textarea id="wsAthleteComment" rows="3" ${isAthleteView ? "" : "disabled"}>${athleteComment}</textarea></label>
-    </div>
+  box.innerHTML = `
     <div class="ws-fields">
       <label>Kilometrāža <input id="wsRunKm" type="number" step="0.1" value="${runKm}" ${isAthleteView ? "" : "disabled"} /></label>
       <label>Kopējais laiks visos treniņos (h) <input id="wsRunMin" class="ws-time" type="text" value="${runMin}" ${isAthleteView ? "" : "disabled"} ${isAthleteView ? 'placeholder="piem. 10h45m"' : ""} /></label>
@@ -2223,25 +2253,79 @@ function renderWeeklySummary() {
   `;
 
   if (isAthleteView) {
-    document.querySelectorAll(".ws-time").forEach((inp) => {
+    box.querySelectorAll(".ws-time").forEach((inp) => {
       inp.addEventListener("blur", function () {
         if (!this.value.trim()) return;
         this.value = parseHoursMinutesInput(this.value).toFixed(2);
       });
     });
+    // Flip the badge as soon as a number appears, not only once the box is left.
+    box.querySelectorAll("input").forEach((inp) => {
+      inp.addEventListener("input", renderWeekEntryBadge);
+    });
   }
 
-  document.getElementById("weekReviewedCheckbox")?.addEventListener("change", async (e) => {
-    if (!athleteId) return;
-    if (e.target.checked) {
-      await markWeekReviewed(athleteId, weekStartStr);
-    } else {
-      await unmarkWeekReviewed(athleteId, weekStartStr);
-    }
-    await loadNonTemplateData();
-  });
+  renderWeekEntryBadge();
+}
 
-  document.querySelectorAll("#weeklySummary .ws-comments textarea, #weeklySummary .ws-fields input").forEach(el => {
+function renderWeekComments() {
+  const box = document.getElementById("weekComments");
+  if (!box) return;
+  const athleteId = getSelectedAthleteId();
+  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
+
+  const s = weeklySummary || {};
+  const coachComment = s.coach_comment ?? "";
+  const athleteComment = s.athlete_comment ?? "";
+
+  box.innerHTML = `
+    <div class="ws-comments">
+      <label>
+        <span class="ws-comment-head">Trenera komentārs par aizvadīto/gaidāmo nedēļu</span>
+        <textarea id="wsCoachComment" rows="3" ${activeRole === "coach" ? "" : "disabled"}>${coachComment}</textarea>
+      </label>
+      <label>
+        <span class="ws-comment-head">Sportista komentārs par aizvadīto/gaidāmo nedēļu</span>
+        <textarea id="wsAthleteComment" rows="3" ${isAthleteView ? "" : "disabled"}>${athleteComment}</textarea>
+      </label>
+    </div>
+  `;
+
+  renderWeekReviewed();
+}
+
+// "Nedēļa apskatīta" lives in the week-type row next to Slodze/Sacensības/Atpūta
+// (moved there 2026-08-07): it says something about the week as a whole, the same
+// as those three do. Static markup, so its handler is wired once at load - only
+// its visible/checked state is rendered.
+function renderWeekReviewed() {
+  const wrap = document.getElementById("weekReviewedWrap");
+  const divider = document.getElementById("weekReviewedDivider");
+  if (!wrap) return;
+  const show = activeRole === "coach" && viewMode === "week" && !!getSelectedAthleteId();
+  wrap.hidden = !show;
+  if (divider) divider.hidden = !show;
+  const box = document.getElementById("weekReviewedCheckbox");
+  if (box) box.checked = weeklyReviews.some(r => r.week_start === formatDateISO(currentWeekStart));
+}
+
+document.getElementById("weekReviewedCheckbox")?.addEventListener("change", async (e) => {
+  const athleteId = getSelectedAthleteId();
+  if (!athleteId) return;
+  const weekStartStr = formatDateISO(currentWeekStart);
+  if (e.target.checked) {
+    await markWeekReviewed(athleteId, weekStartStr);
+  } else {
+    await unmarkWeekReviewed(athleteId, weekStartStr);
+  }
+  await loadNonTemplateData();
+});
+
+function wireWeeklySummarySave() {
+  const athleteId = getSelectedAthleteId();
+  const isAthleteView = (activeRole === "athlete") && currentUser.id === athleteId;
+
+  document.querySelectorAll("#weekComments textarea, #weekNumbers input").forEach(el => {
     el.addEventListener("change", async () => {
       const weekStart = formatDateISO(currentWeekStart);
       const updates = { athlete_id: athleteId, week_start: weekStart };
@@ -2258,6 +2342,7 @@ function renderWeeklySummary() {
       try {
         await upsertWeeklySummary(updates);
         weeklySummary = await getWeeklySummary(athleteId, weekStart);
+        renderWeekEntryBadge();
         if (isAthleteView) {
           weeklyTrend = await getWeeklyTrend(athleteId, trendWeeks);
           renderStats();
@@ -2490,7 +2575,10 @@ function render() {
     renderStats();
     document.getElementById("weekView").hidden = viewMode !== "week";
     document.getElementById("monthView").hidden = viewMode !== "month";
-    document.getElementById("weeklySummary").hidden = viewMode !== "week";
+    // Both belong to one week, so neither means anything in the month view.
+    document.getElementById("weekComments").hidden = viewMode !== "week";
+    document.getElementById("weekNumbers").hidden = viewMode !== "week";
+    renderWeekEntryBadge();
     document.getElementById("monthModeTabs").hidden = viewMode !== "month";
     weekLabel.hidden = viewMode !== "week";
     document.getElementById("monthViewTitleInline").hidden = viewMode !== "month";
@@ -2556,8 +2644,6 @@ function updateSidebarPanelLock() {
     if (header) header.title = locked ? "Vispirms izvēlies sportistu" : "";
     if (locked && !panel.classList.contains("collapsed")) {
       panel.classList.add("collapsed");
-      const btn = panel.querySelector(".collapse-toggle");
-      if (btn) btn.textContent = "▶";
     }
   });
 }
@@ -2570,10 +2656,7 @@ function resetNewTrainingForm() {
   if (trainingBar) {
     trainingBar.classList.add("collapsed");
     const toggleBtn = trainingBar.querySelector(".collapse-toggle");
-    if (toggleBtn) {
-      toggleBtn.textContent = "▶";
-      toggleBtn.setAttribute("aria-label", "Rādīt treniņa izvēli");
-    }
+    if (toggleBtn) toggleBtn.setAttribute("aria-label", "Rādīt treniņa izvēli");
   }
 }
 
@@ -2643,11 +2726,7 @@ document.querySelectorAll('input[name="weekBlockType"]').forEach(radio => {
     if (!athleteId) return;
     const weekStartStr = formatDateISO(currentWeekStart);
     try {
-      await upsertWeekBlockType({
-        athlete_id: athleteId,
-        week_start: weekStartStr,
-        block_type: "",
-      });
+      await deleteWeekBlockType(athleteId, weekStartStr);
     } catch (e) {
       alert(e.message || "Saglabāšana neizdevās (iespējams, trūkst tiesību) — izmaiņas netika saglabātas.");
     }
@@ -2817,7 +2896,10 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) => {
     if (panel.classList.contains("panel-locked")) return;
     const wasCollapsed = panel.classList.contains("collapsed");
     panel.classList.toggle("collapsed");
-    btn.textContent = panel.classList.contains("collapsed") ? "▶" : "▼";
+    // The glyph stays ▶ and CSS rotates it 90° while the panel is open, so the
+    // arrow turns instead of jumping between two characters. Swapping the text
+    // here would defeat the transition - a new character cannot animate.
+    btn.setAttribute("aria-expanded", String(!panel.classList.contains("collapsed")));
 
     if (panel.id === "diaryPanel" && wasCollapsed && !panel.classList.contains("collapsed")) {
       if (activeRole === "coach") {
@@ -3083,7 +3165,6 @@ if (trainingBar) {
   const toggleTrainingBar = () => {
     trainingBar.classList.toggle("collapsed");
     const isCollapsed = trainingBar.classList.contains("collapsed");
-    toggleBtn.textContent = isCollapsed ? "▶" : "▼";
     toggleBtn.setAttribute("aria-label", isCollapsed ? "Rādīt treniņa izvēli" : "Sakļaut treniņa izvēli");
   };
   
