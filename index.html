@@ -87,7 +87,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=183" />
+    <link rel="stylesheet" href="styles.css?v=187" />
   </head>
   <body>
     <div id="authView">
@@ -132,6 +132,7 @@
         </div>
         <div class="header-right">
           <button id="screenViewBtn" class="secondary-action" type="button" hidden><span class="label-full"></span><span class="label-short"></span></button>
+          <button id="accountSwitchBtn" class="secondary-action" type="button" hidden><span class="label-full"></span><span class="label-short"></span></button>
           <button id="changePasswordBtn" class="secondary-action" type="button">Mainīt paroli</button>
           <button id="logoutBtn" class="secondary-action" type="button">Iziet</button>
         </div>
@@ -874,6 +875,32 @@
       </form>
     </dialog>
 
+    <!-- Asked once per device: the coach also trains, on a second (athlete)
+         account of their own. Both sessions are then kept side by side so the
+         header button can swap between them without a password. -->
+    <dialog class="session-dialog" id="linkAthleteDialog">
+      <form method="dialog">
+        <div class="dialog-header">
+          <h2 id="linkAthleteTitle">Mans sportista konts</h2>
+        </div>
+        <p class="muted" id="linkAthleteHint"></p>
+        <label>Lietotājvārds
+          <input id="linkAthleteUsername" type="text" autocomplete="username" placeholder="vards.uzvards" autocapitalize="none" />
+        </label>
+        <label>Parole
+          <span class="pw-wrapper">
+            <input id="linkAthletePassword" type="password" autocomplete="current-password" />
+            <button id="toggleLinkAthletePw" class="pw-toggle" type="button" aria-label="Rādīt/slēpt paroli">👁️</button>
+          </span>
+        </label>
+        <div id="linkAthleteError" class="auth-error" hidden></div>
+        <div class="dialog-actions">
+          <button class="cancel-action" value="cancel" type="submit">Atcelt</button>
+          <button class="primary-action" id="linkAthleteBtn" type="button">Pārslēgties</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog class="session-dialog" id="createUserDialog">
       <form id="createUserForm">
         <label>Vārds <input id="newUserFirstName" required /></label>
@@ -969,7 +996,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="db.js?v=8"></script>
-    <script src="auth.js?v=3"></script>
+    <script src="auth.js?v=4"></script>
     <!-- Before the panels: it converts every date field the moment one appears. -->
     <script src="date-picker.js?v=2"></script>
     <script src="panels/self-tests.js"></script>
@@ -987,6 +1014,6 @@
     <script src="panels/weekly-review.js?v=2"></script>
     <script src="panels/ruffier-test.js?v=2"></script>
     <script src="panels/self-log.js?v=6"></script>
-    <script src="app.js?v=68"></script>
+    <script src="app.js?v=70"></script>
   </body>
 </html>

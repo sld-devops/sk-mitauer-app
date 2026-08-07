@@ -1082,7 +1082,14 @@ function frequentDetailsForDisplay(details) {
   const cleaned = (details || "")
     .replace(/;\s*(?=;)/g, "")
     .replace(/;\s*$/gm, "");
-  return formatDetailsForCard(escapeHtml(cleaned)).replace(/\n/g, " | ");
+  // One span per part (Iesildīšanās / Pamatdaļa / Atsildīšanās) rather than one
+  // run of text joined by "|", so the phone layout can put each on its own line
+  // in CSS. Side by side, the three parts make the column as wide as their sum
+  // and the whole table has to be dragged sideways to be read.
+  return formatDetailsForCard(escapeHtml(cleaned))
+    .split("\n")
+    .map((line) => `<span class="frequent-cell-line">${line}</span>`)
+    .join("");
 }
 
 function frequentGroupKey(title) {
@@ -3156,6 +3163,7 @@ setupPwToggle("toggleLoginPw", "loginPassword");
 setupPwToggle("toggleResetPw", "resetPwInput");
 setupPwToggle("toggleNewPw", "newPassword");
 setupPwToggle("toggleConfirmPw", "confirmPassword");
+setupPwToggle("toggleLinkAthletePw", "linkAthletePassword");
 
 // Training bar collapsible
 if (trainingBar) {

@@ -1345,6 +1345,17 @@ h4 {
   overflow-wrap: anywhere;
 }
 
+/* Wide enough for the whole training on one flowing line, the three parts read
+   as one sentence separated by "|"; narrow enough that the table has to be
+   dragged sideways, each part gets its own line instead (see the 1040px block). */
+.frequent-cell-line {
+  display: inline;
+}
+
+.frequent-cell-line + .frequent-cell-line::before {
+  content: " | ";
+}
+
 .frequent-empty {
   color: var(--muted);
   font-size: 0.85rem;
@@ -3941,6 +3952,13 @@ label {
   z-index: 2;
 }
 
+/* The week dates are what the coach reads across the register, so they are the
+   full-strength ink; only the "Sportists" corner cell stays metadata grey. */
+.weekly-review-table thead th:not(.weekly-review-name-col) {
+  color: var(--ink);
+  font-weight: 700;
+}
+
 .weekly-review-name-col {
   background: #fff;
   font-weight: 600;
@@ -4237,10 +4255,28 @@ textarea:disabled {
   }
 
   /* The label column is capped rather than sized to its longest label, which on
-     a phone would eat half the screen before the first training is visible. */
+     a phone would eat half the screen before the first training is visible.
+     The five cells are then one constant width, chosen so a whole box is on
+     screen: sized by their contents (max-content) each box was as wide as the
+     longest training in the whole table, so even "Pamatdaļa: 60min" was drawn
+     wider than the phone and read as a box waiting for text that never came.
+     Now the training wraps inside a box that fits, and dragging sideways steps
+     to the next most-used one instead of finishing the first. */
   .frequent-grid {
-    grid-template-columns: 120px repeat(5, minmax(150px, 1fr));
+    grid-template-columns: 96px repeat(5, min(280px, calc(100vw - 178px)));
     min-width: max-content;
+  }
+
+  /* min-width: max-content above sizes every column to its widest cell, so with
+     the three parts side by side the whole table had to be dragged a long way
+     sideways to read one training. Stacked, a column only has to be as wide as
+     the longest single part. */
+  .frequent-cell-line {
+    display: block;
+  }
+
+  .frequent-cell-line + .frequent-cell-line::before {
+    content: none;
   }
 
   .frequent-row-label {
@@ -5237,6 +5273,25 @@ textarea:disabled {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
+  }
+
+  /* "Saglabāt jaunu visiem" + "Saglabāt jaunu tikai šim sportistam" measure
+     ~470px side by side and the row does not wrap, so on a phone the second one
+     was drawn past the right edge. Stacked full width they fit any phone; the
+     fixed 38px height is relaxed too, or a label that needs two lines on a
+     320px screen would spill out of the green box. */
+  .template-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* Must out-specify `.training-bar-body .primary-action` above (0,2,0), which
+     pins these to one 38px nowrap line — otherwise the longest label is drawn
+     straight through both sides of the green box on a 320px screen. */
+  .training-bar-body .template-actions > button {
+    height: auto;
+    min-height: 38px;
+    white-space: normal;
   }
 
   .template-dropdown {

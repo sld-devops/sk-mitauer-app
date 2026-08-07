@@ -20,6 +20,7 @@ let currentProfile = null;
 function showApp() {
   authViewEl.hidden = true;
   appEl.hidden = false;
+  updateAccountSwitchBtn();
   updateMobileHeaderHeight();
 }
 
@@ -93,10 +94,207 @@ async function login() {
 }
 
 async function logout() {
+  clearStashedSessions();
   await supabase.auth.signOut();
   currentUser = null;
   currentProfile = null;
   showAuth();
+}
+
+/* ---------------------------------------------------------------------------
+   "Sportista skats" / "Trenera skats"
+
+   The coach also trains, on a second (athlete) account of their own. Planning
+   for it already worked from the coach view, but only the athlete may record
+   execution — so the only way to log their own training was to sign out and
+   type the other username and password.
+
+   This does NOT fake a role. Both real sessions are kept side by side in the
+   browser and the button swaps which one is active, so every permission check,
+   every render*() branch and every RLS policy sees exactly what it would have
+   seen after a normal login. Nothing else in the app knows this exists.
+
+   The switch reloads the page, for the same reason the screen-view button does:
+   half the app's state is read once at load, and rebuilding it in place for a
+   different user is far more fragile than starting clean.
+   ------------------------------------------------------------------------ */
+
+const ACCOUNT_SWITCH_KEY = "accountSwitchSessions";
+const accountSwitchBtn = document.getElementById("accountSwitchBtn");
+const linkAccountDialog = document.getElementById("linkAthleteDialog");
+const linkAccountUsername = document.getElementById("linkAthleteUsername");
+const linkAccountPassword = document.getElementById("linkAthletePassword");
+const linkAccountErrorEl = document.getElementById("linkAthleteError");
+let accountSwitchTarget = "athlete";
+let accountSwitchBusy = false;
+
+// Same rule as the Supabase client's own storage in db.js: with "remember me"
+// off the stash must not outlive the browser session either.
+function accountSwitchStore() {
+  return localStorage.getItem("rememberLogin") !== "false" ? localStorage : sessionStorage;
+}
+
+function getStashedSessions() {
+  try {
+    return JSON.parse(accountSwitchStore().getItem(ACCOUNT_SWITCH_KEY) || "{}") || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function setStashedSessions(sessions) {
+  try {
+    accountSwitchStore().setItem(ACCOUNT_SWITCH_KEY, JSON.stringify(sessions));
+  } catch (e) {
+    /* private mode - the switch just won't be remembered */
+  }
+}
+
+function clearStashedSessions() {
+  try {
+    localStorage.removeItem(ACCOUNT_SWITCH_KEY);
+    sessionStorage.removeItem(ACCOUNT_SWITCH_KEY);
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+// Only the two tokens are kept. A whole session object also carries a copy of
+// the user record, which is stale the moment anything about that account
+// changes — setSession needs nothing but these two.
+async function stashCurrentSession(role) {
+  const { data } = await supabase.auth.getSession();
+  if (!data?.session) return null;
+  const tokens = {
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+  };
+  const sessions = getStashedSessions();
+  sessions[role] = tokens;
+  setStashedSessions(sessions);
+  return tokens;
+}
+
+function updateAccountSwitchBtn() {
+  if (!accountSwitchBtn) return;
+  const coach = isCoach();
+  // The way back is offered only on the device where the coach set this up: a
+  // real athlete on their own phone has no coach session stashed, so no athlete
+  // ever sees this button.
+  const show = !!currentProfile && (coach || !!getStashedSessions().coach);
+  accountSwitchBtn.hidden = !show;
+  if (!show) return;
+  accountSwitchBtn.querySelector(".label-full").textContent = coach ? "Sportista skats" : "Trenera skats";
+  accountSwitchBtn.querySelector(".label-short").textContent = coach ? "Sportists" : "Treneris";
+}
+
+async function activateSession(tokens) {
+  if (!tokens) return false;
+  const { data, error } = await supabase.auth.setSession(tokens);
+  if (error || !data?.session) return false;
+  location.reload();
+  return true;
+}
+
+async function switchAccount() {
+  if (accountSwitchBusy) return;
+  accountSwitchBusy = true;
+  accountSwitchBtn.disabled = true;
+  try {
+    const fromRole = isCoach() ? "coach" : "athlete";
+    const toRole = fromRole === "coach" ? "athlete" : "coach";
+    const back = await stashCurrentSession(fromRole);
+    const sessions = getStashedSessions();
+
+    if (await activateSession(sessions[toRole])) return;
+
+    // The other account's saved access is unusable (never set up, or too old).
+    // Put the current session back first: a failed setSession can leave the
+    // client with no session at all, which would silently log this one out.
+    if (back) await supabase.auth.setSession(back);
+    delete sessions[toRole];
+    setStashedSessions(sessions);
+    openLinkAccountDialog(toRole);
+  } finally {
+    accountSwitchBusy = false;
+    accountSwitchBtn.disabled = false;
+  }
+}
+
+function openLinkAccountDialog(targetRole) {
+  accountSwitchTarget = targetRole;
+  document.getElementById("linkAthleteTitle").textContent =
+    targetRole === "coach" ? "Trenera konts" : "Mans sportista konts";
+  document.getElementById("linkAthleteHint").textContent =
+    targetRole === "coach"
+      ? "Ievadi sava trenera konta lietotājvārdu un paroli."
+      : "Ievadi sava sportista konta lietotājvārdu un paroli. Tas jāizdara vienu reizi šajā ierīcē — turpmāk pārslēgšanās notiks ar vienu klikšķi.";
+  linkAccountErrorEl.hidden = true;
+  linkAccountUsername.value = "";
+  linkAccountPassword.value = "";
+  linkAccountDialog.showModal();
+  linkAccountUsername.focus();
+}
+
+function showLinkAccountError(msg) {
+  linkAccountErrorEl.textContent = msg;
+  linkAccountErrorEl.hidden = false;
+}
+
+async function linkAndSwitchAccount() {
+  const username = linkAccountUsername.value.toLowerCase().trim();
+  const password = linkAccountPassword.value;
+  linkAccountErrorEl.hidden = true;
+
+  if (!username || !password) {
+    showLinkAccountError("Ievadi lietotājvārdu un paroli");
+    return;
+  }
+
+  const fromRole = isCoach() ? "coach" : "athlete";
+  const back = getStashedSessions()[fromRole] || (await stashCurrentSession(fromRole));
+  const previousId = currentUser?.id;
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: username + "@skmitauer.app",
+    password,
+  });
+
+  // Signing in has already replaced the active session, so every failure path
+  // below has to put the original one back before returning.
+  if (error || !data?.session) {
+    if (back) await supabase.auth.setSession(back);
+    showLinkAccountError(loginErrorLV(error));
+    return;
+  }
+
+  const profile = await getProfile(data.user.id);
+  const wrongRole = accountSwitchTarget === "coach"
+    ? profile?.role !== "coach"
+    : profile?.role === "coach";
+  const sameAccount = data.user.id === previousId;
+
+  if (!profile || wrongRole || sameAccount) {
+    if (back) await supabase.auth.setSession(back);
+    if (!profile) {
+      showLinkAccountError("Profils neeksistē. Sazinies ar administratoru.");
+    } else if (sameAccount) {
+      showLinkAccountError("Šis ir tas pats konts, ar kuru esi pieslēdzies.");
+    } else if (accountSwitchTarget === "coach") {
+      showLinkAccountError("Šis nav trenera konts.");
+    } else {
+      showLinkAccountError("Šis ir trenera konts, nevis sportista.");
+    }
+    return;
+  }
+
+  const sessions = getStashedSessions();
+  sessions[accountSwitchTarget] = {
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+  };
+  setStashedSessions(sessions);
+  location.reload();
 }
 
 async function changePassword() {
@@ -129,6 +327,15 @@ async function changePassword() {
 
 authForm.addEventListener("submit", function(e){ e.preventDefault(); login(); });
 logoutBtn.addEventListener("click", logout);
+
+accountSwitchBtn?.addEventListener("click", switchAccount);
+document.getElementById("linkAthleteBtn")?.addEventListener("click", linkAndSwitchAccount);
+linkAccountPassword?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    linkAndSwitchAccount();
+  }
+});
 
 changePasswordBtn.addEventListener("click", () => {
   passwordErrorEl.hidden = true;
